@@ -1,8 +1,9 @@
 // Item generation: rolls rarity from chest tier, base type from slot, affixes, and procedural name.
 import {
   RARITIES, RARITY_BY_ID, SLOTS, BASE_TYPES, AFFIXES,
-  NAME_PREFIXES, NAME_SUFFIXES, CHEST_TIERS,
+  NAME_PREFIXES, NAME_SUFFIXES, CHEST_TIERS, PITY_THRESHOLD,
 } from './data.js';
+import { state } from './state.js';
 
 let _id = 0;
 function nextId() { return `it_${Date.now().toString(36)}_${(_id++).toString(36)}`; }
@@ -82,8 +83,27 @@ function computeGoldValue(rarity, chestTier) {
   return Math.round(mult * (1 + chestTier * chestTier * 0.6));
 }
 
+// Pity-aware version: used by chest opening to update the counter.
+// Forces a legendary if PITY_THRESHOLD non-legendary+ drops have been seen.
+export function generateItemFromChest(chestTier) {
+  let rarity = rollRarity(chestTier);
+  if (state.pity.sinceLegendary >= PITY_THRESHOLD - 1 && rarity !== 'legendary' && rarity !== 'ancestral') {
+    rarity = 'legendary';
+  }
+  if (rarity === 'legendary' || rarity === 'ancestral') {
+    state.pity.sinceLegendary = 0;
+  } else {
+    state.pity.sinceLegendary += 1;
+  }
+  return buildItem(chestTier, rarity);
+}
+
 export function generateItem(chestTier) {
   const rarity = rollRarity(chestTier);
+  return buildItem(chestTier, rarity);
+}
+
+function buildItem(chestTier, rarity) {
   const slot = rollSlot();
   const baseType = pickRandom(BASE_TYPES[slot]);
   const baseStats = scaleBaseStats(baseType.baseStats, chestTier, rarity);

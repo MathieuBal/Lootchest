@@ -1,7 +1,7 @@
 // Chest open / upgrade logic.
 import { state, notify } from './state.js';
 import { CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS } from './data.js';
-import { generateItem } from './loot.js';
+import { generateItemFromChest } from './loot.js';
 
 let lastOpenAt = 0;
 
@@ -17,7 +17,7 @@ export function openChest() {
   if (!canOpen()) return null;
   lastOpenAt = Date.now();
   state.opened += 1;
-  const item = generateItem(state.chestTier);
+  const item = generateItemFromChest(state.chestTier);
   notify();
   return item;
 }

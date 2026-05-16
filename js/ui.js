@@ -2,10 +2,11 @@
 import { state } from './state.js';
 import {
   RARITIES, RARITY_BY_ID, SLOTS, SLOT_BY_ID,
-  AUTOSELL_UNLOCK_COSTS, CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS,
+  AUTOSELL_UNLOCK_COSTS, CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, PITY_THRESHOLD,
 } from './data.js';
 import { computeStats, computePower } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining } from './chest.js';
+import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
 
 // === Item icon helpers ===
 
@@ -72,6 +73,53 @@ function renderChest() {
     document.getElementById('upgrade-cost').textContent = '∞';
     document.getElementById('btn-upgrade').style.display = 'none';
   }
+
+  // Pity bar
+  const pityCount = Math.min(PITY_THRESHOLD, state.pity.sinceLegendary);
+  document.getElementById('pity-count').textContent = pityCount;
+  document.getElementById('pity-max').textContent = PITY_THRESHOLD;
+  document.getElementById('pity-fill').style.width = `${(pityCount / PITY_THRESHOLD) * 100}%`;
+}
+
+// === Dungeon panel ===
+
+function renderDungeon() {
+  const floor = state.combat.currentFloor;
+  document.getElementById('dungeon-floor-num').textContent = floor;
+  document.getElementById('dungeon-best').textContent = state.combat.highestUnlocked;
+  document.getElementById('dungeon-kills').textContent = state.combat.kills;
+  document.getElementById('dungeon-deaths').textContent = state.combat.deaths;
+  document.getElementById('dungeon-boss-kills').textContent = state.combat.bossKills;
+  document.getElementById('tab-badge-dungeon').textContent = state.combat.highestUnlocked;
+
+  // Floor selector buttons
+  document.getElementById('btn-floor-prev').disabled = floor <= 1;
+  document.getElementById('btn-floor-next').disabled = floor >= state.combat.highestUnlocked;
+
+  const monster = generateMonster(floor);
+  const card = document.getElementById('monster-card');
+  card.classList.toggle('boss', monster.isBoss);
+  document.getElementById('monster-emoji').textContent = monster.emoji;
+  document.getElementById('monster-name').textContent = monster.name;
+  document.getElementById('monster-stats').innerHTML =
+    `<span>❤️ ${monster.hp}</span><span>⚔️ ${monster.damage}</span><span>🛡 ${monster.armor}</span><span>💰 ${monster.goldReward}</span>`;
+  const diff = predictDifficulty(monster);
+  const diffEl = document.getElementById('monster-difficulty');
+  diffEl.textContent = diff.label;
+  diffEl.style.color = diff.color;
+  diffEl.style.borderColor = diff.color;
+}
+
+// === Tab switching ===
+
+export function setActiveTab(tabId) {
+  state.ui.leftTab = tabId;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tabId);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => {
+    c.classList.toggle('hidden', c.dataset.content !== tabId);
+  });
 }
 
 // === Auto-sell panel ===
@@ -274,6 +322,30 @@ export function setOpenButtonEnabled(enabled) {
 
 // === Master render ===
 
+// === Combat log ===
+
+export function appendCombatLog(lines, type = '') {
+  const log = document.getElementById('combat-log');
+  // Clear empty placeholder
+  const empty = log.querySelector('.combat-log-empty');
+  if (empty) empty.remove();
+  // Add divider
+  if (log.children.length > 0) {
+    const div = document.createElement('div');
+    div.style.cssText = 'border-top: 1px dashed var(--border); margin: 4px 0;';
+    log.appendChild(div);
+  }
+  for (const line of lines) {
+    const el = document.createElement('div');
+    el.className = `combat-log-line ${type}`;
+    el.textContent = line;
+    log.appendChild(el);
+  }
+  log.scrollTop = log.scrollHeight;
+  // Trim log to last ~30 lines
+  while (log.children.length > 40) log.removeChild(log.firstChild);
+}
+
 export function renderAll() {
   renderHUD();
   renderChest();
@@ -281,4 +353,5 @@ export function renderAll() {
   renderCharacter();
   renderInventoryFilter();
   renderInventory();
+  renderDungeon();
 }

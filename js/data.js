@@ -89,6 +89,40 @@ export const CHEST_TIERS = [
 
 export const CHEST_OPEN_COOLDOWN_MS = 800;
 
+// Pity timer: every N non-legendary+ drops, force a legendary on the next chest open.
+export const PITY_THRESHOLD = 50;
+
+// Monsters for the dungeon. Stats are TIER 1 baseline, scaled by floor.
+export const MONSTER_TYPES = [
+  { name: 'Gobelin',        emoji: '👺', hpBase: 30, dmgBase: 4,  armorBase: 1, goldBase: 8  },
+  { name: 'Squelette',      emoji: '💀', hpBase: 25, dmgBase: 5,  armorBase: 0, goldBase: 10 },
+  { name: 'Slime',          emoji: '🟢', hpBase: 55, dmgBase: 3,  armorBase: 3, goldBase: 12 },
+  { name: 'Loup',           emoji: '🐺', hpBase: 35, dmgBase: 6,  armorBase: 1, goldBase: 9  },
+  { name: 'Araignée',       emoji: '🕷', hpBase: 28, dmgBase: 7,  armorBase: 0, goldBase: 11 },
+  { name: 'Chauve-souris',  emoji: '🦇', hpBase: 22, dmgBase: 5,  armorBase: 0, goldBase: 8  },
+  { name: 'Orc',            emoji: '👹', hpBase: 45, dmgBase: 7,  armorBase: 2, goldBase: 13 },
+  { name: 'Zombie',         emoji: '🧟', hpBase: 50, dmgBase: 5,  armorBase: 1, goldBase: 11 },
+  { name: 'Bandit',         emoji: '🥷', hpBase: 32, dmgBase: 8,  armorBase: 1, goldBase: 14 },
+];
+
+// Bosses appear every 5 floors. Stats much higher + guaranteed drop.
+export const BOSS_TYPES = [
+  { name: 'Dragon',           emoji: '🐉', hpBase: 120, dmgBase: 12, armorBase: 5, goldBase: 100 },
+  { name: 'Seigneur Démon',   emoji: '😈', hpBase: 100, dmgBase: 15, armorBase: 3, goldBase: 120 },
+  { name: 'Archisorcier',     emoji: '🧙', hpBase: 80,  dmgBase: 18, armorBase: 2, goldBase: 130 },
+  { name: 'Cyclope',          emoji: '👁', hpBase: 150, dmgBase: 10, armorBase: 6, goldBase: 110 },
+  { name: 'Liche',            emoji: '☠', hpBase: 90,  dmgBase: 16, armorBase: 4, goldBase: 125 },
+  { name: 'Hydre',            emoji: '🐲', hpBase: 140, dmgBase: 13, armorBase: 4, goldBase: 135 },
+];
+
+// Player base stats (without equipment)
+export const PLAYER_BASE = {
+  hp: 100,
+  damage: 5,
+  armor: 0,
+};
+
+
 // Auto-sell unlock costs (per rarity). Common is free from start.
 export const AUTOSELL_UNLOCK_COSTS = {
   common: 0,

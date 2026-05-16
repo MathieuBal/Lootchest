@@ -29,27 +29,72 @@
   </header>
 
   <main class="layout">
-    <!-- COFFRE (gauche) -->
-    <section class="panel panel-chest">
-      <h2 class="panel-title">Coffre</h2>
-      <div class="chest-visual" id="chest-visual">
-        <div class="chest-emoji" id="chest-emoji">📦</div>
-        <div class="chest-tier-label" id="chest-tier-label">Tier 1 — Bois</div>
+    <!-- PANEAU GAUCHE — Coffre / Donjon (onglets) -->
+    <section class="panel panel-left">
+      <div class="tabs">
+        <button class="tab active" data-tab="chest">📦 Coffre</button>
+        <button class="tab" data-tab="dungeon">⚔️ Donjon <span class="tab-badge" id="tab-badge-dungeon">1</span></button>
       </div>
-      <button id="btn-open" class="btn btn-primary btn-big">Ouvrir le coffre</button>
-      <div class="chest-cooldown"><div id="cooldown-bar" class="cooldown-bar"></div></div>
 
-      <div class="chest-upgrade">
-        <div class="upgrade-info">
-          <span>Prochain tier : <span id="next-tier-name">Fer</span></span>
-          <span class="upgrade-cost">Coût : <span id="upgrade-cost">100</span> 💰</span>
+      <!-- Onglet Coffre -->
+      <div class="tab-content" data-content="chest">
+        <div class="chest-visual" id="chest-visual">
+          <div class="chest-emoji" id="chest-emoji">📦</div>
+          <div class="chest-tier-label" id="chest-tier-label">Tier 1 — Bois</div>
+          <div class="pity-bar-wrap" title="Légendaire garanti tous les 50 coffres">
+            <div class="pity-bar-label">Pity : <span id="pity-count">0</span>/<span id="pity-max">50</span></div>
+            <div class="pity-bar"><div id="pity-fill" class="pity-fill"></div></div>
+          </div>
         </div>
-        <button id="btn-upgrade" class="btn">Améliorer le coffre</button>
+        <button id="btn-open" class="btn btn-primary btn-big">Ouvrir le coffre</button>
+        <div class="chest-cooldown"><div id="cooldown-bar" class="cooldown-bar"></div></div>
+
+        <div class="chest-upgrade">
+          <div class="upgrade-info">
+            <span>Prochain tier : <span id="next-tier-name">Fer</span></span>
+            <span class="upgrade-cost">Coût : <span id="upgrade-cost">100</span> 💰</span>
+          </div>
+          <button id="btn-upgrade" class="btn">Améliorer le coffre</button>
+        </div>
+
+        <div class="autosell">
+          <div class="autosell-title">Auto-vente</div>
+          <div class="autosell-grid" id="autosell-grid"></div>
+        </div>
       </div>
 
-      <div class="autosell">
-        <div class="autosell-title">Auto-vente</div>
-        <div class="autosell-grid" id="autosell-grid"></div>
+      <!-- Onglet Donjon -->
+      <div class="tab-content hidden" data-content="dungeon">
+        <div class="dungeon-header">
+          <div class="dungeon-floor-selector">
+            <button id="btn-floor-prev" class="btn btn-small">◀</button>
+            <div class="dungeon-floor-display">
+              <div class="dungeon-floor-label">Étage</div>
+              <div class="dungeon-floor-num" id="dungeon-floor-num">1</div>
+            </div>
+            <button id="btn-floor-next" class="btn btn-small">▶</button>
+          </div>
+          <div class="dungeon-best">Record : étage <span id="dungeon-best">1</span></div>
+        </div>
+
+        <div class="monster-card" id="monster-card">
+          <div class="monster-emoji" id="monster-emoji">👺</div>
+          <div class="monster-name" id="monster-name">Gobelin</div>
+          <div class="monster-stats" id="monster-stats"></div>
+          <div class="monster-difficulty" id="monster-difficulty">Facile</div>
+        </div>
+
+        <button id="btn-fight" class="btn btn-primary btn-big">⚔ Combattre</button>
+
+        <div class="combat-log" id="combat-log">
+          <div class="combat-log-empty">Aucun combat. Affronte le monstre !</div>
+        </div>
+
+        <div class="dungeon-stats">
+          <span>🗡 Kills : <span id="dungeon-kills">0</span></span>
+          <span>💀 Morts : <span id="dungeon-deaths">0</span></span>
+          <span>👑 Boss : <span id="dungeon-boss-kills">0</span></span>
+        </div>
       </div>
     </section>
 

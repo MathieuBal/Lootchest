@@ -18,6 +18,19 @@ export const state = {
     legendary: { unlocked: false, on: false },
     ancestral: { unlocked: false, on: false },
   },
+  combat: {
+    currentFloor: 1,
+    highestUnlocked: 1,
+    kills: 0,
+    deaths: 0,
+    bossKills: 0,
+  },
+  pity: {
+    sinceLegendary: 0,
+  },
+  ui: {
+    leftTab: 'chest',     // 'chest' | 'dungeon'
+  },
 };
 
 // Init empty equipment slots
@@ -54,6 +67,9 @@ export function replaceState(newState) {
       state.autoSell[r] = { unlocked: r === 'common', on: false };
     }
   }
+  if (!state.combat) state.combat = { currentFloor: 1, highestUnlocked: 1, kills: 0, deaths: 0, bossKills: 0 };
+  if (!state.pity) state.pity = { sinceLegendary: 0 };
+  if (!state.ui) state.ui = { leftTab: 'chest' };
   notify();
 }
 
@@ -67,5 +83,8 @@ export function resetState() {
     state.autoSell[r].unlocked = (r === 'common');
     state.autoSell[r].on = false;
   }
+  state.combat = { currentFloor: 1, highestUnlocked: 1, kills: 0, deaths: 0, bossKills: 0 };
+  state.pity = { sinceLegendary: 0 };
+  state.ui = { leftTab: 'chest' };
   notify();
 }
