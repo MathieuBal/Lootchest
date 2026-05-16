@@ -1,0 +1,66 @@
+// Forge actions: reroll affixes, upgrade chest tier of an item, transmute (upgrade rarity).
+import { state, notify } from './state.js';
+import { RARITIES, FORGE_COSTS } from './data.js';
+import { rebuildItemAffixesOnly, rebuildItemAffixesAndStats } from './loot.js';
+
+export function rerollCost(item) {
+  return Math.max(50, Math.round(item.goldValue * FORGE_COSTS.rerollMult));
+}
+
+export function upgradeTierCost(item) {
+  return Math.max(200, Math.round(item.goldValue * FORGE_COSTS.upgradeTierMult));
+}
+
+export function transmuteCost(item) {
+  return Math.max(300, Math.round(item.goldValue * FORGE_COSTS.transmuteMult));
+}
+
+export function canReroll(item) {
+  // common items have no affixes, nothing to reroll
+  return item && item.affixes.length > 0 && state.gold >= rerollCost(item);
+}
+
+export function canUpgradeTier(item) {
+  return item && item.chestTier < 5 && state.gold >= upgradeTierCost(item);
+}
+
+export function canTransmute(item) {
+  if (!item) return false;
+  const idx = RARITIES.findIndex(r => r.id === item.rarity);
+  if (idx < 0 || idx >= RARITIES.length - 1) return false;
+  return state.gold >= transmuteCost(item);
+}
+
+function trackForge() {
+  if (state.stats) state.stats.forgesPerformed += 1;
+}
+
+export function reroll(item) {
+  if (!canReroll(item)) return false;
+  state.gold -= rerollCost(item);
+  rebuildItemAffixesOnly(item);
+  trackForge();
+  notify();
+  return true;
+}
+
+export function upgradeTier(item) {
+  if (!canUpgradeTier(item)) return false;
+  state.gold -= upgradeTierCost(item);
+  item.chestTier += 1;
+  rebuildItemAffixesAndStats(item);
+  trackForge();
+  notify();
+  return true;
+}
+
+export function transmute(item) {
+  if (!canTransmute(item)) return false;
+  state.gold -= transmuteCost(item);
+  const idx = RARITIES.findIndex(r => r.id === item.rarity);
+  item.rarity = RARITIES[idx + 1].id;
+  rebuildItemAffixesAndStats(item);
+  trackForge();
+  notify();
+  return true;
+}

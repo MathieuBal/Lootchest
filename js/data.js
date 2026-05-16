@@ -122,6 +122,43 @@ export const PLAYER_BASE = {
   armor: 0,
 };
 
+// === Achievements ===
+// Each: { id, name, desc, emoji, check(state) => bool, reward: { gold } }
+export const ACHIEVEMENTS = [
+  { id: 'first_chest',    emoji: '📦', name: 'Premier coffre',     desc: 'Ouvre 1 coffre',           check: s => s.opened >= 1,                 reward: { gold: 50 } },
+  { id: 'open_100',       emoji: '📦', name: 'Collectionneur',     desc: 'Ouvre 100 coffres',        check: s => s.opened >= 100,               reward: { gold: 500 } },
+  { id: 'open_1000',      emoji: '📦', name: 'Trésorier',          desc: 'Ouvre 1000 coffres',       check: s => s.opened >= 1000,              reward: { gold: 5000 } },
+  { id: 'tier_2',         emoji: '🗃', name: 'Coffre de fer',      desc: 'Atteins le tier 2',        check: s => s.chestTier >= 2,              reward: { gold: 200 } },
+  { id: 'tier_3',         emoji: '🏆', name: 'Coffre d\'or',       desc: 'Atteins le tier 3',        check: s => s.chestTier >= 3,              reward: { gold: 1000 } },
+  { id: 'tier_4',         emoji: '🎁', name: 'Coffre mythique',    desc: 'Atteins le tier 4',        check: s => s.chestTier >= 4,              reward: { gold: 5000 } },
+  { id: 'tier_5',         emoji: '⚱',  name: 'Coffre ancestral',   desc: 'Atteins le tier 5',        check: s => s.chestTier >= 5,              reward: { gold: 25000 } },
+  { id: 'first_legendary',emoji: '🔥', name: 'Légende vivante',    desc: 'Loote un objet légendaire',check: s => (s.stats?.legendaryDropped||0) >= 1, reward: { gold: 1000 } },
+  { id: 'first_ancestral',emoji: '💀', name: 'Sang ancestral',     desc: 'Loote un ancestral',       check: s => (s.stats?.ancestralDropped||0) >= 1, reward: { gold: 10000 } },
+  { id: 'sell_100',       emoji: '💰', name: 'Marchand',           desc: 'Vends 100 objets',         check: s => (s.stats?.itemsSold||0) >= 100, reward: { gold: 500 } },
+  { id: 'sell_1000',      emoji: '💰', name: 'Magnat',             desc: 'Vends 1000 objets',        check: s => (s.stats?.itemsSold||0) >= 1000,reward: { gold: 5000 } },
+  { id: 'first_kill',     emoji: '🗡', name: 'Premier sang',       desc: 'Tue 1 monstre',            check: s => (s.combat?.kills||0) >= 1,     reward: { gold: 50 } },
+  { id: 'kill_100',       emoji: '🗡', name: 'Boucher',            desc: 'Tue 100 monstres',         check: s => (s.combat?.kills||0) >= 100,   reward: { gold: 1000 } },
+  { id: 'kill_1000',      emoji: '🗡', name: 'Génocidaire',        desc: 'Tue 1000 monstres',        check: s => (s.combat?.kills||0) >= 1000,  reward: { gold: 10000 } },
+  { id: 'first_boss',     emoji: '👑', name: 'Tueur de boss',      desc: 'Tue 1 boss',               check: s => (s.combat?.bossKills||0) >= 1, reward: { gold: 500 } },
+  { id: 'boss_10',        emoji: '👑', name: 'Briseur de boss',    desc: 'Tue 10 boss',              check: s => (s.combat?.bossKills||0) >= 10,reward: { gold: 5000 } },
+  { id: 'floor_10',       emoji: '🗺', name: 'Explorateur',        desc: 'Atteins l\'étage 10',      check: s => (s.combat?.highestUnlocked||1) >= 10, reward: { gold: 500 } },
+  { id: 'floor_25',       emoji: '🗺', name: 'Aventurier',         desc: 'Atteins l\'étage 25',      check: s => (s.combat?.highestUnlocked||1) >= 25, reward: { gold: 2500 } },
+  { id: 'floor_50',       emoji: '🗺', name: 'Héros',              desc: 'Atteins l\'étage 50',      check: s => (s.combat?.highestUnlocked||1) >= 50, reward: { gold: 10000 } },
+  { id: 'fully_equipped', emoji: '🛡', name: 'Tout équipé',        desc: 'Équipe les 6 emplacements',check: s => Object.values(s.equipment).filter(Boolean).length >= 6, reward: { gold: 300 } },
+  { id: 'rich_10k',       emoji: '🤑', name: 'Riche',              desc: 'Accumule 10 000 or',       check: s => s.gold >= 10000,               reward: { gold: 500 } },
+  { id: 'rich_100k',      emoji: '🤑', name: 'Magnat de l\'or',    desc: 'Accumule 100 000 or',      check: s => s.gold >= 100000,              reward: { gold: 5000 } },
+  { id: 'first_forge',    emoji: '⚒', name: 'Forgeron',           desc: 'Utilise la forge 1 fois',  check: s => (s.stats?.forgesPerformed||0) >= 1, reward: { gold: 200 } },
+  { id: 'forge_50',       emoji: '⚒', name: 'Maître forgeron',    desc: 'Utilise la forge 50 fois', check: s => (s.stats?.forgesPerformed||0) >= 50,reward: { gold: 3000 } },
+];
+
+// === Forge costs ===
+// Cost multipliers based on item.goldValue
+export const FORGE_COSTS = {
+  rerollMult: 1.5,      // reroll affixes
+  upgradeTierMult: 4,   // upgrade chestTier
+  transmuteMult: 6,     // upgrade rarity
+};
+
 
 // Auto-sell unlock costs (per rarity). Common is free from start.
 export const AUTOSELL_UNLOCK_COSTS = {

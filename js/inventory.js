@@ -34,6 +34,10 @@ export function sellItem(item) {
   const goldFindBonus = computeGoldFindBonus();
   const earned = Math.round(removed.goldValue * (1 + goldFindBonus / 100));
   state.gold += earned;
+  if (state.stats) {
+    state.stats.itemsSold += 1;
+    state.stats.totalGoldEarned += earned;
+  }
   notify();
   return earned;
 }
@@ -51,17 +55,23 @@ function computeGoldFindBonus() {
 
 export function sellAllOfRarities(raritySet) {
   let totalEarned = 0;
+  let sold = 0;
   const goldFindBonus = computeGoldFindBonus();
   const remaining = [];
   for (const item of state.inventory) {
     if (raritySet.has(item.rarity)) {
       totalEarned += Math.round(item.goldValue * (1 + goldFindBonus / 100));
+      sold += 1;
     } else {
       remaining.push(item);
     }
   }
   state.inventory = remaining;
   state.gold += totalEarned;
+  if (state.stats) {
+    state.stats.itemsSold += sold;
+    state.stats.totalGoldEarned += totalEarned;
+  }
   notify();
   return totalEarned;
 }
@@ -96,6 +106,10 @@ export function sellDrop(item) {
   const goldFindBonus = computeGoldFindBonus();
   const earned = Math.round(item.goldValue * (1 + goldFindBonus / 100));
   state.gold += earned;
+  if (state.stats) {
+    state.stats.itemsSold += 1;
+    state.stats.totalGoldEarned += earned;
+  }
   notify();
   return earned;
 }

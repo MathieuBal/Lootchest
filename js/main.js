@@ -4,6 +4,8 @@ import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
 import { openChest, upgradeChest, canOpen } from './chest.js';
 import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
+import { checkAchievements, onAchievementUnlocked } from './achievements.js';
+import { reroll, upgradeTier, transmute } from './forge.js';
 import {
   equipItem, unequipSlot,
 } from './character.js';
@@ -16,15 +18,24 @@ import {
   flashRarity, startCooldownAnim, setOpenButtonEnabled,
   showTooltip, moveTooltip, hideTooltip,
   setActiveTab, appendCombatLog,
+  showModal, hideModal, isModalOpen, showToast, setForgeSelected, getForgeSelectedId,
 } from './ui.js';
 
 // === Init ===
 
 loadFromLocal();
 startAutosave();
+// Order matters: check achievements BEFORE renderAll so rewards show immediately
+subscribe(checkAchievements);
 subscribe(renderAll);
+onAchievementUnlocked(ach => {
+  const rewardLine = ach.reward?.gold ? `+${ach.reward.gold.toLocaleString('fr-FR')} 💰` : '';
+  showToast(ach.emoji, `Succès débloqué : ${ach.name}`, rewardLine);
+});
 renderAll();
 setActiveTab(state.ui?.leftTab || 'chest');
+// First check on load (in case of imported save with already-met conditions)
+checkAchievements();
 
 // === Helpers ===
 
@@ -213,6 +224,51 @@ document.body.addEventListener('mousemove', (e) => {
 
 document.body.addEventListener('mouseleave', hideTooltip);
 
+// === Modals: achievements + forge ===
+
+document.getElementById('btn-achievements').addEventListener('click', () => {
+  showModal('achievements-modal');
+});
+
+document.getElementById('btn-forge').addEventListener('click', () => {
+  showModal('forge-modal');
+});
+
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', () => hideModal(btn.dataset.close));
+});
+
+// Close modal by clicking the dark backdrop
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', (e) => {
+    if (e.target === m) hideModal(m.id);
+  });
+});
+
+// Forge: select item from forge inventory
+document.getElementById('forge-inventory').addEventListener('click', (e) => {
+  const icon = e.target.closest('[data-item-id]');
+  if (!icon) return;
+  setForgeSelected(icon.dataset.itemId);
+});
+
+// Forge: action buttons
+document.getElementById('btn-reroll').addEventListener('click', () => {
+  const id = getForgeSelectedId();
+  const item = state.inventory.find(i => i.id === id);
+  if (item) reroll(item);
+});
+document.getElementById('btn-upgrade-tier').addEventListener('click', () => {
+  const id = getForgeSelectedId();
+  const item = state.inventory.find(i => i.id === id);
+  if (item) upgradeTier(item);
+});
+document.getElementById('btn-transmute').addEventListener('click', () => {
+  const id = getForgeSelectedId();
+  const item = state.inventory.find(i => i.id === id);
+  if (item) transmute(item);
+});
+
 // === Save controls ===
 
 document.getElementById('btn-export').addEventListener('click', () => {
@@ -249,7 +305,10 @@ document.addEventListener('keydown', (e) => {
     if (drop) {
       addToInventory(drop);
       hideDropPopup();
+      return;
     }
+    if (isModalOpen('forge-modal')) { hideModal('forge-modal'); return; }
+    if (isModalOpen('achievements-modal')) { hideModal('achievements-modal'); return; }
   } else if (e.key === ' ' || e.code === 'Space') {
     // Spacebar: chest open OR fight depending on current tab
     if (getCurrentDrop()) return;

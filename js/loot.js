@@ -95,12 +95,36 @@ export function generateItemFromChest(chestTier) {
   } else {
     state.pity.sinceLegendary += 1;
   }
-  return buildItem(chestTier, rarity);
+  const item = buildItem(chestTier, rarity);
+  trackDropStats(item);
+  return item;
 }
 
 export function generateItem(chestTier) {
   const rarity = rollRarity(chestTier);
-  return buildItem(chestTier, rarity);
+  const item = buildItem(chestTier, rarity);
+  trackDropStats(item);
+  return item;
+}
+
+function trackDropStats(item) {
+  if (!state.stats) return;
+  if (item.rarity === 'legendary') state.stats.legendaryDropped += 1;
+  else if (item.rarity === 'ancestral') state.stats.ancestralDropped += 1;
+}
+
+// Forge helpers — rebuild item in-place based on its current slot/baseTypeId/rarity/chestTier.
+export function rebuildItemAffixesAndStats(item) {
+  const baseType = BASE_TYPES[item.slot].find(b => b.id === item.baseTypeId);
+  if (!baseType) return;
+  item.baseStats = scaleBaseStats(baseType.baseStats, item.chestTier, item.rarity);
+  item.affixes = rollAffixes(item.rarity, item.chestTier);
+  item.goldValue = computeGoldValue(item.rarity, item.chestTier);
+  item.name = makeName(baseType, item.rarity);
+}
+
+export function rebuildItemAffixesOnly(item) {
+  item.affixes = rollAffixes(item.rarity, item.chestTier);
 }
 
 function buildItem(chestTier, rarity) {

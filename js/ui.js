@@ -3,10 +3,13 @@ import { state } from './state.js';
 import {
   RARITIES, RARITY_BY_ID, SLOTS, SLOT_BY_ID,
   AUTOSELL_UNLOCK_COSTS, CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, PITY_THRESHOLD,
+  ACHIEVEMENTS,
 } from './data.js';
 import { computeStats, computePower } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
+import { rerollCost, upgradeTierCost, transmuteCost, canReroll, canUpgradeTier, canTransmute } from './forge.js';
+import { getAchievementProgress } from './achievements.js';
 
 // === Item icon helpers ===
 
@@ -52,6 +55,9 @@ function renderHUD() {
   document.getElementById('hud-tier-name').textContent = tier.name;
   document.getElementById('hud-opened').textContent = state.opened.toLocaleString('fr-FR');
   document.getElementById('hud-power').textContent = computePower(computeStats()).toLocaleString('fr-FR');
+  const ap = getAchievementProgress();
+  document.getElementById('ach-count').textContent = ap.unlocked;
+  document.getElementById('ach-total').textContent = ap.total;
 }
 
 // === Chest panel ===
@@ -346,6 +352,136 @@ export function appendCombatLog(lines, type = '') {
   while (log.children.length > 40) log.removeChild(log.firstChild);
 }
 
+// === Achievements modal ===
+
+export function renderAchievementsModal() {
+  const ap = getAchievementProgress();
+  document.getElementById('modal-ach-count').textContent = ap.unlocked;
+  document.getElementById('modal-ach-total').textContent = ap.total;
+  const grid = document.getElementById('achievements-grid');
+  grid.innerHTML = '';
+  for (const ach of ACHIEVEMENTS) {
+    const unlocked = !!state.achievements.unlocked[ach.id];
+    const el = document.createElement('div');
+    el.className = 'achievement ' + (unlocked ? 'unlocked' : 'locked');
+    el.innerHTML = `
+      <div class="ach-emoji">${ach.emoji}</div>
+      <div class="ach-info">
+        <div class="ach-name">${ach.name}</div>
+        <div class="ach-desc">${ach.desc}</div>
+        ${ach.reward?.gold ? `<div class="ach-reward">+${ach.reward.gold.toLocaleString('fr-FR')} 💰</div>` : ''}
+      </div>
+    `;
+    grid.appendChild(el);
+  }
+}
+
+// === Toasts ===
+
+export function showToast(emoji, title, subtitle) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `
+    <div class="toast-emoji">${emoji}</div>
+    <div class="toast-content">
+      <div class="toast-title">${title}</div>
+      ${subtitle ? `<div class="toast-reward">${subtitle}</div>` : ''}
+    </div>
+  `;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    setTimeout(() => toast.remove(), 400);
+  }, 3200);
+}
+
+// === Forge modal ===
+
+let forgeSelectedItemId = null;
+
+export function setForgeSelected(itemId) {
+  forgeSelectedItemId = itemId;
+  renderForgeModal();
+}
+
+export function getForgeSelectedId() {
+  return forgeSelectedItemId;
+}
+
+export function renderForgeModal() {
+  const invGrid = document.getElementById('forge-inventory');
+  invGrid.innerHTML = '';
+  const rarityOrder = Object.fromEntries(RARITIES.map((r, i) => [r.id, i]));
+  const sorted = [...state.inventory].sort((a, b) => {
+    return rarityOrder[b.rarity] - rarityOrder[a.rarity] || b.goldValue - a.goldValue;
+  });
+  for (const item of sorted) {
+    const el = document.createElement('div');
+    el.innerHTML = itemIconHTML(item);
+    const icon = el.firstChild;
+    icon.dataset.itemId = item.id;
+    if (item.id === forgeSelectedItemId) icon.classList.add('selected');
+    invGrid.appendChild(icon);
+  }
+
+  // If selected item is gone (sold/equipped), clear selection
+  const selected = state.inventory.find(i => i.id === forgeSelectedItemId);
+  const selectedPanel = document.getElementById('forge-selected');
+  if (!selected) {
+    forgeSelectedItemId = null;
+    selectedPanel.classList.add('hidden');
+    return;
+  }
+  selectedPanel.classList.remove('hidden');
+
+  // Preview
+  const r = RARITY_BY_ID[selected.rarity];
+  const slot = SLOT_BY_ID[selected.slot];
+  document.getElementById('forge-preview').innerHTML = `
+    ${itemIconHTML(selected, { big: true })}
+    <div class="forge-preview-info">
+      <div class="forge-preview-name rt-${r.cssClass}">${selected.name}</div>
+      <div style="color: var(--text-dim);">T${selected.chestTier} · ${slot.name} · <span class="rt-${r.cssClass}">${r.name}</span></div>
+      ${Object.entries(selected.baseStats || {}).map(([k, v]) => `<div>+${v} ${statLabel(k)}</div>`).join('')}
+      ${(selected.affixes || []).map(a => `<div class="item-affix">+${a.value}${a.percent ? '%' : ''} ${a.label}</div>`).join('')}
+      <div style="color: var(--gold); margin-top: 4px;">💰 ${selected.goldValue}</div>
+    </div>
+  `;
+
+  // Action costs
+  document.getElementById('reroll-cost').textContent = rerollCost(selected).toLocaleString('fr-FR');
+  document.getElementById('upgrade-tier-cost').textContent = upgradeTierCost(selected).toLocaleString('fr-FR');
+  document.getElementById('transmute-cost').textContent = transmuteCost(selected).toLocaleString('fr-FR');
+
+  document.getElementById('forge-tier-from').textContent = `T${selected.chestTier}`;
+  document.getElementById('forge-tier-to').textContent = `T${Math.min(5, selected.chestTier + 1)}`;
+  const rIdx = RARITIES.findIndex(rr => rr.id === selected.rarity);
+  const nextR = RARITIES[rIdx + 1];
+  document.getElementById('forge-rarity-from').textContent = r.name;
+  document.getElementById('forge-rarity-to').textContent = nextR ? nextR.name : '—';
+
+  document.getElementById('btn-reroll').disabled = !canReroll(selected);
+  document.getElementById('btn-upgrade-tier').disabled = !canUpgradeTier(selected);
+  document.getElementById('btn-transmute').disabled = !canTransmute(selected);
+}
+
+// === Modal show/hide ===
+
+export function showModal(id) {
+  document.getElementById(id).classList.remove('hidden');
+  if (id === 'achievements-modal') renderAchievementsModal();
+  if (id === 'forge-modal') renderForgeModal();
+}
+
+export function hideModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+export function isModalOpen(id) {
+  return !document.getElementById(id).classList.contains('hidden');
+}
+
 export function renderAll() {
   renderHUD();
   renderChest();
@@ -354,4 +490,7 @@ export function renderAll() {
   renderInventoryFilter();
   renderInventory();
   renderDungeon();
+  // Re-render open modals if needed
+  if (isModalOpen('forge-modal')) renderForgeModal();
+  if (isModalOpen('achievements-modal')) renderAchievementsModal();
 }

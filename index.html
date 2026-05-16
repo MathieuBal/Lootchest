@@ -21,6 +21,8 @@
       <span class="hud-stat" title="Coffres ouverts"><span class="icon">🗝</span><span id="hud-opened">0</span></span>
     </div>
     <div class="hud-actions">
+      <button id="btn-achievements" class="btn btn-small" title="Succès">🏆 <span id="ach-count">0</span>/<span id="ach-total">0</span></button>
+      <button id="btn-forge" class="btn btn-small" title="Forge">⚒ Forge</button>
       <button id="btn-export" class="btn btn-small">Exporter</button>
       <button id="btn-import" class="btn btn-small">Importer</button>
       <button id="btn-reset" class="btn btn-small btn-danger">Reset</button>
@@ -135,6 +137,51 @@
       </div>
     </div>
   </div>
+
+  <!-- ACHIEVEMENTS MODAL -->
+  <div id="achievements-modal" class="modal hidden">
+    <div class="modal-inner modal-wide">
+      <div class="modal-header">
+        <h2>🏆 Succès (<span id="modal-ach-count">0</span>/<span id="modal-ach-total">0</span>)</h2>
+        <button class="btn btn-small modal-close" data-close="achievements-modal">✕</button>
+      </div>
+      <div class="achievements-grid" id="achievements-grid"></div>
+    </div>
+  </div>
+
+  <!-- FORGE MODAL -->
+  <div id="forge-modal" class="modal hidden">
+    <div class="modal-inner modal-wide">
+      <div class="modal-header">
+        <h2>⚒ Forge</h2>
+        <button class="btn btn-small modal-close" data-close="forge-modal">✕</button>
+      </div>
+      <div class="forge-body">
+        <div class="forge-instructions" id="forge-instructions">Sélectionne un objet dans ton inventaire à forger :</div>
+        <div class="forge-inventory" id="forge-inventory"></div>
+        <div class="forge-selected hidden" id="forge-selected">
+          <div class="forge-preview" id="forge-preview"></div>
+          <div class="forge-actions">
+            <button id="btn-reroll" class="btn forge-btn">
+              <div>🎲 Rerouler affixes</div>
+              <div class="forge-cost"><span id="reroll-cost">—</span> 💰</div>
+            </button>
+            <button id="btn-upgrade-tier" class="btn forge-btn">
+              <div>📈 Monter tier (<span id="forge-tier-from">1</span> → <span id="forge-tier-to">2</span>)</div>
+              <div class="forge-cost"><span id="upgrade-tier-cost">—</span> 💰</div>
+            </button>
+            <button id="btn-transmute" class="btn forge-btn">
+              <div>✨ Transmuter (<span id="forge-rarity-from">—</span> → <span id="forge-rarity-to">—</span>)</div>
+              <div class="forge-cost"><span id="transmute-cost">—</span> 💰</div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast-container" class="toast-container"></div>
 
   <!-- TOOLTIP -->
   <div id="tooltip" class="tooltip hidden"></div>
