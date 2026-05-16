@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lootchest</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="flash" class="flash"></div>
+
+  <header class="hud">
+    <div class="hud-title">⛓ LOOTCHEST ⛓</div>
+    <div class="hud-stats">
+      <span class="hud-stat" title="Or"><span class="icon">💰</span><span id="hud-gold">0</span></span>
+      <span class="hud-stat" title="Tier du coffre"><span class="icon">📦</span>T<span id="hud-tier">1</span> <span id="hud-tier-name">Bois</span></span>
+      <span class="hud-stat" title="Power Score du perso"><span class="icon">⚡</span><span id="hud-power">0</span></span>
+      <span class="hud-stat" title="Coffres ouverts"><span class="icon">🗝</span><span id="hud-opened">0</span></span>
+    </div>
+    <div class="hud-actions">
+      <button id="btn-export" class="btn btn-small">Exporter</button>
+      <button id="btn-import" class="btn btn-small">Importer</button>
+      <button id="btn-reset" class="btn btn-small btn-danger">Reset</button>
+      <input type="file" id="file-import" accept="application/json" hidden />
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- COFFRE (gauche) -->
+    <section class="panel panel-chest">
+      <h2 class="panel-title">Coffre</h2>
+      <div class="chest-visual" id="chest-visual">
+        <div class="chest-emoji" id="chest-emoji">📦</div>
+        <div class="chest-tier-label" id="chest-tier-label">Tier 1 — Bois</div>
+      </div>
+      <button id="btn-open" class="btn btn-primary btn-big">Ouvrir le coffre</button>
+      <div class="chest-cooldown"><div id="cooldown-bar" class="cooldown-bar"></div></div>
+
+      <div class="chest-upgrade">
+        <div class="upgrade-info">
+          <span>Prochain tier : <span id="next-tier-name">Fer</span></span>
+          <span class="upgrade-cost">Coût : <span id="upgrade-cost">100</span> 💰</span>
+        </div>
+        <button id="btn-upgrade" class="btn">Améliorer le coffre</button>
+      </div>
+
+      <div class="autosell">
+        <div class="autosell-title">Auto-vente</div>
+        <div class="autosell-grid" id="autosell-grid"></div>
+      </div>
+    </section>
+
+    <!-- PERSO (droite) -->
+    <section class="panel panel-character">
+      <h2 class="panel-title">Personnage</h2>
+      <div class="character-avatar">🧙</div>
+      <div class="equipment-grid" id="equipment-grid"></div>
+      <div class="character-stats" id="character-stats"></div>
+    </section>
+  </main>
+
+  <!-- INVENTAIRE (bas) -->
+  <section class="panel panel-inventory">
+    <div class="inventory-header">
+      <h2 class="panel-title">Inventaire (<span id="inv-count">0</span>)</h2>
+      <div class="inventory-actions">
+        <label class="filter-label">Filtre :
+          <select id="inv-filter">
+            <option value="all">Toutes raretés</option>
+          </select>
+        </label>
+        <button id="btn-sell-filter" class="btn btn-small">Vendre filtre</button>
+      </div>
+    </div>
+    <div class="inventory-grid" id="inventory-grid"></div>
+  </section>
+
+  <!-- DROP POPUP -->
+  <div id="drop-popup" class="drop-popup hidden">
+    <div class="drop-popup-inner">
+      <div class="drop-popup-label">VOUS AVEZ LOOT !</div>
+      <div id="drop-item" class="drop-item"></div>
+      <div class="drop-actions">
+        <button id="btn-equip" class="btn btn-primary">Équiper</button>
+        <button id="btn-keep" class="btn">Garder</button>
+        <button id="btn-sell" class="btn btn-gold">Vendre (<span id="drop-sell-value">0</span> 💰)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOOLTIP -->
+  <div id="tooltip" class="tooltip hidden"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
