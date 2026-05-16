@@ -1,0 +1,214 @@
+// Bootstrap, event wiring, top-level orchestration.
+import { state, subscribe, resetState } from './state.js';
+import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS } from './data.js';
+import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
+import { openChest, upgradeChest, canOpen } from './chest.js';
+import {
+  equipItem, unequipSlot,
+} from './character.js';
+import {
+  sellItem, sellAllOfRarities, addToInventory, sellDrop,
+  unlockAutoSell, toggleAutoSell, isAutoSellOn,
+} from './inventory.js';
+import {
+  renderAll, showDropPopup, hideDropPopup, getCurrentDrop,
+  flashRarity, startCooldownAnim, setOpenButtonEnabled,
+  showTooltip, moveTooltip, hideTooltip,
+} from './ui.js';
+
+// === Init ===
+
+loadFromLocal();
+startAutosave();
+subscribe(renderAll);
+renderAll();
+
+// === Helpers ===
+
+function findItem(id) {
+  return state.inventory.find(i => i.id === id)
+      || Object.values(state.equipment).find(i => i && i.id === id)
+      || null;
+}
+
+// === Open chest ===
+
+const btnOpen = document.getElementById('btn-open');
+btnOpen.addEventListener('click', () => {
+  if (!canOpen()) return;
+  const item = openChest();
+  if (!item) return;
+  flashRarity(item.rarity);
+  startCooldownAnim();
+  setOpenButtonEnabled(false);
+  setTimeout(() => setOpenButtonEnabled(true), CHEST_OPEN_COOLDOWN_MS);
+
+  // Auto-sell?
+  if (isAutoSellOn(item.rarity)) {
+    sellDrop(item);
+    return;
+  }
+  showDropPopup(item);
+});
+
+// === Drop popup actions ===
+
+document.getElementById('btn-equip').addEventListener('click', () => {
+  const drop = getCurrentDrop();
+  if (!drop) return;
+  equipItem(drop);
+  hideDropPopup();
+});
+
+document.getElementById('btn-keep').addEventListener('click', () => {
+  const drop = getCurrentDrop();
+  if (!drop) return;
+  addToInventory(drop);
+  hideDropPopup();
+});
+
+document.getElementById('btn-sell').addEventListener('click', () => {
+  const drop = getCurrentDrop();
+  if (!drop) return;
+  sellDrop(drop);
+  hideDropPopup();
+});
+
+// === Upgrade chest ===
+
+document.getElementById('btn-upgrade').addEventListener('click', () => {
+  upgradeChest();
+});
+
+// === Auto-sell toggle/unlock (event delegation) ===
+
+document.getElementById('autosell-grid').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-rarity]');
+  if (!btn) return;
+  const rarity = btn.dataset.rarity;
+  if (btn.dataset.action === 'unlock') {
+    unlockAutoSell(rarity);
+  } else if (btn.dataset.action === 'toggle') {
+    toggleAutoSell(rarity);
+  }
+});
+
+// === Inventory: click on item = sell with shift, equip otherwise ===
+
+document.getElementById('inventory-grid').addEventListener('click', (e) => {
+  const icon = e.target.closest('[data-item-id]');
+  if (!icon) return;
+  const item = findItem(icon.dataset.itemId);
+  if (!item) return;
+  if (e.shiftKey) {
+    sellItem(item);
+  } else {
+    equipItem(item);
+  }
+});
+
+// === Equipment: click on equipped slot = unequip ===
+
+document.getElementById('equipment-grid').addEventListener('click', (e) => {
+  const slotEl = e.target.closest('.equipment-slot');
+  if (!slotEl) return;
+  const slotId = slotEl.dataset.slotId;
+  if (!slotId) return;
+  if (state.equipment[slotId]) {
+    unequipSlot(slotId);
+  }
+});
+
+// === Inventory filter + bulk sell ===
+
+document.getElementById('btn-sell-filter').addEventListener('click', () => {
+  const filterValue = document.getElementById('inv-filter').value;
+  let raritySet;
+  if (filterValue === 'all') {
+    raritySet = new Set(RARITIES.map(r => r.id));
+  } else {
+    // sell <= selected rarity (inclusive)
+    const maxIdx = RARITIES.findIndex(r => r.id === filterValue);
+    raritySet = new Set(RARITIES.slice(0, maxIdx + 1).map(r => r.id));
+  }
+  // Don't bulk-sell ancestrals by accident
+  if (filterValue !== 'ancestral' && filterValue !== 'all') {
+    raritySet.delete('ancestral');
+  }
+  const earned = sellAllOfRarities(raritySet);
+  if (earned > 0) {
+    // small visual feedback
+    const btn = document.getElementById('btn-sell-filter');
+    const old = btn.textContent;
+    btn.textContent = `+${earned} 💰`;
+    setTimeout(() => { btn.textContent = old; }, 900);
+  }
+});
+
+// === Tooltip on hover (delegation) ===
+
+document.body.addEventListener('mousemove', (e) => {
+  const icon = e.target.closest('[data-item-id]');
+  if (icon) {
+    const item = findItem(icon.dataset.itemId);
+    if (item) {
+      showTooltip(item, e.clientX, e.clientY);
+      return;
+    }
+  }
+  // Equipment slot?
+  const slotEl = e.target.closest('.equipment-slot');
+  if (slotEl && slotEl.dataset.slotId && state.equipment[slotEl.dataset.slotId]) {
+    showTooltip(state.equipment[slotEl.dataset.slotId], e.clientX, e.clientY);
+    return;
+  }
+  hideTooltip();
+});
+
+document.body.addEventListener('mouseleave', hideTooltip);
+
+// === Save controls ===
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  exportSave();
+});
+
+document.getElementById('btn-import').addEventListener('click', () => {
+  document.getElementById('file-import').click();
+});
+
+document.getElementById('file-import').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    await importSave(file);
+  } catch (err) {
+    alert('Import échoué : ' + err.message);
+  }
+  e.target.value = '';
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  if (confirm('Reset complet de la partie ? Cette action est irréversible (pense à exporter avant).')) {
+    clearLocal();
+    resetState();
+  }
+});
+
+// === Close popup with ESC ===
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const drop = getCurrentDrop();
+    if (drop) {
+      addToInventory(drop);
+      hideDropPopup();
+    }
+  } else if (e.key === ' ' || e.code === 'Space') {
+    // Spacebar to open chest (only if no popup open)
+    if (!getCurrentDrop() && canOpen()) {
+      e.preventDefault();
+      btnOpen.click();
+    }
+  }
+});
