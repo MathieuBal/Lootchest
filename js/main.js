@@ -18,7 +18,7 @@ import {
   floatingDamage, floatingText,
 } from './fx.js';
 import {
-  equipItem, unequipSlot,
+  equipItem, unequipSlot, autoEquipBest,
 } from './character.js';
 import {
   sellItem, sellAllOfRarities, addToInventory, sellDrop,
@@ -32,6 +32,7 @@ import {
   showModal, hideModal, isModalOpen, showToast, setForgeSelected, getForgeSelectedId,
   showCombatBars, hideCombatBars, updateMonsterHp, updatePlayerHp,
   getMonsterEmojiCenter, getCharacterAvatarCenter, getChestCenter,
+  setInvSortMode, setInvSearchText,
 } from './ui.js';
 
 // === Init ===
@@ -55,6 +56,12 @@ checkAchievements();
 
 // Unlock audio on first user interaction (browser autoplay policy)
 document.addEventListener('click', unlockAudio, { once: true });
+
+// Show help modal on very first session (no save existed)
+if (state.opened === 0 && state.combat.kills === 0) {
+  // Defer so the rest of the UI is rendered first
+  setTimeout(() => showModal('help-modal'), 200);
+}
 
 function updateMuteButton() {
   const btn = document.getElementById('btn-mute');
@@ -374,6 +381,28 @@ document.getElementById('btn-mute').addEventListener('click', () => {
   if (!m) soundClick(); // confirm unmute
 });
 
+// Help modal
+document.getElementById('btn-help').addEventListener('click', () => {
+  showModal('help-modal');
+});
+
+// Inventory sort + search + auto-equip
+document.getElementById('inv-sort').addEventListener('change', (e) => {
+  setInvSortMode(e.target.value);
+});
+document.getElementById('inv-search').addEventListener('input', (e) => {
+  setInvSearchText(e.target.value);
+});
+document.getElementById('btn-auto-equip').addEventListener('click', () => {
+  const n = autoEquipBest();
+  if (n > 0) {
+    soundClick();
+    const c = getCharacterAvatarCenter();
+    spawnParticles('#f5c842', c.x, c.y, 20);
+    floatingText(`Équipé ×${n}`, c.x, c.y - 30, '#f5c842');
+  }
+});
+
 // === Ascension ===
 
 document.getElementById('btn-ascend').addEventListener('click', () => {
@@ -434,6 +463,7 @@ document.addEventListener('keydown', (e) => {
     }
     if (isModalOpen('forge-modal')) { hideModal('forge-modal'); return; }
     if (isModalOpen('achievements-modal')) { hideModal('achievements-modal'); return; }
+    if (isModalOpen('help-modal')) { hideModal('help-modal'); return; }
   } else if (e.key === ' ' || e.code === 'Space') {
     // Spacebar: chest open OR fight depending on current tab
     if (getCurrentDrop()) return;

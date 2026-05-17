@@ -292,18 +292,47 @@ function renderInventoryFilter() {
   }
 }
 
+let invSortMode = 'rarity';
+let invSearchText = '';
+
+export function setInvSortMode(mode) { invSortMode = mode; renderInventory(); }
+export function setInvSearchText(text) { invSearchText = (text || '').toLowerCase(); renderInventory(); }
+
+function sortInventory(items, mode) {
+  const rarityOrder = Object.fromEntries(RARITIES.map((r, i) => [r.id, i]));
+  const slotOrder = Object.fromEntries(SLOTS.map((s, i) => [s.id, i]));
+  const arr = [...items];
+  switch (mode) {
+    case 'value':
+      arr.sort((a, b) => b.goldValue - a.goldValue || rarityOrder[b.rarity] - rarityOrder[a.rarity]);
+      break;
+    case 'tier':
+      arr.sort((a, b) => b.chestTier - a.chestTier || rarityOrder[b.rarity] - rarityOrder[a.rarity]);
+      break;
+    case 'slot':
+      arr.sort((a, b) => slotOrder[a.slot] - slotOrder[b.slot] || rarityOrder[b.rarity] - rarityOrder[a.rarity]);
+      break;
+    case 'rarity':
+    default:
+      arr.sort((a, b) => rarityOrder[b.rarity] - rarityOrder[a.rarity] || b.goldValue - a.goldValue);
+  }
+  return arr;
+}
+
 function renderInventory() {
   document.getElementById('inv-count').textContent = state.inventory.length;
   const grid = document.getElementById('inventory-grid');
   grid.innerHTML = '';
 
-  // Sort by rarity (desc) then by goldValue desc
-  const rarityOrder = Object.fromEntries(RARITIES.map((r, i) => [r.id, i]));
-  const sorted = [...state.inventory].sort((a, b) => {
-    const dr = rarityOrder[b.rarity] - rarityOrder[a.rarity];
-    if (dr !== 0) return dr;
-    return b.goldValue - a.goldValue;
-  });
+  let items = state.inventory;
+  if (invSearchText) {
+    items = items.filter(it =>
+      it.name.toLowerCase().includes(invSearchText)
+      || (it.setId || '').toLowerCase().includes(invSearchText)
+      || (it.flavor || '').toLowerCase().includes(invSearchText)
+    );
+  }
+  const sorted = sortInventory(items, invSortMode);
 
   for (const item of sorted) {
     const el = document.createElement('div');

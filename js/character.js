@@ -95,6 +95,49 @@ export function maxSetCount() {
   return computeSetSummary().reduce((max, s) => Math.max(max, s.count), 0);
 }
 
+// Compute the contribution of a single item to the player's Power Score
+// (treating it as if equipped in isolation, base + affixes).
+function itemPowerContribution(item) {
+  let p = 0;
+  for (const [k, v] of Object.entries(item.baseStats || {})) {
+    p += v * (POWER_WEIGHTS[k] || 0);
+  }
+  for (const a of item.affixes || []) {
+    p += a.value * (POWER_WEIGHTS[a.stat] || 0);
+  }
+  return p;
+}
+
+// Auto-equip the best item per slot from the inventory (by power contribution).
+// Returns count of items equipped.
+export function autoEquipBest() {
+  let equipped = 0;
+  for (const slot of SLOTS) {
+    const candidates = state.inventory.filter(i => i.slot === slot.id);
+    if (candidates.length === 0) continue;
+    const currentP = state.equipment[slot.id] ? itemPowerContribution(state.equipment[slot.id]) : 0;
+    let best = null;
+    let bestP = currentP;
+    for (const c of candidates) {
+      const p = itemPowerContribution(c);
+      if (p > bestP) { best = c; bestP = p; }
+    }
+    if (best) {
+      const prev = state.equipment[slot.id];
+      state.equipment[slot.id] = best;
+      const idx = state.inventory.findIndex(i => i.id === best.id);
+      if (idx >= 0) state.inventory.splice(idx, 1);
+      if (prev) state.inventory.push(prev);
+      equipped++;
+    }
+  }
+  if (equipped > 0 && state.stats) {
+    state.stats.maxSetEquipped = Math.max(state.stats.maxSetEquipped || 0, maxSetCount());
+  }
+  if (equipped > 0) notify();
+  return equipped;
+}
+
 export function computePower(stats) {
   let p = 0;
   for (const [k, w] of Object.entries(POWER_WEIGHTS)) {

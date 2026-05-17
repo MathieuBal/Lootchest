@@ -237,6 +237,52 @@ export const UNIQUE_LEGENDARIES = [
       { id: 'vit',  stat: 'vitality', label: 'Vie',     value: 25, percent: false },
     ],
   },
+  {
+    id: 'berserker_axe', slot: 'weapon', baseTypeId: 'axe', emoji: '🪓',
+    name: 'Hache du Berserker',
+    flavor: 'Plus tu cognes, plus tu veux cogner.',
+    baseStatBonus: { damage: 30 },
+    fixedAffixes: [
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts',     value: 40, percent: false },
+      { id: 'fire', stat: 'fireDmg',  label: 'Dégâts feu', value: 20, percent: true },
+      { id: 'crit', stat: 'crit',     label: 'Crit',       value: 15, percent: true },
+      { id: 'spd',  stat: 'speed',    label: 'Vitesse',    value: 10, percent: true },
+    ],
+  },
+  {
+    id: 'thief_band', slot: 'ring', baseTypeId: 'band', emoji: '💍',
+    name: 'Anneau du Voleur de Lune',
+    flavor: 'Les serrures lui obéissent.',
+    fixedAffixes: [
+      { id: 'spd',  stat: 'speed',    label: 'Vitesse',    value: 25, percent: true },
+      { id: 'crit', stat: 'crit',     label: 'Crit',       value: 20, percent: true },
+      { id: 'gold', stat: 'goldFind', label: 'Or trouvé',  value: 35, percent: true },
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts',     value: 10, percent: false },
+    ],
+  },
+  {
+    id: 'paladin_helm', slot: 'helmet', baseTypeId: 'helm', emoji: '⛑',
+    name: 'Heaume du Paladin Juste',
+    flavor: 'La lumière ne tremble jamais.',
+    baseStatBonus: { armor: 20, vitality: 25 },
+    fixedAffixes: [
+      { id: 'arm',  stat: 'armor',    label: 'Armure',    value: 20, percent: false },
+      { id: 'vit',  stat: 'vitality', label: 'Vie',       value: 35, percent: false },
+      { id: 'gold', stat: 'goldFind', label: 'Or trouvé', value: 15, percent: true },
+      { id: 'crit', stat: 'crit',     label: 'Crit',      value: 15, percent: true },
+    ],
+  },
+  {
+    id: 'phoenix_amulet', slot: 'amulet', baseTypeId: 'pendant', emoji: '🔥',
+    name: 'Larme du Phénix',
+    flavor: 'Cendre, flamme, renaissance.',
+    fixedAffixes: [
+      { id: 'fire', stat: 'fireDmg',  label: 'Dégâts feu', value: 40, percent: true },
+      { id: 'vit',  stat: 'vitality', label: 'Vie',        value: 30, percent: false },
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts',     value: 12, percent: false },
+      { id: 'crit', stat: 'crit',     label: 'Crit',       value: 18, percent: true },
+    ],
+  },
 ];
 
 // === Sets (themed item collections with bonuses at 2/3/4 pieces) ===
@@ -281,6 +327,48 @@ export const SETS = [
       2: [{ stat: 'armor',    value: 25, percent: false, label: 'Armure' }],
       3: [{ stat: 'vitality', value: 40, percent: false, label: 'Vie' }],
       4: [{ stat: 'damage',   value: 25, percent: false, label: 'Dégâts' }],
+    },
+  },
+  {
+    id: 'phoenix', name: 'Phénix', color: '#ff3000',
+    pieces: {
+      helmet: { baseTypeId: 'crown', emoji: '👑', name: 'Couronne du Phénix' },
+      armor:  { baseTypeId: 'robe',  emoji: '🥋', name: 'Robe du Phénix' },
+      weapon: { baseTypeId: 'wand',  emoji: '🪄', name: 'Baguette du Phénix' },
+      amulet: { baseTypeId: 'pendant', emoji: '📿', name: 'Pendentif du Phénix' },
+    },
+    bonuses: {
+      2: [{ stat: 'fireDmg', value: 30, percent: true,  label: 'Dégâts feu' }],
+      3: [{ stat: 'vitality', value: 35, percent: false, label: 'Vie' }],
+      4: [{ stat: 'damage',  value: 25, percent: false, label: 'Dégâts' }],
+    },
+  },
+  {
+    id: 'frost', name: 'Givre', color: '#5ad8e8',
+    pieces: {
+      helmet: { baseTypeId: 'helm', emoji: '🪖', name: 'Heaume Glacial' },
+      weapon: { baseTypeId: 'bow',  emoji: '🏹', name: 'Arc Glacial' },
+      ring:   { baseTypeId: 'band', emoji: '💍', name: 'Anneau Glacial' },
+      amulet: { baseTypeId: 'talisman', emoji: '🧿', name: 'Talisman Glacial' },
+    },
+    bonuses: {
+      2: [{ stat: 'speed', value: 25, percent: true,  label: 'Vitesse' }],
+      3: [{ stat: 'crit',  value: 20, percent: true,  label: 'Crit' }],
+      4: [{ stat: 'damage', value: 30, percent: false, label: 'Dégâts' }],
+    },
+  },
+  {
+    id: 'lich', name: 'Liche', color: '#3aaa50',
+    pieces: {
+      helmet: { baseTypeId: 'crown',  emoji: '👑', name: 'Couronne de la Liche' },
+      armor:  { baseTypeId: 'robe',   emoji: '🥋', name: 'Robe de la Liche' },
+      weapon: { baseTypeId: 'wand',   emoji: '🪄', name: 'Sceptre de la Liche' },
+      ring:   { baseTypeId: 'signet', emoji: '💎', name: 'Sceau de la Liche' },
+    },
+    bonuses: {
+      2: [{ stat: 'vitality', value: 30, percent: false, label: 'Vie' }],
+      3: [{ stat: 'fireDmg',  value: 25, percent: true,  label: 'Dégâts feu' }],
+      4: [{ stat: 'crit',     value: 30, percent: true,  label: 'Crit' }],
     },
   },
 ];

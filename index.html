@@ -26,6 +26,7 @@
       <button id="btn-forge" class="btn btn-small" title="Forge">⚒ Forge</button>
       <button id="btn-ascend" class="btn btn-small" title="Ascension">🌟 Ascension</button>
       <button id="btn-mute" class="btn btn-small" title="Couper le son">🔊</button>
+      <button id="btn-help" class="btn btn-small" title="Aide / Tutoriel">❓</button>
       <button id="btn-export" class="btn btn-small">Exporter</button>
       <button id="btn-import" class="btn btn-small">Importer</button>
       <button id="btn-reset" class="btn btn-small btn-danger">Reset</button>
@@ -128,12 +129,22 @@
     <div class="inventory-header">
       <h2 class="panel-title">Inventaire (<span id="inv-count">0</span>)</h2>
       <div class="inventory-actions">
+        <input type="text" id="inv-search" class="inv-search" placeholder="🔍 Rechercher…" />
+        <label class="filter-label">Tri :
+          <select id="inv-sort">
+            <option value="rarity">Rareté</option>
+            <option value="value">Valeur 💰</option>
+            <option value="tier">Tier</option>
+            <option value="slot">Emplacement</option>
+          </select>
+        </label>
         <label class="filter-label">Filtre :
           <select id="inv-filter">
             <option value="all">Toutes raretés</option>
           </select>
         </label>
         <button id="btn-sell-filter" class="btn btn-small">Vendre filtre</button>
+        <button id="btn-auto-equip" class="btn btn-small btn-primary" title="Équipe le meilleur item de chaque slot">⚡ Auto-équiper</button>
       </div>
     </div>
     <div class="inventory-grid" id="inventory-grid"></div>
@@ -190,6 +201,41 @@
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HELP MODAL -->
+  <div id="help-modal" class="modal hidden">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2>❓ Comment jouer</h2>
+        <button class="btn btn-small modal-close" data-close="help-modal">✕</button>
+      </div>
+      <div class="help-body">
+        <h3>📦 Coffre</h3>
+        <p>Ouvre des coffres pour looter des objets (rareté aléatoire). Vends-les ou équipe-les. Avec assez d'or, améliore le tier de ton coffre pour de meilleurs drops. Légendaire garanti tous les 50 coffres (jauge sous le coffre).</p>
+
+        <h3>⚔️ Donjon</h3>
+        <p>Affronte des monstres pour gagner or et items. Plus l'étage est haut, plus c'est dur — mais les drops valent plus. Tous les 5 étages : <strong>boss</strong> (×2.6 stats, drop garanti). Si tu meurs, aucune pénalité — reviens plus fort.</p>
+
+        <h3>⚒ Forge</h3>
+        <p>Trois actions : <em>Reroll affixes</em> (change les bonus), <em>Monter tier</em> (T1→T5, multiplie les stats), <em>Transmuter</em> (rareté +1, ajoute un affixe). Les uniques ont des affixes fixes — pas de reroll/transmute.</p>
+
+        <h3>🎭 Sets &amp; ✨ Uniques</h3>
+        <p>Les <strong>sets</strong> (Dragon, Ombre, Titan, Phénix, Givre, Liche) donnent des bonus à 2/3/4 pièces équipées. Les <strong>uniques</strong> sont des légendaires nommés avec affixes fixes et flavor text.</p>
+
+        <h3>🌟 Ascension</h3>
+        <p>À T5 coffre + étage 50, ascensionne : tu repars de zéro mais gagnes un niveau de prestige permanent (+25% drops rares et or par niveau, cumulatif).</p>
+
+        <h3>💡 Raccourcis</h3>
+        <ul>
+          <li><kbd>Espace</kbd> : ouvre le coffre ou combat (selon l'onglet)</li>
+          <li><kbd>Échap</kbd> : ferme popup/modal</li>
+          <li><kbd>Clic</kbd> sur item d'inventaire : équiper</li>
+          <li><kbd>Shift+Clic</kbd> sur item d'inventaire : vendre</li>
+          <li><kbd>Clic</kbd> sur slot équipé : déséquiper</li>
+        </ul>
       </div>
     </div>
   </div>
