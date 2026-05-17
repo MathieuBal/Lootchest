@@ -16,8 +16,8 @@ export function transmuteCost(item) {
 }
 
 export function canReroll(item) {
-  // common items have no affixes, nothing to reroll
-  return item && item.affixes.length > 0 && state.gold >= rerollCost(item);
+  // common items have no affixes; unique items have fixed affixes
+  return item && !item.uniqueId && item.affixes.length > 0 && state.gold >= rerollCost(item);
 }
 
 export function canUpgradeTier(item) {
@@ -26,6 +26,7 @@ export function canUpgradeTier(item) {
 
 export function canTransmute(item) {
   if (!item) return false;
+  if (item.uniqueId) return false;       // uniques can't change rarity
   const idx = RARITIES.findIndex(r => r.id === item.rarity);
   if (idx < 0 || idx >= RARITIES.length - 1) return false;
   return state.gold >= transmuteCost(item);

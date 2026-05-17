@@ -6,6 +6,7 @@ import { openChest, upgradeChest, canOpen } from './chest.js';
 import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
 import { reroll, upgradeTier, transmute } from './forge.js';
+import { canAscend, ascend } from './prestige.js';
 import {
   equipItem, unequipSlot,
 } from './character.js';
@@ -267,6 +268,21 @@ document.getElementById('btn-transmute').addEventListener('click', () => {
   const id = getForgeSelectedId();
   const item = state.inventory.find(i => i.id === id);
   if (item) transmute(item);
+});
+
+// === Ascension ===
+
+document.getElementById('btn-ascend').addEventListener('click', () => {
+  if (!canAscend()) return;
+  const newLevel = (state.prestige?.level || 0) + 1;
+  const msg = `🌟 Ascension Niv ${newLevel} ?\n\n`
+    + `Tu repars de zéro (or, items, coffre T1, étage 1).\n`
+    + `Tu gardes : succès, prestige, statistiques.\n\n`
+    + `Bonus permanent : +${Math.round((Math.pow(1.25, newLevel) - 1) * 100)}% drops raretés et or de vente.\n\n`
+    + `Confirmer ?`;
+  if (confirm(msg)) {
+    ascend();
+  }
 });
 
 // === Save controls ===

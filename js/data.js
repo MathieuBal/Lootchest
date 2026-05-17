@@ -149,6 +149,11 @@ export const ACHIEVEMENTS = [
   { id: 'rich_100k',      emoji: '🤑', name: 'Magnat de l\'or',    desc: 'Accumule 100 000 or',      check: s => s.gold >= 100000,              reward: { gold: 5000 } },
   { id: 'first_forge',    emoji: '⚒', name: 'Forgeron',           desc: 'Utilise la forge 1 fois',  check: s => (s.stats?.forgesPerformed||0) >= 1, reward: { gold: 200 } },
   { id: 'forge_50',       emoji: '⚒', name: 'Maître forgeron',    desc: 'Utilise la forge 50 fois', check: s => (s.stats?.forgesPerformed||0) >= 50,reward: { gold: 3000 } },
+  { id: 'first_unique',   emoji: '✨', name: 'Trouvaille rare',     desc: 'Loote un objet unique',   check: s => (s.stats?.uniquesDropped||0) >= 1, reward: { gold: 2000 } },
+  { id: 'first_set',      emoji: '🎭', name: 'Set partiel',         desc: 'Équipe 2 pièces du même set',check: s => (s.stats?.maxSetEquipped||0) >= 2, reward: { gold: 500 } },
+  { id: 'full_set',       emoji: '🎭', name: 'Set complet',         desc: 'Équipe 4 pièces du même set',check: s => (s.stats?.maxSetEquipped||0) >= 4, reward: { gold: 5000 } },
+  { id: 'first_ascend',   emoji: '🌟', name: 'Ascension',           desc: 'Effectue ta 1ère ascension',check: s => (s.prestige?.totalAscensions||0) >= 1, reward: { gold: 10000 } },
+  { id: 'ascend_5',       emoji: '🌟', name: 'Ascensionné',         desc: 'Effectue 5 ascensions',   check: s => (s.prestige?.totalAscensions||0) >= 5, reward: { gold: 100000 } },
 ];
 
 // === Forge costs ===
@@ -157,6 +162,143 @@ export const FORGE_COSTS = {
   rerollMult: 1.5,      // reroll affixes
   upgradeTierMult: 4,   // upgrade chestTier
   transmuteMult: 6,     // upgrade rarity
+};
+
+// === Unique legendaries (hand-crafted, occasionally replace a random legendary) ===
+export const UNIQUE_DROP_CHANCE = 0.3;
+
+export const UNIQUE_LEGENDARIES = [
+  {
+    id: 'dragon_fang', slot: 'weapon', baseTypeId: 'sword', emoji: '🗡',
+    name: 'Croc du Dragon Endormi',
+    flavor: 'Forgé dans le souffle d\'un dragon millénaire.',
+    baseStatBonus: { damage: 20 },
+    fixedAffixes: [
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts',     value: 25, percent: false },
+      { id: 'fire', stat: 'fireDmg',  label: 'Dégâts feu', value: 30, percent: true },
+      { id: 'crit', stat: 'crit',     label: 'Crit',       value: 15, percent: true },
+      { id: 'spd',  stat: 'speed',    label: 'Vitesse',    value: 8,  percent: true },
+    ],
+  },
+  {
+    id: 'merchant_ring', slot: 'ring', baseTypeId: 'signet', emoji: '💎',
+    name: 'Anneau du Marchand Éternel',
+    flavor: 'L\'or appelle l\'or.',
+    fixedAffixes: [
+      { id: 'gold', stat: 'goldFind', label: 'Or trouvé', value: 50, percent: true },
+      { id: 'vit',  stat: 'vitality', label: 'Vie',       value: 20, percent: false },
+      { id: 'crit', stat: 'crit',     label: 'Crit',      value: 10, percent: true },
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts',    value: 8,  percent: false },
+    ],
+  },
+  {
+    id: 'dead_king_crown', slot: 'helmet', baseTypeId: 'crown', emoji: '👑',
+    name: 'Couronne du Roi Mort',
+    flavor: 'Les morts gouvernent les vivants.',
+    baseStatBonus: { armor: 15, vitality: 20 },
+    fixedAffixes: [
+      { id: 'vit',  stat: 'vitality', label: 'Vie',       value: 40, percent: false },
+      { id: 'arm',  stat: 'armor',    label: 'Armure',    value: 12, percent: false },
+      { id: 'gold', stat: 'goldFind', label: 'Or trouvé', value: 25, percent: true },
+      { id: 'crit', stat: 'crit',     label: 'Crit',      value: 10, percent: true },
+    ],
+  },
+  {
+    id: 'eternal_aegis', slot: 'shield', baseTypeId: 'tower', emoji: '🛡',
+    name: 'Pavois Éternel',
+    flavor: 'Aucun coup ne le traversa jamais.',
+    baseStatBonus: { armor: 25, vitality: 30 },
+    fixedAffixes: [
+      { id: 'arm',  stat: 'armor',    label: 'Armure',     value: 25, percent: false },
+      { id: 'vit',  stat: 'vitality', label: 'Vie',        value: 50, percent: false },
+      { id: 'fire', stat: 'fireDmg',  label: 'Dégâts feu', value: 15, percent: true },
+    ],
+  },
+  {
+    id: 'luck_charm', slot: 'amulet', baseTypeId: 'talisman', emoji: '🍀',
+    name: 'Talisman de Chance Insolente',
+    flavor: 'Certains naissent chanceux.',
+    fixedAffixes: [
+      { id: 'crit', stat: 'crit',     label: 'Crit',       value: 30, percent: true },
+      { id: 'gold', stat: 'goldFind', label: 'Or trouvé',  value: 30, percent: true },
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts',     value: 10, percent: false },
+      { id: 'spd',  stat: 'speed',    label: 'Vitesse',    value: 10, percent: true },
+    ],
+  },
+  {
+    id: 'shadow_garb', slot: 'armor', baseTypeId: 'robe', emoji: '🥷',
+    name: 'Robe de l\'Assassin de l\'Ombre',
+    flavor: 'Frappe vite, frappe fort, disparais.',
+    baseStatBonus: { armor: 10, vitality: 15 },
+    fixedAffixes: [
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts',  value: 15, percent: false },
+      { id: 'crit', stat: 'crit',     label: 'Crit',    value: 25, percent: true },
+      { id: 'spd',  stat: 'speed',    label: 'Vitesse', value: 20, percent: true },
+      { id: 'vit',  stat: 'vitality', label: 'Vie',     value: 25, percent: false },
+    ],
+  },
+];
+
+// === Sets (themed item collections with bonuses at 2/3/4 pieces) ===
+export const SETS = [
+  {
+    id: 'dragon', name: 'Dragon', color: '#ff5500',
+    pieces: {
+      helmet: { baseTypeId: 'helm',  emoji: '🪖', name: 'Heaume Dragonien' },
+      armor:  { baseTypeId: 'plate', emoji: '🦺', name: 'Plastron Dragonien' },
+      weapon: { baseTypeId: 'sword', emoji: '🗡', name: 'Épée Dragonienne' },
+      shield: { baseTypeId: 'tower', emoji: '🛡', name: 'Bouclier Dragonien' },
+    },
+    bonuses: {
+      2: [{ stat: 'fireDmg', value: 25, percent: true,  label: 'Dégâts feu' }],
+      3: [{ stat: 'damage',  value: 20, percent: false, label: 'Dégâts' }],
+      4: [{ stat: 'crit',    value: 25, percent: true,  label: 'Crit' }],
+    },
+  },
+  {
+    id: 'shadow', name: 'Ombre', color: '#8855ff',
+    pieces: {
+      armor:  { baseTypeId: 'robe',    emoji: '🥋', name: 'Robe de l\'Ombre' },
+      weapon: { baseTypeId: 'dagger',  emoji: '🗡', name: 'Dague de l\'Ombre' },
+      ring:   { baseTypeId: 'band',    emoji: '💍', name: 'Anneau de l\'Ombre' },
+      amulet: { baseTypeId: 'pendant', emoji: '📿', name: 'Pendentif de l\'Ombre' },
+    },
+    bonuses: {
+      2: [{ stat: 'speed',  value: 20, percent: true,  label: 'Vitesse' }],
+      3: [{ stat: 'crit',   value: 25, percent: true,  label: 'Crit' }],
+      4: [{ stat: 'damage', value: 30, percent: false, label: 'Dégâts' }],
+    },
+  },
+  {
+    id: 'titan', name: 'Titan', color: '#ffaa00',
+    pieces: {
+      helmet: { baseTypeId: 'helm',   emoji: '🪖', name: 'Heaume Titan' },
+      armor:  { baseTypeId: 'plate',  emoji: '🦺', name: 'Plastron Titan' },
+      shield: { baseTypeId: 'tower',  emoji: '🛡', name: 'Bouclier Titan' },
+      ring:   { baseTypeId: 'signet', emoji: '💎', name: 'Anneau Titan' },
+    },
+    bonuses: {
+      2: [{ stat: 'armor',    value: 25, percent: false, label: 'Armure' }],
+      3: [{ stat: 'vitality', value: 40, percent: false, label: 'Vie' }],
+      4: [{ stat: 'damage',   value: 25, percent: false, label: 'Dégâts' }],
+    },
+  },
+];
+
+export const SETS_BY_ID = Object.fromEntries(SETS.map(s => [s.id, s]));
+
+// Set piece drop chance per rarity (only rare+ can be set pieces)
+export const SET_DROP_CHANCE = { rare: 0.10, epic: 0.18, legendary: 0.20, ancestral: 0.25 };
+
+// === Prestige ===
+export const PRESTIGE_REQUIREMENTS = {
+  minChestTier: 5,
+  minFloor: 50,
+};
+
+export const PRESTIGE_BONUS_PER_LEVEL = {
+  rareDropWeightMult: 1.25,
+  goldMult: 1.25,
 };
 
 

@@ -5,11 +5,13 @@ import {
   AUTOSELL_UNLOCK_COSTS, CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, PITY_THRESHOLD,
   ACHIEVEMENTS,
 } from './data.js';
-import { computeStats, computePower } from './character.js';
+import { computeStats, computePower, computeSetSummary } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
 import { rerollCost, upgradeTierCost, transmuteCost, canReroll, canUpgradeTier, canTransmute } from './forge.js';
 import { getAchievementProgress } from './achievements.js';
+import { canAscend, ascensionRequirements } from './prestige.js';
+import { SETS_BY_ID } from './data.js';
 
 // === Item icon helpers ===
 
@@ -24,12 +26,23 @@ export function itemDetailsHTML(item) {
   const baseLines = Object.entries(item.baseStats || {})
     .map(([k, v]) => `<div class="tt-base">+${v} ${statLabel(k)}</div>`).join('');
   const affixLines = (item.affixes || [])
-    .map(a => `<div class="tt-affix">+${a.value}${a.percent ? '%' : ''} ${a.label}</div>`).join('');
+    .map(a => `<div class="tt-affix">${a.value > 0 ? '+' : ''}${a.value}${a.percent ? '%' : ''} ${a.label}</div>`).join('');
+  const uniqueBadge = item.uniqueId ? '<span class="unique-badge">UNIQUE</span>' : '';
+  let setBlock = '';
+  if (item.setId) {
+    const set = SETS_BY_ID[item.setId];
+    if (set) {
+      setBlock = `<div class="tt-set" style="color:${set.color};border-color:${set.color}">Set : ${set.name}</div>`;
+    }
+  }
+  const flavor = item.flavor ? `<div class="tt-flavor">"${item.flavor}"</div>` : '';
   return `
-    <div class="tt-name rt-${r.cssClass}">${item.name}</div>
-    <div class="tt-slot">${slot.name} — <span class="rarity-tag rt-${r.cssClass}">${r.name}</span></div>
+    <div class="tt-name rt-${r.cssClass}">${item.name}${uniqueBadge}</div>
+    <div class="tt-slot">T${item.chestTier} · ${slot.name} — <span class="rarity-tag rt-${r.cssClass}">${r.name}</span></div>
+    ${setBlock}
     ${baseLines}
     ${affixLines}
+    ${flavor}
     <div class="tt-value">💰 ${item.goldValue} or</div>
   `;
 }
@@ -58,6 +71,22 @@ function renderHUD() {
   const ap = getAchievementProgress();
   document.getElementById('ach-count').textContent = ap.unlocked;
   document.getElementById('ach-total').textContent = ap.total;
+  // Prestige badge
+  const prestigeLevel = state.prestige?.level || 0;
+  const prestigeEl = document.getElementById('hud-prestige');
+  if (prestigeLevel > 0) {
+    prestigeEl.style.display = '';
+    document.getElementById('hud-prestige-level').textContent = prestigeLevel;
+  } else {
+    prestigeEl.style.display = 'none';
+  }
+  // Ascend button enable/disable
+  const reqs = ascensionRequirements();
+  const ascendBtn = document.getElementById('btn-ascend');
+  ascendBtn.disabled = !canAscend();
+  ascendBtn.title = canAscend()
+    ? `Effectue une ascension (Niv ${prestigeLevel} → ${prestigeLevel + 1})`
+    : `Ascension : requiert T${reqs.minChestTier} + étage ${reqs.minFloor}`;
 }
 
 // === Chest panel ===
@@ -169,6 +198,29 @@ function renderCharacter() {
       slotEl.innerHTML = `<span style="opacity:0.3">${slot.emptyEmoji}</span><span class="slot-label">${slot.name}</span>`;
     }
     grid.appendChild(slotEl);
+  }
+
+  // Set summary
+  const setSummary = computeSetSummary();
+  const setEl = document.getElementById('set-summary');
+  setEl.innerHTML = '';
+  for (const s of setSummary) {
+    const row = document.createElement('div');
+    row.className = 'set-row';
+    row.style.borderColor = s.color;
+    row.innerHTML = `
+      <span class="set-name" style="color:${s.color}">${s.setName}</span>
+      <span class="set-count">${s.count}/${s.totalPieces}</span>
+    `;
+    setEl.appendChild(row);
+    if (s.activeBonuses.length > 0) {
+      const bonusList = document.createElement('div');
+      bonusList.className = 'set-bonuses';
+      bonusList.innerHTML = s.activeBonuses.map(b =>
+        `<div class="active">(${b.threshold}) +${b.value}${b.percent ? '%' : ''} ${b.label}</div>`
+      ).join('');
+      setEl.appendChild(bonusList);
+    }
   }
 
   const stats = computeStats();

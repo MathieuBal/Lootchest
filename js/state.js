@@ -37,9 +37,15 @@ export const state = {
   stats: {
     legendaryDropped: 0,
     ancestralDropped: 0,
+    uniquesDropped: 0,
     itemsSold: 0,
     totalGoldEarned: 0,
     forgesPerformed: 0,
+    maxSetEquipped: 0,
+  },
+  prestige: {
+    level: 0,
+    totalAscensions: 0,
   },
 };
 
@@ -81,7 +87,11 @@ export function replaceState(newState) {
   if (!state.pity) state.pity = { sinceLegendary: 0 };
   if (!state.ui) state.ui = { leftTab: 'chest' };
   if (!state.achievements) state.achievements = { unlocked: {} };
-  if (!state.stats) state.stats = { legendaryDropped: 0, ancestralDropped: 0, itemsSold: 0, totalGoldEarned: 0, forgesPerformed: 0 };
+  if (!state.stats) state.stats = {};
+  for (const k of ['legendaryDropped','ancestralDropped','uniquesDropped','itemsSold','totalGoldEarned','forgesPerformed','maxSetEquipped']) {
+    if (state.stats[k] === undefined) state.stats[k] = 0;
+  }
+  if (!state.prestige) state.prestige = { level: 0, totalAscensions: 0 };
   notify();
 }
 
@@ -99,6 +109,7 @@ export function resetState() {
   state.pity = { sinceLegendary: 0 };
   state.ui = { leftTab: 'chest' };
   state.achievements = { unlocked: {} };
-  state.stats = { legendaryDropped: 0, ancestralDropped: 0, itemsSold: 0, totalGoldEarned: 0, forgesPerformed: 0 };
+  state.stats = { legendaryDropped: 0, ancestralDropped: 0, uniquesDropped: 0, itemsSold: 0, totalGoldEarned: 0, forgesPerformed: 0, maxSetEquipped: 0 };
+  state.prestige = { level: 0, totalAscensions: 0 };
   notify();
 }

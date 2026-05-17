@@ -466,6 +466,62 @@ button, input, select {
   text-align: center;
 }
 
+/* === Set summary === */
+.set-summary {
+  margin: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.set-summary:empty { display: none; }
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 8px;
+  padding: 4px 6px;
+  background: var(--bg-panel-light);
+  border-left: 4px solid;
+}
+.set-row .set-name { flex: 1; }
+.set-row .set-count { color: var(--text-dim); }
+.set-bonuses {
+  font-size: 8px;
+  color: var(--text-dim);
+  padding-left: 14px;
+}
+.set-bonuses .active { color: #b6f5b6; }
+
+/* === Hud prestige === */
+.hud-prestige {
+  border-color: var(--gold) !important;
+  background: linear-gradient(135deg, #4a3a10, var(--bg-panel-light)) !important;
+}
+
+/* === Unique badge & flavor === */
+.unique-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  background: var(--r-legendary);
+  color: #fff;
+  font-size: 7px;
+  margin-left: 4px;
+}
+.tt-flavor {
+  font-style: italic;
+  font-size: 8px;
+  color: var(--r-legendary);
+  margin-top: 6px;
+  padding: 4px;
+  border-top: 1px dashed var(--border);
+}
+.tt-set {
+  margin-top: 4px;
+  padding: 3px 5px;
+  border-left: 3px solid;
+  font-size: 8px;
+}
+
 .character-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;

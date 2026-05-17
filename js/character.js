@@ -1,6 +1,6 @@
 // Character equipment management + stat computation.
 import { state, notify } from './state.js';
-import { SLOTS, POWER_WEIGHTS } from './data.js';
+import { SLOTS, POWER_WEIGHTS, SETS_BY_ID } from './data.js';
 
 export function equipItem(item) {
   const previous = state.equipment[item.slot] || null;
@@ -10,6 +10,10 @@ export function equipItem(item) {
   if (idx >= 0) state.inventory.splice(idx, 1);
   // Push old item back to inventory
   if (previous) state.inventory.push(previous);
+  // Track max set pieces equipped (for achievements)
+  if (state.stats) {
+    state.stats.maxSetEquipped = Math.max(state.stats.maxSetEquipped || 0, maxSetCount());
+  }
   notify();
   return previous;
 }
@@ -44,7 +48,51 @@ export function computeStats() {
       total[aff.stat] = (total[aff.stat] || 0) + aff.value;
     }
   }
+  // Add set bonuses
+  for (const b of computeSetBonuses()) {
+    total[b.stat] = (total[b.stat] || 0) + b.value;
+  }
   return total;
+}
+
+// Returns array of { setId, setName, color, count, activeBonuses: [{stat, value, percent, label, threshold}] }
+export function computeSetSummary() {
+  const counts = {};       // { setId: count of distinct slots equipped }
+  const slots = {};        // { setId: Set<slotId> }
+  for (const item of Object.values(state.equipment)) {
+    if (item && item.setId) {
+      if (!slots[item.setId]) slots[item.setId] = new Set();
+      slots[item.setId].add(item.slot);
+    }
+  }
+  const result = [];
+  for (const [setId, slotSet] of Object.entries(slots)) {
+    const set = SETS_BY_ID[setId];
+    if (!set) continue;
+    const count = slotSet.size;
+    const totalPieces = Object.keys(set.pieces).length;
+    const activeBonuses = [];
+    for (const [threshold, bonuses] of Object.entries(set.bonuses)) {
+      if (count >= parseInt(threshold)) {
+        activeBonuses.push(...bonuses.map(b => ({ ...b, threshold: parseInt(threshold) })));
+      }
+    }
+    result.push({ setId, setName: set.name, color: set.color, count, totalPieces, activeBonuses });
+  }
+  return result;
+}
+
+// Just the flat bonus list (for computeStats)
+function computeSetBonuses() {
+  const summary = computeSetSummary();
+  const out = [];
+  for (const s of summary) out.push(...s.activeBonuses);
+  return out;
+}
+
+// Returns the max number of distinct slots equipped from any single set
+export function maxSetCount() {
+  return computeSetSummary().reduce((max, s) => Math.max(max, s.count), 0);
 }
 
 export function computePower(stats) {
