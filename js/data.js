@@ -92,28 +92,76 @@ export const CHEST_OPEN_COOLDOWN_MS = 800;
 // Pity timer: every N non-legendary+ drops, force a legendary on the next chest open.
 export const PITY_THRESHOLD = 50;
 
-// Monsters for the dungeon. Stats are TIER 1 baseline, scaled by floor.
-export const MONSTER_TYPES = [
-  { name: 'Gobelin',        emoji: '👺', hpBase: 30, dmgBase: 4,  armorBase: 1, goldBase: 8  },
-  { name: 'Squelette',      emoji: '💀', hpBase: 25, dmgBase: 5,  armorBase: 0, goldBase: 10 },
-  { name: 'Slime',          emoji: '🟢', hpBase: 55, dmgBase: 3,  armorBase: 3, goldBase: 12 },
-  { name: 'Loup',           emoji: '🐺', hpBase: 35, dmgBase: 6,  armorBase: 1, goldBase: 9  },
-  { name: 'Araignée',       emoji: '🕷', hpBase: 28, dmgBase: 7,  armorBase: 0, goldBase: 11 },
-  { name: 'Chauve-souris',  emoji: '🦇', hpBase: 22, dmgBase: 5,  armorBase: 0, goldBase: 8  },
-  { name: 'Orc',            emoji: '👹', hpBase: 45, dmgBase: 7,  armorBase: 2, goldBase: 13 },
-  { name: 'Zombie',         emoji: '🧟', hpBase: 50, dmgBase: 5,  armorBase: 1, goldBase: 11 },
-  { name: 'Bandit',         emoji: '🥷', hpBase: 32, dmgBase: 8,  armorBase: 1, goldBase: 14 },
+// Biomes for the dungeon. Each biome covers a floor range and has its own monsters + boss.
+export const BIOMES = [
+  {
+    id: 'forest', name: 'Forêt', emoji: '🌲', floors: [1, 10],
+    bgGradient: 'linear-gradient(135deg, #1a3a1a, #2a4a2a)',
+    monsters: [
+      { name: 'Gobelin',        emoji: '👺', hpBase: 30, dmgBase: 4, armorBase: 1, goldBase: 8 },
+      { name: 'Loup',           emoji: '🐺', hpBase: 35, dmgBase: 6, armorBase: 1, goldBase: 9 },
+      { name: 'Araignée',       emoji: '🕷', hpBase: 28, dmgBase: 7, armorBase: 0, goldBase: 11 },
+      { name: 'Ours',           emoji: '🐻', hpBase: 55, dmgBase: 5, armorBase: 2, goldBase: 12 },
+      { name: 'Plante carnivore', emoji: '🌵', hpBase: 40, dmgBase: 4, armorBase: 1, goldBase: 10 },
+    ],
+    boss: { name: 'Roi Sylvain',  emoji: '🌳', hpBase: 140, dmgBase: 11, armorBase: 4, goldBase: 100 },
+  },
+  {
+    id: 'cave', name: 'Cavernes', emoji: '🪨', floors: [11, 20],
+    bgGradient: 'linear-gradient(135deg, #2a2418, #3a3424)',
+    monsters: [
+      { name: 'Chauve-souris',  emoji: '🦇', hpBase: 25, dmgBase: 6, armorBase: 0, goldBase: 10 },
+      { name: 'Squelette',      emoji: '💀', hpBase: 30, dmgBase: 5, armorBase: 1, goldBase: 11 },
+      { name: 'Slime',          emoji: '🟢', hpBase: 60, dmgBase: 3, armorBase: 4, goldBase: 13 },
+      { name: 'Troll',          emoji: '👹', hpBase: 55, dmgBase: 8, armorBase: 3, goldBase: 14 },
+      { name: 'Golem de pierre',emoji: '🗿', hpBase: 70, dmgBase: 6, armorBase: 5, goldBase: 15 },
+    ],
+    boss: { name: 'Hydre des Profondeurs', emoji: '🐲', hpBase: 160, dmgBase: 13, armorBase: 5, goldBase: 130 },
+  },
+  {
+    id: 'castle', name: 'Château', emoji: '🏰', floors: [21, 30],
+    bgGradient: 'linear-gradient(135deg, #2a1a3a, #3a2a4a)',
+    monsters: [
+      { name: 'Zombie',         emoji: '🧟', hpBase: 50, dmgBase: 6, armorBase: 1, goldBase: 13 },
+      { name: 'Bandit',         emoji: '🥷', hpBase: 35, dmgBase: 9, armorBase: 1, goldBase: 15 },
+      { name: 'Spectre',        emoji: '👻', hpBase: 30, dmgBase: 10, armorBase: 0, goldBase: 14 },
+      { name: 'Garde Maudit',   emoji: '⚔',  hpBase: 45, dmgBase: 8, armorBase: 3, goldBase: 16 },
+      { name: 'Sorcier',        emoji: '🧙', hpBase: 32, dmgBase: 11, armorBase: 0, goldBase: 18 },
+    ],
+    boss: { name: 'Roi Mort',   emoji: '☠', hpBase: 130, dmgBase: 16, armorBase: 4, goldBase: 160 },
+  },
+  {
+    id: 'hell', name: 'Enfer', emoji: '🔥', floors: [31, 40],
+    bgGradient: 'linear-gradient(135deg, #3a1408, #5a2814)',
+    monsters: [
+      { name: 'Diablotin',      emoji: '😈', hpBase: 32, dmgBase: 12, armorBase: 0, goldBase: 18 },
+      { name: 'Démonette',      emoji: '👹', hpBase: 40, dmgBase: 11, armorBase: 2, goldBase: 17 },
+      { name: 'Cerbère',        emoji: '🐶', hpBase: 55, dmgBase: 10, armorBase: 3, goldBase: 19 },
+      { name: 'Incube',         emoji: '😺', hpBase: 30, dmgBase: 14, armorBase: 0, goldBase: 20 },
+      { name: 'Démon de Lave',  emoji: '🌋', hpBase: 70, dmgBase: 10, armorBase: 4, goldBase: 22 },
+    ],
+    boss: { name: 'Seigneur Démon', emoji: '😈', hpBase: 150, dmgBase: 20, armorBase: 4, goldBase: 220 },
+  },
+  {
+    id: 'void', name: 'Néant', emoji: '🌌', floors: [41, 9999],
+    bgGradient: 'linear-gradient(135deg, #1a0838, #2a1448)',
+    monsters: [
+      { name: 'Ombre',          emoji: '🌑', hpBase: 50, dmgBase: 14, armorBase: 3, goldBase: 24 },
+      { name: 'Horreur',        emoji: '👁', hpBase: 65, dmgBase: 13, armorBase: 4, goldBase: 26 },
+      { name: 'Wraith',         emoji: '👤', hpBase: 45, dmgBase: 16, armorBase: 2, goldBase: 25 },
+      { name: 'Tentacule',      emoji: '🐙', hpBase: 75, dmgBase: 12, armorBase: 5, goldBase: 27 },
+      { name: 'Vide-marcheur',  emoji: '👽', hpBase: 60, dmgBase: 15, armorBase: 3, goldBase: 28 },
+    ],
+    boss: { name: 'Maître du Néant', emoji: '🌀', hpBase: 200, dmgBase: 22, armorBase: 6, goldBase: 320 },
+  },
 ];
 
-// Bosses appear every 5 floors. Stats much higher + guaranteed drop.
-export const BOSS_TYPES = [
-  { name: 'Dragon',           emoji: '🐉', hpBase: 120, dmgBase: 12, armorBase: 5, goldBase: 100 },
-  { name: 'Seigneur Démon',   emoji: '😈', hpBase: 100, dmgBase: 15, armorBase: 3, goldBase: 120 },
-  { name: 'Archisorcier',     emoji: '🧙', hpBase: 80,  dmgBase: 18, armorBase: 2, goldBase: 130 },
-  { name: 'Cyclope',          emoji: '👁', hpBase: 150, dmgBase: 10, armorBase: 6, goldBase: 110 },
-  { name: 'Liche',            emoji: '☠', hpBase: 90,  dmgBase: 16, armorBase: 4, goldBase: 125 },
-  { name: 'Hydre',            emoji: '🐲', hpBase: 140, dmgBase: 13, armorBase: 4, goldBase: 135 },
-];
+export function biomeForFloor(floor) {
+  for (const b of BIOMES) {
+    if (floor >= b.floors[0] && floor <= b.floors[1]) return b;
+  }
+  return BIOMES[BIOMES.length - 1];
+}
 
 // Player base stats (without equipment)
 export const PLAYER_BASE = {
@@ -157,6 +205,10 @@ export const ACHIEVEMENTS = [
   { id: 'first_salvage',  emoji: '💎', name: 'Recycleur',           desc: 'Accumule 10 cristaux',    check: s => totalShards(s) >= 10,        reward: { gold: 200 } },
   { id: 'shard_100',      emoji: '💎', name: 'Collecte de cristaux',desc: 'Accumule 100 cristaux',    check: s => totalShards(s) >= 100,       reward: { gold: 1000 } },
   { id: 'shard_1000',     emoji: '💎', name: 'Maître alchimiste',   desc: 'Accumule 1 000 cristaux',  check: s => totalShards(s) >= 1000,      reward: { gold: 10000 } },
+  { id: 'biome_cave',     emoji: '🪨', name: 'Spéléologue',         desc: 'Atteins les Cavernes (étage 11)',check: s => (s.combat?.highestUnlocked||1) >= 11, reward: { gold: 300 } },
+  { id: 'biome_castle',   emoji: '🏰', name: 'Conquérant',          desc: 'Atteins le Château (étage 21)',  check: s => (s.combat?.highestUnlocked||1) >= 21, reward: { gold: 1500 } },
+  { id: 'biome_hell',     emoji: '🔥', name: 'Damné',               desc: 'Atteins l\'Enfer (étage 31)',    check: s => (s.combat?.highestUnlocked||1) >= 31, reward: { gold: 5000 } },
+  { id: 'biome_void',     emoji: '🌌', name: 'Au-delà',             desc: 'Atteins le Néant (étage 41)',    check: s => (s.combat?.highestUnlocked||1) >= 41, reward: { gold: 15000 } },
 ];
 
 function totalShards(s) {

@@ -8,6 +8,7 @@ import {
 import { computeStats, computePower, computeSetSummary } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
+import { biomeForFloor } from './data.js';
 import {
   rerollCost, upgradeTierCost, transmuteCost,
   canReroll, canUpgradeTier, canTransmute,
@@ -189,9 +190,14 @@ function renderDungeon() {
   document.getElementById('btn-floor-prev').disabled = floor <= 1;
   document.getElementById('btn-floor-next').disabled = floor >= state.combat.highestUnlocked;
 
+  const biome = biomeForFloor(floor);
+  document.getElementById('dungeon-biome').textContent = `${biome.emoji} ${biome.name}`;
+
   const monster = generateMonster(floor);
   const card = document.getElementById('monster-card');
   card.classList.toggle('boss', monster.isBoss);
+  // Apply biome background to the monster card
+  card.style.background = biome.bgGradient;
   document.getElementById('monster-emoji').textContent = monster.emoji;
   document.getElementById('monster-name').textContent = monster.name;
   document.getElementById('monster-stats').innerHTML =
