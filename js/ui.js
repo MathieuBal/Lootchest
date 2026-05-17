@@ -16,7 +16,7 @@ import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, UNIQUE_LEGENDARIES, BIOMES } from './data.js';
 import { rankOf, canUpgradeTalent } from './talents.js';
-import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG } from './sprites.js';
+import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG } from './sprites.js';
 import { getCompositionLayers } from './parts.js';
 
 // === Item icon helpers ===
@@ -327,9 +327,27 @@ function renderAutoSell() {
 // === Character panel ===
 
 function renderCharacter() {
-  // Render pixel-art character sprite
+  // Paper-doll: character + equipped gear layered together.
   const avatarEl = document.getElementById('character-avatar');
-  if (avatarEl) avatarEl.innerHTML = characterSpriteSVG(80);
+  if (avatarEl) {
+    avatarEl.innerHTML = composeCharacterWithGearSVG(state.equipment, 110);
+    // Glow color = highest equipped rarity (for visual feedback of build power)
+    const rarityIdx = Object.fromEntries(RARITIES.map((r, i) => [r.id, i]));
+    let bestRarity = null, bestIdx = -1;
+    for (const it of Object.values(state.equipment)) {
+      if (!it) continue;
+      const idx = rarityIdx[it.rarity];
+      if (idx > bestIdx) { bestIdx = idx; bestRarity = it.rarity; }
+    }
+    if (bestRarity) {
+      const r = RARITY_BY_ID[bestRarity];
+      avatarEl.style.boxShadow = `inset 0 0 24px ${r.color}55, 0 0 12px ${r.color}66`;
+      avatarEl.style.borderColor = r.color;
+    } else {
+      avatarEl.style.boxShadow = '';
+      avatarEl.style.borderColor = '';
+    }
+  }
 
   const grid = document.getElementById('equipment-grid');
   grid.innerHTML = '';
