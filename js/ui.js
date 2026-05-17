@@ -12,6 +12,7 @@ import { rerollCost, upgradeTierCost, transmuteCost, canReroll, canUpgradeTier, 
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { SETS_BY_ID } from './data.js';
+import { chestSpriteSVG, characterSpriteSVG } from './sprites.js';
 
 // === Item icon helpers ===
 
@@ -94,7 +95,9 @@ function renderHUD() {
 function renderChest() {
   const tier = getCurrentTier();
   const next = getNextTier();
-  document.getElementById('chest-emoji').textContent = tier.emoji;
+  // Render pixel-art chest sprite (replaces emoji)
+  const chestEl = document.getElementById('chest-emoji');
+  chestEl.innerHTML = chestSpriteSVG(tier.tier, 96);
   document.getElementById('chest-tier-label').textContent = `Tier ${tier.tier} — ${tier.name}`;
 
   if (next) {
@@ -182,6 +185,10 @@ function renderAutoSell() {
 // === Character panel ===
 
 function renderCharacter() {
+  // Render pixel-art character sprite
+  const avatarEl = document.getElementById('character-avatar');
+  if (avatarEl) avatarEl.innerHTML = characterSpriteSVG(80);
+
   const grid = document.getElementById('equipment-grid');
   grid.innerHTML = '';
   for (const slot of SLOTS) {

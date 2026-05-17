@@ -207,8 +207,15 @@ button, input, select {
 }
 .chest-emoji {
   font-size: 80px;
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: transform 200ms;
+  filter: drop-shadow(2px 4px 0 rgba(0,0,0,0.6));
 }
+.chest-emoji svg { display: block; }
 .chest-emoji.shake {
   animation: shake 350ms;
 }
@@ -420,13 +427,18 @@ button, input, select {
 
 /* === Character panel === */
 .character-avatar {
-  font-size: 72px;
   text-align: center;
   padding: 10px 0;
   background: var(--bg-panel-light);
   border: 2px solid var(--border);
   margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 92px;
+  filter: drop-shadow(2px 3px 0 rgba(0,0,0,0.6));
 }
+.character-avatar svg { display: block; }
 
 .equipment-grid {
   display: grid;
