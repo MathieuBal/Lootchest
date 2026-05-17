@@ -6,7 +6,7 @@ import {
   ACHIEVEMENTS,
 } from './data.js';
 import { computeStats, computePower, computeSetSummary } from './character.js';
-import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining } from './chest.js';
+import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining, nextTierLockedBy } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
 import { biomeForFloor } from './data.js';
 import { FORGE_ACTIONS, availableMasterCraftAffixes } from './forge.js';
@@ -186,8 +186,14 @@ function renderChest() {
   document.getElementById('chest-tier-label').textContent = `Tier ${tier.tier} — ${tier.name}`;
 
   if (next) {
-    document.getElementById('next-tier-name').textContent = next.name;
-    document.getElementById('upgrade-cost').textContent = tier.upgradeCost.toLocaleString('fr-FR');
+    const lockedBy = nextTierLockedBy();
+    if (lockedBy) {
+      document.getElementById('next-tier-name').textContent = `${next.name} 🔒`;
+      document.getElementById('upgrade-cost').textContent = `Ascension Niv ${lockedBy}`;
+    } else {
+      document.getElementById('next-tier-name').textContent = next.name;
+      document.getElementById('upgrade-cost').textContent = tier.upgradeCost.toLocaleString('fr-FR');
+    }
     const btn = document.getElementById('btn-upgrade');
     btn.disabled = !canUpgrade();
     btn.style.display = '';

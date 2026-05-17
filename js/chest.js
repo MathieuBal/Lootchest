@@ -48,7 +48,19 @@ export function getNextTier() {
 export function canUpgrade() {
   const current = getCurrentTier();
   if (!current || current.upgradeCost === null) return false;
+  const next = getNextTier();
+  if (!next) return false;
+  // Locked by prestige requirement?
+  if (next.prestigeReq && (state.prestige?.level || 0) < next.prestigeReq) return false;
   return state.gold >= current.upgradeCost;
+}
+
+// Returns null if the next tier exists but is locked by prestige.
+export function nextTierLockedBy() {
+  const next = getNextTier();
+  if (!next || !next.prestigeReq) return null;
+  if ((state.prestige?.level || 0) >= next.prestigeReq) return null;
+  return next.prestigeReq;
 }
 
 export function upgradeChest() {
