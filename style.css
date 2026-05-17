@@ -853,6 +853,66 @@ button, input, select {
 .tooltip .tt-slot { color: var(--text-dim); margin-bottom: 6px; font-size: 8px; }
 .tooltip .tt-base { color: var(--text); margin-bottom: 4px; }
 .tooltip .tt-affix { color: var(--r-magic); }
+
+/* === Affix prefix/suffix badges === */
+.affix-type {
+  display: inline-block;
+  font-size: 7px;
+  padding: 1px 3px;
+  margin-right: 4px;
+  border: 1px solid;
+  vertical-align: middle;
+  font-weight: bold;
+}
+.affix-type.p { color: #ff8050; border-color: #ff8050; }
+.affix-type.s { color: #50c0ff; border-color: #50c0ff; }
+
+/* === Master craft sub-panel === */
+.master-craft-header {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: var(--gold);
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.master-craft-list {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.mc-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--bg-panel-light);
+  border: 2px solid var(--border);
+  font-size: 9px;
+  cursor: pointer;
+  transition: border-color 80ms, background 80ms;
+}
+.mc-row:hover:not(.disabled) {
+  border-color: var(--gold);
+  background: var(--border);
+}
+.mc-row.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.mc-name { color: var(--text); }
+.mc-range { color: var(--gold); font-size: 8px; }
+.mc-status { font-size: 8px; }
+.mc-status.ok      { color: #6acc6a; }
+.mc-status.present { color: var(--text-dim); font-style: italic; }
+.mc-status.full    { color: #ff8090; }
 .tooltip .tt-value { color: var(--gold); margin-top: 6px; border-top: 1px solid var(--border); padding-top: 4px; }
 
 /* === Modal === */

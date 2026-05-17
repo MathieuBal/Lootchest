@@ -9,9 +9,9 @@ import { computeStats, computePower, computeSetSummary } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
 import { biomeForFloor } from './data.js';
-import { FORGE_ACTIONS } from './forge.js';
+import { FORGE_ACTIONS, availableMasterCraftAffixes } from './forge.js';
 import { shardYield } from './inventory.js';
-import { CURRENCY_TYPES, CURRENCY_BY_ID } from './data.js';
+import { CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID } from './data.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { SETS_BY_ID } from './data.js';
@@ -66,13 +66,20 @@ function comparisonHTML(item) {
   return `<div class="tt-compare"><div class="tt-compare-title">vs équipé</div>${rows.join('')}</div>`;
 }
 
+function affixTypeBadge(aff) {
+  const t = aff.type || AFFIXES_BY_ID[aff.id]?.type;
+  if (t === 'prefix') return '<span class="affix-type p">P</span>';
+  if (t === 'suffix') return '<span class="affix-type s">S</span>';
+  return '';
+}
+
 export function itemDetailsHTML(item) {
   const r = RARITY_BY_ID[item.rarity];
   const slot = SLOT_BY_ID[item.slot];
   const baseLines = Object.entries(item.baseStats || {})
     .map(([k, v]) => `<div class="tt-base">+${v} ${statLabel(k)}</div>`).join('');
   const affixLines = (item.affixes || [])
-    .map(a => `<div class="tt-affix">${a.value > 0 ? '+' : ''}${a.value}${a.percent ? '%' : ''} ${a.label}</div>`).join('');
+    .map(a => `<div class="tt-affix">${affixTypeBadge(a)}${a.value > 0 ? '+' : ''}${a.value}${a.percent ? '%' : ''} ${a.label}</div>`).join('');
   const uniqueBadge = item.uniqueId ? '<span class="unique-badge">UNIQUE</span>' : '';
   let setBlock = '';
   if (item.setId) {
@@ -616,14 +623,25 @@ export function showToast(emoji, title, subtitle) {
 // === Forge modal ===
 
 let forgeSelectedItemId = null;
+let forgeMode = 'actions';  // 'actions' | 'master-craft'
 
 export function setForgeSelected(itemId) {
   forgeSelectedItemId = itemId;
+  forgeMode = 'actions';
   renderForgeModal();
 }
 
 export function getForgeSelectedId() {
   return forgeSelectedItemId;
+}
+
+export function setForgeMode(mode) {
+  forgeMode = mode;
+  renderForgeModal();
+}
+
+export function getForgeMode() {
+  return forgeMode;
 }
 
 export function renderForgeModal() {
@@ -666,8 +684,15 @@ export function renderForgeModal() {
     </div>
   `;
 
-  // Render action buttons dynamically
   const actionsEl = document.getElementById('forge-actions');
+  if (forgeMode === 'master-craft') {
+    renderMasterCraftPanel(actionsEl, selected);
+  } else {
+    renderForgeActionsPanel(actionsEl, selected);
+  }
+}
+
+function renderForgeActionsPanel(actionsEl, selected) {
   actionsEl.innerHTML = '';
   for (const action of FORGE_ACTIONS) {
     const enabled = action.can(selected);
@@ -695,6 +720,47 @@ export function renderForgeModal() {
     `;
     actionsEl.appendChild(btn);
   }
+}
+
+function renderMasterCraftPanel(actionsEl, selected) {
+  const available = availableMasterCraftAffixes(selected);
+  const usedStats = new Set(selected.affixes.map(a => a.stat));
+  const orbCount = state.orbs.maitre || 0;
+  let html = `
+    <div class="master-craft-header">
+      <div>🟪 Choisis un affixe à ajouter — coût : 1 🟪 (${orbCount} disponible)</div>
+      <button class="btn btn-small" data-forge-action="cancel-master">← Retour</button>
+    </div>
+    <div class="master-craft-list">
+  `;
+  // Show all affixes, marking unavailable ones
+  for (const def of AFFIXES_LIST_FOR_UI()) {
+    const isAvailable = available.includes(def);
+    const isPresent = usedStats.has(def.stat);
+    const typeLetter = def.type === 'prefix' ? 'P' : 'S';
+    const minMax = `+${def.min * selected.chestTier}-${def.max * selected.chestTier}${def.percent ? '%' : ''}`;
+    let status;
+    if (isPresent) status = '<span class="mc-status present">déjà présent</span>';
+    else if (!isAvailable) status = '<span class="mc-status full">slot plein</span>';
+    else if (orbCount < 1) status = '<span class="mc-status full">pas d\'orbe</span>';
+    else status = '<span class="mc-status ok">disponible</span>';
+    const btnClass = (isAvailable && orbCount >= 1) ? '' : ' disabled';
+    html += `
+      <div class="mc-row${btnClass}" data-affix-id="${def.id}">
+        <span class="affix-type ${def.type === 'prefix' ? 'p' : 's'}">${typeLetter}</span>
+        <span class="mc-name">${def.label}</span>
+        <span class="mc-range">${minMax}</span>
+        ${status}
+      </div>
+    `;
+  }
+  html += '</div>';
+  actionsEl.innerHTML = html;
+}
+
+// Tiny helper to fetch the list (used by master craft) without a circular import
+function AFFIXES_LIST_FOR_UI() {
+  return Object.values(AFFIXES_BY_ID);
 }
 
 // === Modal show/hide ===

@@ -57,16 +57,30 @@ export const BASE_TYPES = {
   ],
 };
 
-// Affix pool — each affix has a stat key, a label, a range per tier, and a flag if percent
+// Affix pool — each affix has a stat key, a label, a range per tier, percent flag, and a TYPE (prefix/suffix).
+// Prefixes are typically additive offensive/defensive mods. Suffixes are utility/ratio mods.
 export const AFFIXES = [
-  { id: 'vit',     stat: 'vitality',  label: 'Vie',          min: 3,  max: 8,  percent: false },
-  { id: 'dmg',     stat: 'damage',    label: 'Dégâts',       min: 2,  max: 6,  percent: false },
-  { id: 'arm',     stat: 'armor',     label: 'Armure',       min: 2,  max: 5,  percent: false },
-  { id: 'crit',    stat: 'crit',      label: 'Crit',         min: 1,  max: 4,  percent: true  },
-  { id: 'fire',    stat: 'fireDmg',   label: 'Dégâts feu',   min: 2,  max: 6,  percent: true  },
-  { id: 'gold',    stat: 'goldFind',  label: 'Or trouvé',    min: 3,  max: 9,  percent: true  },
-  { id: 'spd',     stat: 'speed',     label: 'Vitesse',      min: 1,  max: 3,  percent: true  },
+  { id: 'vit',     stat: 'vitality',  label: 'Vie',          min: 3,  max: 8,  percent: false, type: 'suffix', tags: ['life'] },
+  { id: 'dmg',     stat: 'damage',    label: 'Dégâts',       min: 2,  max: 6,  percent: false, type: 'prefix', tags: ['attack', 'physical'] },
+  { id: 'arm',     stat: 'armor',     label: 'Armure',       min: 2,  max: 5,  percent: false, type: 'prefix', tags: ['defense'] },
+  { id: 'crit',    stat: 'crit',      label: 'Crit',         min: 1,  max: 4,  percent: true,  type: 'suffix', tags: ['attack', 'critical'] },
+  { id: 'fire',    stat: 'fireDmg',   label: 'Dégâts feu',   min: 2,  max: 6,  percent: true,  type: 'prefix', tags: ['attack', 'elemental', 'fire'] },
+  { id: 'gold',    stat: 'goldFind',  label: 'Or trouvé',    min: 3,  max: 9,  percent: true,  type: 'suffix', tags: ['utility', 'gold'] },
+  { id: 'spd',     stat: 'speed',     label: 'Vitesse',      min: 1,  max: 3,  percent: true,  type: 'suffix', tags: ['utility', 'speed'] },
 ];
+
+export const AFFIXES_BY_ID = Object.fromEntries(AFFIXES.map(a => [a.id, a]));
+
+// Per-rarity max affixes by type. Drops will roll up to RARITY.affixes total (default count),
+// crafting (augm/exil/maître) can grow up to these caps.
+export const AFFIX_LIMITS = {
+  common:    { prefix: 0, suffix: 0 },
+  magic:     { prefix: 1, suffix: 1 },
+  rare:      { prefix: 2, suffix: 2 },
+  epic:      { prefix: 2, suffix: 2 },
+  legendary: { prefix: 3, suffix: 3 },
+  ancestral: { prefix: 3, suffix: 3 },
+};
 
 // Random adjectives for procedural item names
 export const NAME_PREFIXES = [
@@ -213,6 +227,7 @@ export const ACHIEVEMENTS = [
   { id: 'orb_50',         emoji: '⚗', name: 'Alchimiste',           desc: 'Accumule 50 orbes',                check: s => totalOrbs(s) >= 50,           reward: { gold: 2000 } },
   { id: 'chaos_orb',      emoji: '🟠', name: 'Touche du Chaos',     desc: 'Trouve un Orbe du Chaos',          check: s => (s.orbs?.chaos||0) >= 1,      reward: { gold: 3000 } },
   { id: 'exil_orb',       emoji: '🔴', name: 'Touche de l\'Exilé',  desc: 'Trouve un Orbe d\'Exil',           check: s => (s.orbs?.exil||0) >= 1,       reward: { gold: 10000 } },
+  { id: 'maitre_orb',     emoji: '🟪', name: 'Maître Forgeron',     desc: 'Trouve un Orbe Maître',            check: s => (s.orbs?.maitre||0) >= 1,     reward: { gold: 15000 } },
 ];
 
 function totalOrbs(s) {
@@ -244,6 +259,7 @@ export const CURRENCY_TYPES = [
   { id: 'divin',   name: 'Orbe Divin',            emoji: '⚪', color: '#e0e0ff', desc: 'Reroll les VALEURS des affixes (mêmes stats)',        baseDropChance: 0.006 },
   { id: 'exil',    name: 'Orbe d\'Exil',          emoji: '🔴', color: '#ff3050', desc: 'Ajoute un affixe à un rare+ (max +1)',                baseDropChance: 0.004 },
   { id: 'pierre',  name: 'Pierre de Forge',       emoji: '🪨', color: '#a07840', desc: 'Augmente le tier de l\'objet de +1 (max T5)',         baseDropChance: 0.01 },
+  { id: 'maitre',  name: 'Orbe Maître',           emoji: '🟪', color: '#ff5fd0', desc: 'Ajoute un affixe AU CHOIX (respecte les limites prefix/suffix)', baseDropChance: 0.004 },
 ];
 
 export const CURRENCY_BY_ID = Object.fromEntries(CURRENCY_TYPES.map(c => [c.id, c]));

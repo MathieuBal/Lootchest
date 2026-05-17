@@ -5,7 +5,7 @@ import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from
 import { openChest, upgradeChest, canOpen } from './chest.js';
 import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
-import { FORGE_ACTIONS } from './forge.js';
+import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
 import { CURRENCY_BY_ID } from './data.js';
 import { canAscend, ascend } from './prestige.js';
 import {
@@ -34,7 +34,7 @@ import {
   showModal, hideModal, isModalOpen, showToast, setForgeSelected, getForgeSelectedId,
   showCombatBars, hideCombatBars, updateMonsterHp, updatePlayerHp,
   getMonsterEmojiCenter, getCharacterAvatarCenter, getChestCenter,
-  setInvSortMode, setInvSearchText,
+  setInvSortMode, setInvSearchText, setForgeMode,
 } from './ui.js';
 
 // === Init ===
@@ -401,15 +401,44 @@ document.getElementById('forge-inventory').addEventListener('click', (e) => {
 
 // Forge: action button delegation
 document.getElementById('forge-actions').addEventListener('click', (e) => {
+  // Cancel button from master-craft mode
+  if (e.target.closest('[data-forge-action="cancel-master"]')) {
+    setForgeMode('actions');
+    soundClick();
+    return;
+  }
+  // Master-craft affix selection
+  const mcRow = e.target.closest('.mc-row[data-affix-id]');
+  if (mcRow) {
+    if (mcRow.classList.contains('disabled')) return;
+    const id = getForgeSelectedId();
+    const item = state.inventory.find(i => i.id === id);
+    if (!item) return;
+    if (applyMasterCraft(item, mcRow.dataset.affixId)) {
+      soundForge();
+      soundDrop(item.rarity);
+      setForgeMode('actions');
+    }
+    return;
+  }
+  // Normal forge action button
   const btn = e.target.closest('button[data-forge-action]');
   if (!btn) return;
   const actionId = btn.dataset.forgeAction;
   const action = FORGE_ACTIONS.find(a => a.id === actionId);
   if (!action) return;
+  // Master craft button opens the sub-mode instead of applying directly
+  if (action.interactive && action.id === 'maitre') {
+    if (action.can(state.inventory.find(i => i.id === getForgeSelectedId()))) {
+      setForgeMode('master-craft');
+      soundClick();
+    }
+    return;
+  }
   const id = getForgeSelectedId();
   const item = state.inventory.find(i => i.id === id);
   if (!item) return;
-  if (action.apply(item)) {
+  if (action.apply && action.apply(item)) {
     soundForge();
     if (action.id === 'transmutation' || action.id === 'regal') soundDrop(item.rarity);
   }

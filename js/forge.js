@@ -1,7 +1,7 @@
 // PoE-style forge: each action consumes a specific orb (currency).
 // Reroll+ keeps using crystals (shards) for guaranteed high-roll affixes.
 import { state, notify } from './state.js';
-import { RARITIES, RARITY_BY_ID, AFFIXES, MAX_BONUS_AFFIXES } from './data.js';
+import { RARITIES, RARITY_BY_ID, AFFIXES, AFFIXES_BY_ID, AFFIX_LIMITS } from './data.js';
 import {
   rebuildItemAffixesOnly, rebuildItemAffixesPlus, rebuildItemAffixesAndStats,
 } from './loot.js';
@@ -20,9 +20,49 @@ function trackForge() {
   if (state.stats) state.stats.forgesPerformed += 1;
 }
 
-function maxAffixesFor(item) {
-  const r = RARITY_BY_ID[item.rarity];
-  return (r?.affixes || 0) + MAX_BONUS_AFFIXES;
+// Resolve the type of an affix (read from data.js if missing on legacy items)
+function affixType(aff) {
+  return aff.type || AFFIXES_BY_ID[aff.id]?.type || 'prefix';
+}
+
+// Returns { prefixUsed, suffixUsed, prefixMax, suffixMax }
+function countAffixSlots(item) {
+  const limits = AFFIX_LIMITS[item.rarity] || { prefix: 0, suffix: 0 };
+  let prefixUsed = 0, suffixUsed = 0;
+  for (const a of item.affixes) {
+    if (affixType(a) === 'prefix') prefixUsed++;
+    else suffixUsed++;
+  }
+  return { prefixUsed, suffixUsed, prefixMax: limits.prefix, suffixMax: limits.suffix };
+}
+
+function hasFreeSlot(item, forType /* optional */) {
+  const s = countAffixSlots(item);
+  const canPrefix = s.prefixUsed < s.prefixMax;
+  const canSuffix = s.suffixUsed < s.suffixMax;
+  if (forType === 'prefix') return canPrefix;
+  if (forType === 'suffix') return canSuffix;
+  return canPrefix || canSuffix;
+}
+
+// Pick a random affix definition that fits an available slot and is not already on the item.
+function pickAffixForAvailableSlot(item) {
+  const s = countAffixSlots(item);
+  const canPrefix = s.prefixUsed < s.prefixMax;
+  const canSuffix = s.suffixUsed < s.suffixMax;
+  const usedStats = new Set(item.affixes.map(a => a.stat));
+  let pool;
+  if (canPrefix && canSuffix) {
+    pool = AFFIXES.filter(a => !usedStats.has(a.stat));
+  } else if (canPrefix) {
+    pool = AFFIXES.filter(a => a.type === 'prefix' && !usedStats.has(a.stat));
+  } else if (canSuffix) {
+    pool = AFFIXES.filter(a => a.type === 'suffix' && !usedStats.has(a.stat));
+  } else {
+    return null;
+  }
+  if (pool.length === 0) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function recomputeGold(item) {
@@ -33,13 +73,7 @@ function recomputeGold(item) {
 function rollSingleAffix(affixDef, chestTier) {
   const range = affixDef.max - affixDef.min;
   const value = Math.max(1, Math.round((Math.random() * range + affixDef.min) * chestTier));
-  return { id: affixDef.id, stat: affixDef.stat, label: affixDef.label, value, percent: affixDef.percent };
-}
-
-function pickRandomAffixDef(excludeStats) {
-  const pool = AFFIXES.filter(a => !excludeStats.has(a.stat));
-  if (pool.length === 0) return null;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return { id: affixDef.id, stat: affixDef.stat, label: affixDef.label, value, percent: affixDef.percent, type: affixDef.type };
 }
 
 function rarityIndex(rarityId) {
@@ -73,26 +107,26 @@ export function applyTransmutation(item) {
   if (!canTransmutation(item)) return false;
   spendOrb('transmu');
   item.rarity = 'magic';
-  const def = pickRandomAffixDef(new Set());
-  item.affixes = def ? [rollSingleAffix(def, item.chestTier)] : [];
+  item.affixes = [];
+  const def = pickAffixForAvailableSlot(item);
+  if (def) item.affixes.push(rollSingleAffix(def, item.chestTier));
   recomputeGold(item);
   trackForge();
   notify();
   return true;
 }
 
-// 🔵 Augmentation: add 1 affix to a magic item (≤ 2).
+// 🔵 Augmentation: add 1 affix to a magic item respecting prefix/suffix slots.
 export function canAugmentation(item) {
   if (!item || item.uniqueId) return false;
   if (item.rarity !== 'magic') return false;
-  if (item.affixes.length >= 2) return false;
+  if (!hasFreeSlot(item)) return false;
   return (state.orbs.augm || 0) >= 1;
 }
 export function applyAugmentation(item) {
   if (!canAugmentation(item)) return false;
   spendOrb('augm');
-  const used = new Set(item.affixes.map(a => a.stat));
-  const def = pickRandomAffixDef(used);
+  const def = pickAffixForAvailableSlot(item);
   if (def) item.affixes.push(rollSingleAffix(def, item.chestTier));
   trackForge();
   notify();
@@ -120,8 +154,8 @@ export function applyRegal(item) {
   if (!canRegal(item)) return false;
   spendOrb('regal');
   item.rarity = 'rare';
-  const used = new Set(item.affixes.map(a => a.stat));
-  const def = pickRandomAffixDef(used);
+  // After upgrading rarity, recompute available slots and add an affix.
+  const def = pickAffixForAvailableSlot(item);
   if (def) item.affixes.push(rollSingleAffix(def, item.chestTier));
   recomputeGold(item);
   trackForge();
@@ -165,19 +199,52 @@ export function applyDivine(item) {
   return true;
 }
 
-// 🔴 Exil: add 1 affix to a rare+ item (only if below max).
+// 🔴 Exil: add 1 affix to a rare+ item (respects prefix/suffix slots).
 export function canExil(item) {
   if (!item || item.uniqueId) return false;
   if (rarityIndex(item.rarity) < 2) return false;
-  if (item.affixes.length >= maxAffixesFor(item)) return false;
+  if (!hasFreeSlot(item)) return false;
   return (state.orbs.exil || 0) >= 1;
 }
 export function applyExil(item) {
   if (!canExil(item)) return false;
   spendOrb('exil');
-  const used = new Set(item.affixes.map(a => a.stat));
-  const def = pickRandomAffixDef(used);
+  const def = pickAffixForAvailableSlot(item);
   if (def) item.affixes.push(rollSingleAffix(def, item.chestTier));
+  trackForge();
+  notify();
+  return true;
+}
+
+// 🟪 Maître Forgeron: add a SPECIFIC affix chosen by the player.
+// Caller must pass an affixId. Validity = orb available, affix not already present,
+// type has free slot for this rarity.
+export function canMasterCraft(item) {
+  if (!item || item.uniqueId) return false;
+  if (rarityIndex(item.rarity) < 1) return false;  // magic or higher
+  if (!hasFreeSlot(item)) return false;
+  return (state.orbs.maitre || 0) >= 1;
+}
+
+// Returns list of affix definitions available to craft on this item right now.
+export function availableMasterCraftAffixes(item) {
+  if (!item) return [];
+  const usedStats = new Set(item.affixes.map(a => a.stat));
+  return AFFIXES.filter(a => {
+    if (usedStats.has(a.stat)) return false;
+    return hasFreeSlot(item, a.type);
+  });
+}
+
+export function applyMasterCraft(item, affixId) {
+  if (!canMasterCraft(item)) return false;
+  const def = AFFIXES_BY_ID[affixId];
+  if (!def) return false;
+  // Re-check this specific affix is craftable
+  if (item.affixes.some(a => a.stat === def.stat)) return false;
+  if (!hasFreeSlot(item, def.type)) return false;
+  spendOrb('maitre');
+  item.affixes.push(rollSingleAffix(def, item.chestTier));
   trackForge();
   notify();
   return true;
@@ -218,6 +285,8 @@ export const FORGE_ACTIONS = [
     desc: '+1 affixe (rare+)', group: 'Affixes' },
   { id: 'pierre',        label: 'Pierre',       orb: 'pierre',  can: canPierre,        apply: applyPierre,
     desc: 'tier d\'objet +1', group: 'Tier' },
+  { id: 'maitre',        label: 'Maître Forgeron', orb: 'maitre', can: canMasterCraft,   apply: null /* opens sub-mode */,
+    desc: 'choisis l\'affixe', group: 'Affixes', interactive: true },
   { id: 'rerollplus',    label: 'Reroll+',      orb: null,      can: canRerollPlus,    apply: rerollPlus,
     desc: 'reroll hauts rolls (3 💎)', group: 'Affixes', shards: REROLL_PLUS_SHARD_COST },
 ];

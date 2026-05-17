@@ -57,7 +57,6 @@ function rollAffixes(rarity, chestTier) {
   for (let i = 0; i < n && pool.length > 0; i++) {
     const idx = Math.floor(Math.random() * pool.length);
     const aff = pool.splice(idx, 1)[0];
-    // value scales linearly with chest tier
     const value = randInt(aff.min, aff.max) * chestTier;
     picked.push({
       id: aff.id,
@@ -65,6 +64,7 @@ function rollAffixes(rarity, chestTier) {
       label: aff.label,
       value,
       percent: aff.percent,
+      type: aff.type,
     });
   }
   return picked;
@@ -181,7 +181,7 @@ export function rebuildItemAffixesPlus(item) {
     const aff = pool.splice(idx, 1)[0];
     const minHigh = Math.ceil((aff.min + aff.max) / 2);
     const value = randInt(minHigh, aff.max) * item.chestTier;
-    picked.push({ id: aff.id, stat: aff.stat, label: aff.label, value, percent: aff.percent });
+    picked.push({ id: aff.id, stat: aff.stat, label: aff.label, value, percent: aff.percent, type: aff.type });
   }
   item.affixes = picked;
 }
