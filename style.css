@@ -510,6 +510,42 @@ button, input, select {
   background: linear-gradient(135deg, #4a3a10, var(--bg-panel-light)) !important;
 }
 
+/* === Hud shards === */
+.hud-shards {
+  gap: 8px !important;
+  flex-wrap: wrap;
+}
+.shard-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  padding: 1px 4px;
+  border: 1px solid;
+}
+.shard-chip .shard-gem {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  transform: rotate(45deg);
+}
+.shard-c-common    { color: var(--r-common);    border-color: var(--r-common); }
+.shard-c-magic     { color: var(--r-magic);     border-color: var(--r-magic); }
+.shard-c-rare      { color: var(--r-rare);      border-color: var(--r-rare); }
+.shard-c-epic      { color: var(--r-epic);      border-color: var(--r-epic); }
+.shard-c-legendary { color: var(--r-legendary); border-color: var(--r-legendary); }
+.shard-c-ancestral { color: var(--r-ancestral); border-color: var(--r-ancestral); }
+.shard-g-common    { background: var(--r-common); }
+.shard-g-magic     { background: var(--r-magic); }
+.shard-g-rare      { background: var(--r-rare); }
+.shard-g-epic      { background: var(--r-epic); }
+.shard-g-legendary { background: var(--r-legendary); }
+.shard-g-ancestral { background: var(--r-ancestral); }
+
+.forge-actions {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
 /* === Unique badge & flavor === */
 .unique-badge {
   display: inline-block;

@@ -159,6 +159,24 @@ export function rebuildItemAffixesOnly(item) {
   item.affixes = rollAffixes(item.rarity, item.chestTier);
 }
 
+// Same as rebuildItemAffixesOnly but values roll in the TOP 50% of their range.
+// Used by the "Reroll+" forge action that costs crystals.
+export function rebuildItemAffixesPlus(item) {
+  if (item.uniqueId) return;
+  const n = RARITY_BY_ID[item.rarity].affixes;
+  if (n === 0) return;
+  const pool = [...AFFIXES];
+  const picked = [];
+  for (let i = 0; i < n && pool.length > 0; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    const aff = pool.splice(idx, 1)[0];
+    const minHigh = Math.ceil((aff.min + aff.max) / 2);
+    const value = randInt(minHigh, aff.max) * item.chestTier;
+    picked.push({ id: aff.id, stat: aff.stat, label: aff.label, value, percent: aff.percent });
+  }
+  item.affixes = picked;
+}
+
 function buildItem(chestTier, rarity) {
   // Roll for unique legendary first
   if (rarity === 'legendary' && Math.random() < UNIQUE_DROP_CHANCE) {

@@ -48,6 +48,14 @@ export const state = {
     level: 0,
     totalAscensions: 0,
   },
+  shards: {
+    common: 0,
+    magic: 0,
+    rare: 0,
+    epic: 0,
+    legendary: 0,
+    ancestral: 0,
+  },
 };
 
 // Init empty equipment slots
@@ -94,6 +102,10 @@ export function replaceState(newState) {
     if (state.stats[k] === undefined) state.stats[k] = 0;
   }
   if (!state.prestige) state.prestige = { level: 0, totalAscensions: 0 };
+  if (!state.shards) state.shards = {};
+  for (const k of ['common','magic','rare','epic','legendary','ancestral']) {
+    if (state.shards[k] === undefined) state.shards[k] = 0;
+  }
   notify();
 }
 
@@ -113,5 +125,6 @@ export function resetState() {
   state.achievements = { unlocked: {} };
   state.stats = { legendaryDropped: 0, ancestralDropped: 0, uniquesDropped: 0, itemsSold: 0, totalGoldEarned: 0, forgesPerformed: 0, maxSetEquipped: 0 };
   state.prestige = { level: 0, totalAscensions: 0 };
+  state.shards = { common: 0, magic: 0, rare: 0, epic: 0, legendary: 0, ancestral: 0 };
   notify();
 }

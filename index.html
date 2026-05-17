@@ -20,6 +20,7 @@
       <span class="hud-stat" title="Power Score du perso"><span class="icon">⚡</span><span id="hud-power">0</span></span>
       <span class="hud-stat" title="Coffres ouverts"><span class="icon">🗝</span><span id="hud-opened">0</span></span>
       <span class="hud-stat hud-prestige" id="hud-prestige" title="Niveau de prestige" style="display:none"><span class="icon">🌟</span>Niv <span id="hud-prestige-level">0</span></span>
+      <span class="hud-stat hud-shards" id="hud-shards" title="Cristaux (par rareté)" style="display:none"></span>
     </div>
     <div class="hud-actions">
       <button id="btn-achievements" class="btn btn-small" title="Succès">🏆 <span id="ach-count">0</span>/<span id="ach-total">0</span></button>
@@ -143,7 +144,8 @@
             <option value="all">Toutes raretés</option>
           </select>
         </label>
-        <button id="btn-sell-filter" class="btn btn-small">Vendre filtre</button>
+        <button id="btn-sell-filter" class="btn btn-small">💰 Vendre filtre</button>
+        <button id="btn-salvage-filter" class="btn btn-small" title="Recycle les items du filtre en cristaux">💎 Recycler filtre</button>
         <button id="btn-auto-equip" class="btn btn-small btn-primary" title="Équipe le meilleur item de chaque slot">⚡ Auto-équiper</button>
       </div>
     </div>
@@ -191,6 +193,10 @@
               <div>🎲 Rerouler affixes</div>
               <div class="forge-cost"><span id="reroll-cost">—</span> 💰</div>
             </button>
+            <button id="btn-reroll-plus" class="btn forge-btn">
+              <div>✨ Reroll+ (hauts rolls)</div>
+              <div class="forge-cost"><span id="reroll-plus-cost">—</span> 💰 · <span id="reroll-plus-shard-cost">3</span> 💎</div>
+            </button>
             <button id="btn-upgrade-tier" class="btn forge-btn">
               <div>📈 Monter tier (<span id="forge-tier-from">1</span> → <span id="forge-tier-to">2</span>)</div>
               <div class="forge-cost"><span id="upgrade-tier-cost">—</span> 💰</div>
@@ -220,7 +226,10 @@
         <p>Affronte des monstres pour gagner or et items. Plus l'étage est haut, plus c'est dur — mais les drops valent plus. Tous les 5 étages : <strong>boss</strong> (×2.6 stats, drop garanti). Si tu meurs, aucune pénalité — reviens plus fort.</p>
 
         <h3>⚒ Forge</h3>
-        <p>Trois actions : <em>Reroll affixes</em> (change les bonus), <em>Monter tier</em> (T1→T5, multiplie les stats), <em>Transmuter</em> (rareté +1, ajoute un affixe). Les uniques ont des affixes fixes — pas de reroll/transmute.</p>
+        <p>Quatre actions : <em>Reroll affixes</em> (change les bonus), <em>Monter tier</em> (T1→T5, multiplie les stats), <em>Transmuter</em> (rareté +1, ajoute un affixe), <em>Reroll+</em> (rerolls dans la moitié haute des valeurs, coûte des 💎 cristaux). Les uniques ont des affixes fixes — pas de reroll/transmute.</p>
+
+        <h3>💎 Cristaux / Recyclage</h3>
+        <p>Recycle des items (Ctrl+Clic ou bouton "Recycler filtre") au lieu de les vendre : tu reçois des cristaux de la rareté de l'item. Utilise-les pour Reroll+ dans la forge — un reroll qui garantit des hauts rolls. Choix stratégique : 💰 or maintenant ou 💎 cristaux pour des items parfaits plus tard.</p>
 
         <h3>🎭 Sets &amp; ✨ Uniques</h3>
         <p>Les <strong>sets</strong> (Dragon, Ombre, Titan, Phénix, Givre, Liche) donnent des bonus à 2/3/4 pièces équipées. Les <strong>uniques</strong> sont des légendaires nommés avec affixes fixes et flavor text.</p>
@@ -234,6 +243,7 @@
           <li><kbd>Échap</kbd> : ferme popup/modal</li>
           <li><kbd>Clic</kbd> sur item d'inventaire : équiper</li>
           <li><kbd>Shift+Clic</kbd> sur item d'inventaire : vendre</li>
+          <li><kbd>Ctrl+Clic</kbd> sur item d'inventaire : recycler (💎)</li>
           <li><kbd>Clic</kbd> sur slot équipé : déséquiper</li>
         </ul>
       </div>

@@ -108,6 +108,54 @@ export function isAutoSellOn(rarityId) {
   return state.autoSell[rarityId] && state.autoSell[rarityId].on;
 }
 
+// === Salvage / shards ===
+
+export function shardYield(item) {
+  // Yields shards of item's rarity. Scales with chest tier (roughly).
+  // common T1 = 1, rare T3 = ~3-4, legendary T5 = ~12-14
+  const base = Math.max(1, Math.floor(item.goldValue / 25));
+  return base + Math.floor(item.chestTier / 2);
+}
+
+export function salvageItem(item) {
+  let removed = removeFromInventory(item.id);
+  if (!removed) {
+    for (const [slotId, it] of Object.entries(state.equipment)) {
+      if (it && it.id === item.id) {
+        state.equipment[slotId] = null;
+        removed = it;
+        break;
+      }
+    }
+  }
+  if (!removed) return 0;
+  const qty = shardYield(removed);
+  state.shards[removed.rarity] = (state.shards[removed.rarity] || 0) + qty;
+  notify();
+  return qty;
+}
+
+export function salvageAllOfRarities(raritySet) {
+  let totalShards = 0;
+  const yields = {};
+  const remaining = [];
+  for (const item of state.inventory) {
+    if (raritySet.has(item.rarity)) {
+      const q = shardYield(item);
+      yields[item.rarity] = (yields[item.rarity] || 0) + q;
+      totalShards += q;
+    } else {
+      remaining.push(item);
+    }
+  }
+  state.inventory = remaining;
+  for (const [r, q] of Object.entries(yields)) {
+    state.shards[r] = (state.shards[r] || 0) + q;
+  }
+  notify();
+  return { totalShards, yields };
+}
+
 // Sell a single drop directly (without going through the inventory).
 // Used by auto-sell on a fresh drop.
 export function sellDrop(item) {

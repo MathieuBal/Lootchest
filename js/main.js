@@ -5,7 +5,7 @@ import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from
 import { openChest, upgradeChest, canOpen } from './chest.js';
 import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
-import { reroll, upgradeTier, transmute } from './forge.js';
+import { reroll, upgradeTier, transmute, rerollPlus } from './forge.js';
 import { canAscend, ascend } from './prestige.js';
 import {
   unlockAudio, toggleMuted, isMuted, setMuted,
@@ -23,6 +23,7 @@ import {
 import {
   sellItem, sellAllOfRarities, addToInventory, sellDrop,
   unlockAutoSell, toggleAutoSell, isAutoSellOn,
+  salvageItem, salvageAllOfRarities,
 } from './inventory.js';
 import {
   renderAll, showDropPopup, hideDropPopup, getCurrentDrop,
@@ -256,7 +257,14 @@ document.getElementById('inventory-grid').addEventListener('click', (e) => {
   if (!icon) return;
   const item = findItem(icon.dataset.itemId);
   if (!item) return;
-  if (e.shiftKey) {
+  if (e.ctrlKey || e.metaKey) {
+    const qty = salvageItem(item);
+    if (qty > 0) {
+      soundForge();
+      const r = icon.getBoundingClientRect();
+      floatingText(`+${qty} 💎`, r.left + r.width / 2, r.top, '#a0e0ff');
+    }
+  } else if (e.shiftKey) {
     sellItem(item);
     soundCoin();
   } else {
@@ -299,6 +307,29 @@ document.getElementById('btn-sell-filter').addEventListener('click', () => {
     const btn = document.getElementById('btn-sell-filter');
     const old = btn.textContent;
     btn.textContent = `+${earned} 💰`;
+    setTimeout(() => { btn.textContent = old; }, 900);
+  }
+});
+
+document.getElementById('btn-salvage-filter').addEventListener('click', () => {
+  const filterValue = document.getElementById('inv-filter').value;
+  let raritySet;
+  if (filterValue === 'all') {
+    raritySet = new Set(RARITIES.map(r => r.id));
+  } else {
+    const maxIdx = RARITIES.findIndex(r => r.id === filterValue);
+    raritySet = new Set(RARITIES.slice(0, maxIdx + 1).map(r => r.id));
+  }
+  // Never bulk-salvage ancestrals by accident
+  if (filterValue !== 'ancestral' && filterValue !== 'all') {
+    raritySet.delete('ancestral');
+  }
+  const { totalShards } = salvageAllOfRarities(raritySet);
+  if (totalShards > 0) {
+    soundForge();
+    const btn = document.getElementById('btn-salvage-filter');
+    const old = btn.textContent;
+    btn.textContent = `+${totalShards} 💎`;
     setTimeout(() => { btn.textContent = old; }, 900);
   }
 });
@@ -368,6 +399,14 @@ document.getElementById('btn-transmute').addEventListener('click', () => {
   const id = getForgeSelectedId();
   const item = state.inventory.find(i => i.id === id);
   if (item && transmute(item)) {
+    soundForge();
+    soundDrop(item.rarity);
+  }
+});
+document.getElementById('btn-reroll-plus').addEventListener('click', () => {
+  const id = getForgeSelectedId();
+  const item = state.inventory.find(i => i.id === id);
+  if (item && rerollPlus(item)) {
     soundForge();
     soundDrop(item.rarity);
   }

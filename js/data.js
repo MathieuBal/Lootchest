@@ -154,7 +154,15 @@ export const ACHIEVEMENTS = [
   { id: 'full_set',       emoji: '🎭', name: 'Set complet',         desc: 'Équipe 4 pièces du même set',check: s => (s.stats?.maxSetEquipped||0) >= 4, reward: { gold: 5000 } },
   { id: 'first_ascend',   emoji: '🌟', name: 'Ascension',           desc: 'Effectue ta 1ère ascension',check: s => (s.prestige?.totalAscensions||0) >= 1, reward: { gold: 10000 } },
   { id: 'ascend_5',       emoji: '🌟', name: 'Ascensionné',         desc: 'Effectue 5 ascensions',   check: s => (s.prestige?.totalAscensions||0) >= 5, reward: { gold: 100000 } },
+  { id: 'first_salvage',  emoji: '💎', name: 'Recycleur',           desc: 'Accumule 10 cristaux',    check: s => totalShards(s) >= 10,        reward: { gold: 200 } },
+  { id: 'shard_100',      emoji: '💎', name: 'Collecte de cristaux',desc: 'Accumule 100 cristaux',    check: s => totalShards(s) >= 100,       reward: { gold: 1000 } },
+  { id: 'shard_1000',     emoji: '💎', name: 'Maître alchimiste',   desc: 'Accumule 1 000 cristaux',  check: s => totalShards(s) >= 1000,      reward: { gold: 10000 } },
 ];
+
+function totalShards(s) {
+  if (!s.shards) return 0;
+  return Object.values(s.shards).reduce((sum, n) => sum + (n || 0), 0);
+}
 
 // === Forge costs ===
 // Cost multipliers based on item.goldValue

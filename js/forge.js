@@ -1,7 +1,9 @@
 // Forge actions: reroll affixes, upgrade chest tier of an item, transmute (upgrade rarity).
 import { state, notify } from './state.js';
 import { RARITIES, FORGE_COSTS } from './data.js';
-import { rebuildItemAffixesOnly, rebuildItemAffixesAndStats } from './loot.js';
+import { rebuildItemAffixesOnly, rebuildItemAffixesAndStats, rebuildItemAffixesPlus } from './loot.js';
+
+export const REROLL_PLUS_SHARD_COST = 3;
 
 export function rerollCost(item) {
   return Math.max(50, Math.round(item.goldValue * FORGE_COSTS.rerollMult));
@@ -61,6 +63,28 @@ export function transmute(item) {
   const idx = RARITIES.findIndex(r => r.id === item.rarity);
   item.rarity = RARITIES[idx + 1].id;
   rebuildItemAffixesAndStats(item);
+  trackForge();
+  notify();
+  return true;
+}
+
+export function rerollPlusGoldCost(item) {
+  return Math.max(100, Math.round(item.goldValue * 2));
+}
+
+export function canRerollPlus(item) {
+  if (!item || item.uniqueId) return false;
+  if (item.affixes.length === 0) return false;
+  if ((state.shards[item.rarity] || 0) < REROLL_PLUS_SHARD_COST) return false;
+  if (state.gold < rerollPlusGoldCost(item)) return false;
+  return true;
+}
+
+export function rerollPlus(item) {
+  if (!canRerollPlus(item)) return false;
+  state.gold -= rerollPlusGoldCost(item);
+  state.shards[item.rarity] -= REROLL_PLUS_SHARD_COST;
+  rebuildItemAffixesPlus(item);
   trackForge();
   notify();
   return true;

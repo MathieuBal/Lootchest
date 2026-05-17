@@ -8,7 +8,12 @@ import {
 import { computeStats, computePower, computeSetSummary } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
-import { rerollCost, upgradeTierCost, transmuteCost, canReroll, canUpgradeTier, canTransmute } from './forge.js';
+import {
+  rerollCost, upgradeTierCost, transmuteCost,
+  canReroll, canUpgradeTier, canTransmute,
+  rerollPlusGoldCost, canRerollPlus, REROLL_PLUS_SHARD_COST,
+} from './forge.js';
+import { shardYield } from './inventory.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { SETS_BY_ID } from './data.js';
@@ -76,7 +81,7 @@ export function itemDetailsHTML(item) {
     ${baseLines}
     ${affixLines}
     ${flavor}
-    <div class="tt-value">💰 ${item.goldValue} or</div>
+    <div class="tt-value">💰 ${item.goldValue} or · 💎 ${shardYield(item)} ${r.name}</div>
     ${comparisonHTML(item)}
   `;
 }
@@ -121,6 +126,23 @@ function renderHUD() {
   ascendBtn.title = canAscend()
     ? `Effectue une ascension (Niv ${prestigeLevel} → ${prestigeLevel + 1})`
     : `Ascension : requiert T${reqs.minChestTier} + étage ${reqs.minFloor}`;
+
+  // Shards display
+  renderShards();
+}
+
+function renderShards() {
+  const el = document.getElementById('hud-shards');
+  const shards = state.shards || {};
+  const nonZero = RARITIES.filter(r => (shards[r.id] || 0) > 0);
+  if (nonZero.length === 0) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = '';
+  el.innerHTML = nonZero.map(r =>
+    `<span class="shard-chip shard-c-${r.cssClass}" title="${r.name}"><span class="shard-gem shard-g-${r.cssClass}"></span>${shards[r.id].toLocaleString('fr-FR')}</span>`
+  ).join('');
 }
 
 // === Chest panel ===
@@ -620,6 +642,8 @@ export function renderForgeModal() {
   document.getElementById('reroll-cost').textContent = rerollCost(selected).toLocaleString('fr-FR');
   document.getElementById('upgrade-tier-cost').textContent = upgradeTierCost(selected).toLocaleString('fr-FR');
   document.getElementById('transmute-cost').textContent = transmuteCost(selected).toLocaleString('fr-FR');
+  document.getElementById('reroll-plus-cost').textContent = rerollPlusGoldCost(selected).toLocaleString('fr-FR');
+  document.getElementById('reroll-plus-shard-cost').textContent = REROLL_PLUS_SHARD_COST;
 
   document.getElementById('forge-tier-from').textContent = `T${selected.chestTier}`;
   document.getElementById('forge-tier-to').textContent = `T${Math.min(5, selected.chestTier + 1)}`;
@@ -631,6 +655,7 @@ export function renderForgeModal() {
   document.getElementById('btn-reroll').disabled = !canReroll(selected);
   document.getElementById('btn-upgrade-tier').disabled = !canUpgradeTier(selected);
   document.getElementById('btn-transmute').disabled = !canTransmute(selected);
+  document.getElementById('btn-reroll-plus').disabled = !canRerollPlus(selected);
 }
 
 // === Modal show/hide ===
