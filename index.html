@@ -20,6 +20,8 @@
       <span class="hud-stat" title="Power Score du perso"><span class="icon">⚡</span><span id="hud-power">0</span></span>
       <span class="hud-stat" title="Coffres ouverts"><span class="icon">🗝</span><span id="hud-opened">0</span></span>
       <span class="hud-stat hud-prestige" id="hud-prestige" title="Niveau de prestige" style="display:none"><span class="icon">🌟</span>Niv <span id="hud-prestige-level">0</span></span>
+      <span class="hud-stat hud-shards" id="hud-shards" title="Cristaux (par rareté)" style="display:none"></span>
+      <span class="hud-stat hud-orbs" id="hud-orbs" title="Orbes de forge" style="display:none"></span>
     </div>
     <div class="hud-actions">
       <button id="btn-achievements" class="btn btn-small" title="Succès">🏆 <span id="ach-count">0</span>/<span id="ach-total">0</span></button>
@@ -80,7 +82,10 @@
             </div>
             <button id="btn-floor-next" class="btn btn-small">▶</button>
           </div>
-          <div class="dungeon-best">Record : étage <span id="dungeon-best">1</span></div>
+          <div class="dungeon-meta">
+            <div class="dungeon-biome" id="dungeon-biome">🌲 Forêt</div>
+            <div class="dungeon-best">Record : <span id="dungeon-best">1</span></div>
+          </div>
         </div>
 
         <div class="monster-card" id="monster-card">
@@ -143,7 +148,8 @@
             <option value="all">Toutes raretés</option>
           </select>
         </label>
-        <button id="btn-sell-filter" class="btn btn-small">Vendre filtre</button>
+        <button id="btn-sell-filter" class="btn btn-small">💰 Vendre filtre</button>
+        <button id="btn-salvage-filter" class="btn btn-small" title="Recycle les items du filtre en cristaux">💎 Recycler filtre</button>
         <button id="btn-auto-equip" class="btn btn-small btn-primary" title="Équipe le meilleur item de chaque slot">⚡ Auto-équiper</button>
       </div>
     </div>
@@ -186,20 +192,7 @@
         <div class="forge-inventory" id="forge-inventory"></div>
         <div class="forge-selected hidden" id="forge-selected">
           <div class="forge-preview" id="forge-preview"></div>
-          <div class="forge-actions">
-            <button id="btn-reroll" class="btn forge-btn">
-              <div>🎲 Rerouler affixes</div>
-              <div class="forge-cost"><span id="reroll-cost">—</span> 💰</div>
-            </button>
-            <button id="btn-upgrade-tier" class="btn forge-btn">
-              <div>📈 Monter tier (<span id="forge-tier-from">1</span> → <span id="forge-tier-to">2</span>)</div>
-              <div class="forge-cost"><span id="upgrade-tier-cost">—</span> 💰</div>
-            </button>
-            <button id="btn-transmute" class="btn forge-btn">
-              <div>✨ Transmuter (<span id="forge-rarity-from">—</span> → <span id="forge-rarity-to">—</span>)</div>
-              <div class="forge-cost"><span id="transmute-cost">—</span> 💰</div>
-            </button>
-          </div>
+          <div class="forge-actions" id="forge-actions"></div>
         </div>
       </div>
     </div>
@@ -218,9 +211,36 @@
 
         <h3>⚔️ Donjon</h3>
         <p>Affronte des monstres pour gagner or et items. Plus l'étage est haut, plus c'est dur — mais les drops valent plus. Tous les 5 étages : <strong>boss</strong> (×2.6 stats, drop garanti). Si tu meurs, aucune pénalité — reviens plus fort.</p>
+        <p>Le donjon traverse 5 <strong>biomes</strong> : 🌲 Forêt (1-10) → 🪨 Cavernes (11-20) → 🏰 Château (21-30) → 🔥 Enfer (31-40) → 🌌 Néant (41+). Chaque biome a ses monstres, son boss, et son ambiance.</p>
 
-        <h3>⚒ Forge</h3>
-        <p>Trois actions : <em>Reroll affixes</em> (change les bonus), <em>Monter tier</em> (T1→T5, multiplie les stats), <em>Transmuter</em> (rareté +1, ajoute un affixe). Les uniques ont des affixes fixes — pas de reroll/transmute.</p>
+        <h3>⚒ Forge (style Path of Exile)</h3>
+        <p>Chaque action consomme un <strong>orbe</strong> spécifique trouvé dans les coffres (8 types). Le coût est 1 orbe par action.</p>
+        <ul>
+          <li>🟢 <em>Transmutation</em> : commun → magique (+1 affixe)</li>
+          <li>🔵 <em>Augmentation</em> : ajoute un affixe à un magique (max 2)</li>
+          <li>🟣 <em>Altération</em> : reroll complet d'un magique</li>
+          <li>🟡 <em>Régal</em> : magique → rare (+1 affixe)</li>
+          <li>🟠 <em>Chaos</em> : reroll complet d'un rare+</li>
+          <li>⚪ <em>Divin</em> : reroll uniquement les valeurs (sans changer les stats)</li>
+          <li>🔴 <em>Exil</em> : ajoute un affixe à un rare+ (max +1)</li>
+          <li>🪨 <em>Pierre de Forge</em> : monte le tier d'objet +1 (max T5)</li>
+          <li>🟪 <em>Maître Forgeron</em> : ajoute un affixe au CHOIX (très rare drop)</li>
+        </ul>
+        <p>Action bonus : <em>Reroll+</em> (3 💎 cristaux de la rareté de l'objet) → reroll avec hauts rolls garantis. Les uniques ne peuvent pas être rerollés/transmutés (affixes fixes).</p>
+
+        <h3>🏷 Préfixes / Suffixes</h3>
+        <p>Chaque affixe est de type <span style="color:#ff8050">P (Préfixe)</span> ou <span style="color:#50c0ff">S (Suffixe)</span>. Limites par rareté :</p>
+        <ul>
+          <li>Magique : 1 préfixe + 1 suffixe (max 2)</li>
+          <li>Rare : 2 + 2 (max 4)</li>
+          <li>Épique : 2 + 2 (max 4)</li>
+          <li>Légendaire : 3 + 3 (max 6)</li>
+          <li>Ancestral : 3 + 3 (max 6)</li>
+        </ul>
+        <p>Augmentation/Exil/Maître respectent ces limites : si un slot est plein, l'orbe choisit/permet uniquement les affixes du type qui a encore de la place.</p>
+
+        <h3>💎 Cristaux / Recyclage</h3>
+        <p>Recycle des items (Ctrl+Clic ou bouton "Recycler filtre") au lieu de les vendre : tu reçois des cristaux de la rareté de l'item. Utilise-les pour Reroll+ dans la forge — un reroll qui garantit des hauts rolls. Choix stratégique : 💰 or maintenant ou 💎 cristaux pour des items parfaits plus tard.</p>
 
         <h3>🎭 Sets &amp; ✨ Uniques</h3>
         <p>Les <strong>sets</strong> (Dragon, Ombre, Titan, Phénix, Givre, Liche) donnent des bonus à 2/3/4 pièces équipées. Les <strong>uniques</strong> sont des légendaires nommés avec affixes fixes et flavor text.</p>
@@ -234,6 +254,7 @@
           <li><kbd>Échap</kbd> : ferme popup/modal</li>
           <li><kbd>Clic</kbd> sur item d'inventaire : équiper</li>
           <li><kbd>Shift+Clic</kbd> sur item d'inventaire : vendre</li>
+          <li><kbd>Ctrl+Clic</kbd> sur item d'inventaire : recycler (💎)</li>
           <li><kbd>Clic</kbd> sur slot équipé : déséquiper</li>
         </ul>
       </div>

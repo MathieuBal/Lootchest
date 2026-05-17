@@ -8,17 +8,30 @@ import {
 import { computeStats, computePower, computeSetSummary } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
-import { rerollCost, upgradeTierCost, transmuteCost, canReroll, canUpgradeTier, canTransmute } from './forge.js';
+import { biomeForFloor } from './data.js';
+import { FORGE_ACTIONS, availableMasterCraftAffixes } from './forge.js';
+import { shardYield } from './inventory.js';
+import { CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID } from './data.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { SETS_BY_ID } from './data.js';
-import { chestSpriteSVG, characterSpriteSVG } from './sprites.js';
+import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG } from './sprites.js';
+import { getCompositionLayers } from './parts.js';
 
 // === Item icon helpers ===
 
 export function itemIconHTML(item, { big = false } = {}) {
   const r = RARITY_BY_ID[item.rarity];
-  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}" data-item-id="${item.id}">${item.emoji || '❔'}</div>`;
+  const inner = itemVisualHTML(item, big);
+  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}" data-item-id="${item.id}">${inner}</div>`;
+}
+
+function itemVisualHTML(item, big = false) {
+  if (item.parts) {
+    const layers = getCompositionLayers(item.baseTypeId, item.parts);
+    return composedSpriteSVG(layers, big ? 64 : 40);
+  }
+  return item.emoji || '❔';
 }
 
 function itemTotalStats(item) {
@@ -53,13 +66,20 @@ function comparisonHTML(item) {
   return `<div class="tt-compare"><div class="tt-compare-title">vs équipé</div>${rows.join('')}</div>`;
 }
 
+function affixTypeBadge(aff) {
+  const t = aff.type || AFFIXES_BY_ID[aff.id]?.type;
+  if (t === 'prefix') return '<span class="affix-type p">P</span>';
+  if (t === 'suffix') return '<span class="affix-type s">S</span>';
+  return '';
+}
+
 export function itemDetailsHTML(item) {
   const r = RARITY_BY_ID[item.rarity];
   const slot = SLOT_BY_ID[item.slot];
   const baseLines = Object.entries(item.baseStats || {})
     .map(([k, v]) => `<div class="tt-base">+${v} ${statLabel(k)}</div>`).join('');
   const affixLines = (item.affixes || [])
-    .map(a => `<div class="tt-affix">${a.value > 0 ? '+' : ''}${a.value}${a.percent ? '%' : ''} ${a.label}</div>`).join('');
+    .map(a => `<div class="tt-affix">${affixTypeBadge(a)}${a.value > 0 ? '+' : ''}${a.value}${a.percent ? '%' : ''} ${a.label}</div>`).join('');
   const uniqueBadge = item.uniqueId ? '<span class="unique-badge">UNIQUE</span>' : '';
   let setBlock = '';
   if (item.setId) {
@@ -76,7 +96,7 @@ export function itemDetailsHTML(item) {
     ${baseLines}
     ${affixLines}
     ${flavor}
-    <div class="tt-value">💰 ${item.goldValue} or</div>
+    <div class="tt-value">💰 ${item.goldValue} or · 💎 ${shardYield(item)} ${r.name}</div>
     ${comparisonHTML(item)}
   `;
 }
@@ -121,6 +141,38 @@ function renderHUD() {
   ascendBtn.title = canAscend()
     ? `Effectue une ascension (Niv ${prestigeLevel} → ${prestigeLevel + 1})`
     : `Ascension : requiert T${reqs.minChestTier} + étage ${reqs.minFloor}`;
+
+  // Shards display
+  renderShards();
+}
+
+function renderShards() {
+  const el = document.getElementById('hud-shards');
+  const shards = state.shards || {};
+  const nonZero = RARITIES.filter(r => (shards[r.id] || 0) > 0);
+  if (nonZero.length === 0) {
+    el.style.display = 'none';
+  } else {
+    el.style.display = '';
+    el.innerHTML = nonZero.map(r =>
+      `<span class="shard-chip shard-c-${r.cssClass}" title="${r.name}"><span class="shard-gem shard-g-${r.cssClass}"></span>${shards[r.id].toLocaleString('fr-FR')}</span>`
+    ).join('');
+  }
+  renderOrbs();
+}
+
+function renderOrbs() {
+  const el = document.getElementById('hud-orbs');
+  const orbs = state.orbs || {};
+  const nonZero = CURRENCY_TYPES.filter(c => (orbs[c.id] || 0) > 0);
+  if (nonZero.length === 0) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = '';
+  el.innerHTML = nonZero.map(c =>
+    `<span class="orb-chip" style="border-color:${c.color};color:${c.color}" title="${c.name}: ${c.desc}">${c.emoji}<span class="orb-count">${orbs[c.id]}</span></span>`
+  ).join('');
 }
 
 // === Chest panel ===
@@ -167,9 +219,14 @@ function renderDungeon() {
   document.getElementById('btn-floor-prev').disabled = floor <= 1;
   document.getElementById('btn-floor-next').disabled = floor >= state.combat.highestUnlocked;
 
+  const biome = biomeForFloor(floor);
+  document.getElementById('dungeon-biome').textContent = `${biome.emoji} ${biome.name}`;
+
   const monster = generateMonster(floor);
   const card = document.getElementById('monster-card');
   card.classList.toggle('boss', monster.isBoss);
+  // Apply biome background to the monster card
+  card.style.background = biome.bgGradient;
   document.getElementById('monster-emoji').textContent = monster.emoji;
   document.getElementById('monster-name').textContent = monster.name;
   document.getElementById('monster-stats').innerHTML =
@@ -232,7 +289,7 @@ function renderCharacter() {
     if (item) {
       const r = RARITY_BY_ID[item.rarity];
       slotEl.style.borderColor = r.color;
-      slotEl.innerHTML = `${item.emoji}<span class="slot-label">${slot.name}</span>`;
+      slotEl.innerHTML = `<div class="slot-visual">${itemVisualHTML(item)}</div><span class="slot-label">${slot.name}</span>`;
       slotEl.dataset.itemId = item.id;
     } else {
       slotEl.innerHTML = `<span style="opacity:0.3">${slot.emptyEmoji}</span><span class="slot-label">${slot.name}</span>`;
@@ -566,14 +623,25 @@ export function showToast(emoji, title, subtitle) {
 // === Forge modal ===
 
 let forgeSelectedItemId = null;
+let forgeMode = 'actions';  // 'actions' | 'master-craft'
 
 export function setForgeSelected(itemId) {
   forgeSelectedItemId = itemId;
+  forgeMode = 'actions';
   renderForgeModal();
 }
 
 export function getForgeSelectedId() {
   return forgeSelectedItemId;
+}
+
+export function setForgeMode(mode) {
+  forgeMode = mode;
+  renderForgeModal();
+}
+
+export function getForgeMode() {
+  return forgeMode;
 }
 
 export function renderForgeModal() {
@@ -609,28 +677,90 @@ export function renderForgeModal() {
     ${itemIconHTML(selected, { big: true })}
     <div class="forge-preview-info">
       <div class="forge-preview-name rt-${r.cssClass}">${selected.name}</div>
-      <div style="color: var(--text-dim);">T${selected.chestTier} · ${slot.name} · <span class="rt-${r.cssClass}">${r.name}</span></div>
+      <div style="color: var(--text-dim);">T${selected.chestTier} · ${slot.name} · <span class="rt-${r.cssClass}">${r.name}</span> · ${selected.affixes.length} affixe${selected.affixes.length > 1 ? 's' : ''}</div>
       ${Object.entries(selected.baseStats || {}).map(([k, v]) => `<div>+${v} ${statLabel(k)}</div>`).join('')}
       ${(selected.affixes || []).map(a => `<div class="item-affix">+${a.value}${a.percent ? '%' : ''} ${a.label}</div>`).join('')}
       <div style="color: var(--gold); margin-top: 4px;">💰 ${selected.goldValue}</div>
     </div>
   `;
 
-  // Action costs
-  document.getElementById('reroll-cost').textContent = rerollCost(selected).toLocaleString('fr-FR');
-  document.getElementById('upgrade-tier-cost').textContent = upgradeTierCost(selected).toLocaleString('fr-FR');
-  document.getElementById('transmute-cost').textContent = transmuteCost(selected).toLocaleString('fr-FR');
+  const actionsEl = document.getElementById('forge-actions');
+  if (forgeMode === 'master-craft') {
+    renderMasterCraftPanel(actionsEl, selected);
+  } else {
+    renderForgeActionsPanel(actionsEl, selected);
+  }
+}
 
-  document.getElementById('forge-tier-from').textContent = `T${selected.chestTier}`;
-  document.getElementById('forge-tier-to').textContent = `T${Math.min(5, selected.chestTier + 1)}`;
-  const rIdx = RARITIES.findIndex(rr => rr.id === selected.rarity);
-  const nextR = RARITIES[rIdx + 1];
-  document.getElementById('forge-rarity-from').textContent = r.name;
-  document.getElementById('forge-rarity-to').textContent = nextR ? nextR.name : '—';
+function renderForgeActionsPanel(actionsEl, selected) {
+  actionsEl.innerHTML = '';
+  for (const action of FORGE_ACTIONS) {
+    const enabled = action.can(selected);
+    let costHTML;
+    if (action.orb) {
+      const orbDef = CURRENCY_BY_ID[action.orb];
+      const have = state.orbs[action.orb] || 0;
+      const haveColor = have >= 1 ? orbDef.color : '#666';
+      costHTML = `<div class="forge-cost" style="color:${haveColor}">${orbDef.emoji} ${have}</div>`;
+    } else if (action.shards) {
+      const have = state.shards[selected.rarity] || 0;
+      const haveColor = have >= action.shards ? '#a0e0ff' : '#666';
+      costHTML = `<div class="forge-cost" style="color:${haveColor}">${have}/${action.shards} 💎</div>`;
+    } else {
+      costHTML = '';
+    }
+    const btn = document.createElement('button');
+    btn.className = 'btn forge-btn';
+    btn.dataset.forgeAction = action.id;
+    btn.disabled = !enabled;
+    btn.innerHTML = `
+      <div class="forge-btn-label">${action.label}</div>
+      <div class="forge-btn-desc">${action.desc}</div>
+      ${costHTML}
+    `;
+    actionsEl.appendChild(btn);
+  }
+}
 
-  document.getElementById('btn-reroll').disabled = !canReroll(selected);
-  document.getElementById('btn-upgrade-tier').disabled = !canUpgradeTier(selected);
-  document.getElementById('btn-transmute').disabled = !canTransmute(selected);
+function renderMasterCraftPanel(actionsEl, selected) {
+  const available = availableMasterCraftAffixes(selected);
+  const usedStats = new Set(selected.affixes.map(a => a.stat));
+  const orbCount = state.orbs.maitre || 0;
+  let html = `
+    <div class="master-craft-header">
+      <div>🟪 Choisis un affixe à ajouter — coût : 1 🟪 (${orbCount} disponible)</div>
+      <button class="btn btn-small" data-forge-action="cancel-master">← Retour</button>
+    </div>
+    <div class="master-craft-list">
+  `;
+  // Show all affixes, marking unavailable ones
+  for (const def of AFFIXES_LIST_FOR_UI()) {
+    const isAvailable = available.includes(def);
+    const isPresent = usedStats.has(def.stat);
+    const typeLetter = def.type === 'prefix' ? 'P' : 'S';
+    const minMax = `+${def.min * selected.chestTier}-${def.max * selected.chestTier}${def.percent ? '%' : ''}`;
+    let status;
+    if (isPresent) status = '<span class="mc-status present">déjà présent</span>';
+    else if (!isAvailable) status = '<span class="mc-status full">slot plein</span>';
+    else if (orbCount < 1) status = '<span class="mc-status full">pas d\'orbe</span>';
+    else status = '<span class="mc-status ok">disponible</span>';
+    const btnClass = (isAvailable && orbCount >= 1) ? '' : ' disabled';
+    html += `
+      <div class="mc-row${btnClass}" data-affix-id="${def.id}">
+        <span class="affix-type ${def.type === 'prefix' ? 'p' : 's'}">${typeLetter}</span>
+        <span class="mc-name">${def.label}</span>
+        <span class="mc-range">${minMax}</span>
+        ${status}
+      </div>
+    `;
+  }
+  html += '</div>';
+  actionsEl.innerHTML = html;
+}
+
+// Tiny helper to fetch the list (used by master craft) without a circular import
+function AFFIXES_LIST_FOR_UI() {
+  return Object.values(AFFIXES_BY_ID);
 }
 
 // === Modal show/hide ===

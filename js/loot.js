@@ -6,6 +6,7 @@ import {
   SETS, SET_DROP_CHANCE, PRESTIGE_BONUS_PER_LEVEL,
 } from './data.js';
 import { state } from './state.js';
+import { rollWeaponParts, hasCompositionFor } from './parts.js';
 
 let _id = 0;
 function nextId() { return `it_${Date.now().toString(36)}_${(_id++).toString(36)}`; }
@@ -56,7 +57,6 @@ function rollAffixes(rarity, chestTier) {
   for (let i = 0; i < n && pool.length > 0; i++) {
     const idx = Math.floor(Math.random() * pool.length);
     const aff = pool.splice(idx, 1)[0];
-    // value scales linearly with chest tier
     const value = randInt(aff.min, aff.max) * chestTier;
     picked.push({
       id: aff.id,
@@ -64,6 +64,7 @@ function rollAffixes(rarity, chestTier) {
       label: aff.label,
       value,
       percent: aff.percent,
+      type: aff.type,
     });
   }
   return picked;
@@ -145,7 +146,15 @@ export function rebuildItemAffixesAndStats(item) {
     }
   }
 
-  item.baseStats = scaleBaseStats(baseType.baseStats, item.chestTier, item.rarity);
+  // Composed weapons: re-roll parts to scale with new tier/rarity.
+  if (item.parts && hasCompositionFor(item.baseTypeId)) {
+    const statMult = RARITY_BY_ID[item.rarity].statMult;
+    const { parts, baseStats } = rollWeaponParts(item.baseTypeId, item.chestTier, statMult);
+    item.parts = parts;
+    item.baseStats = baseStats;
+  } else {
+    item.baseStats = scaleBaseStats(baseType.baseStats, item.chestTier, item.rarity);
+  }
   item.affixes = rollAffixes(item.rarity, item.chestTier);
   item.goldValue = computeGoldValue(item.rarity, item.chestTier);
   // Regenerate name for regular items only; set/unique names are preserved.
@@ -157,6 +166,24 @@ export function rebuildItemAffixesAndStats(item) {
 export function rebuildItemAffixesOnly(item) {
   if (item.uniqueId) return; // unique fixed affixes cannot be rerolled
   item.affixes = rollAffixes(item.rarity, item.chestTier);
+}
+
+// Same as rebuildItemAffixesOnly but values roll in the TOP 50% of their range.
+// Used by the "Reroll+" forge action that costs crystals.
+export function rebuildItemAffixesPlus(item) {
+  if (item.uniqueId) return;
+  const n = RARITY_BY_ID[item.rarity].affixes;
+  if (n === 0) return;
+  const pool = [...AFFIXES];
+  const picked = [];
+  for (let i = 0; i < n && pool.length > 0; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    const aff = pool.splice(idx, 1)[0];
+    const minHigh = Math.ceil((aff.min + aff.max) / 2);
+    const value = randInt(minHigh, aff.max) * item.chestTier;
+    picked.push({ id: aff.id, stat: aff.stat, label: aff.label, value, percent: aff.percent, type: aff.type });
+  }
+  item.affixes = picked;
 }
 
 function buildItem(chestTier, rarity) {
@@ -174,6 +201,27 @@ function buildItem(chestTier, rarity) {
 function buildRegularItem(chestTier, rarity) {
   const slot = rollSlot();
   const baseType = pickRandom(BASE_TYPES[slot]);
+
+  // Composed item path: any base type registered in WEAPON_PARTS (weapons + armor).
+  if (hasCompositionFor(baseType.id)) {
+    const statMult = RARITY_BY_ID[rarity].statMult;
+    const { parts, baseStats } = rollWeaponParts(baseType.id, chestTier, statMult);
+    const affixes = rollAffixes(rarity, chestTier);
+    return {
+      id: nextId(),
+      slot,
+      baseTypeId: baseType.id,
+      emoji: baseType.emoji,
+      rarity,
+      name: makeName(baseType, rarity),
+      baseStats,
+      affixes,
+      goldValue: computeGoldValue(rarity, chestTier),
+      chestTier,
+      parts,
+    };
+  }
+
   const baseStats = scaleBaseStats(baseType.baseStats, chestTier, rarity);
   const affixes = rollAffixes(rarity, chestTier);
   return {
@@ -207,7 +255,7 @@ function buildUniqueLegendary(chestTier) {
     ...a,
     value: Math.max(1, Math.round(a.value * (0.7 + 0.3 * chestTier))),
   }));
-  return {
+  const item = {
     id: nextId(),
     slot: tpl.slot,
     baseTypeId: tpl.baseTypeId,
@@ -221,6 +269,12 @@ function buildUniqueLegendary(chestTier) {
     uniqueId: tpl.id,
     flavor: tpl.flavor,
   };
+  // Visual-only composed sprite for uniques whose base type has parts (weapons + armor).
+  if (hasCompositionFor(tpl.baseTypeId)) {
+    const rolled = rollWeaponParts(tpl.baseTypeId, chestTier, 1);
+    if (rolled) item.parts = rolled.parts;
+  }
+  return item;
 }
 
 function buildSetPiece(chestTier, rarity) {
@@ -231,6 +285,29 @@ function buildSetPiece(chestTier, rarity) {
   const piece = set.pieces[slot];
   const baseType = BASE_TYPES[slot].find(b => b.id === piece.baseTypeId)
                 || BASE_TYPES[slot][0];
+
+  // Composed item path (weapons + armor): parts contribute baseStats AND visual.
+  if (hasCompositionFor(piece.baseTypeId)) {
+    const statMult = RARITY_BY_ID[rarity].statMult;
+    const rolled = rollWeaponParts(piece.baseTypeId, chestTier, statMult);
+    const affixes = rollAffixes(rarity, chestTier);
+    return {
+      id: nextId(),
+      slot,
+      baseTypeId: piece.baseTypeId,
+      emoji: piece.emoji,
+      rarity,
+      name: piece.name,
+      baseStats: rolled.baseStats,
+      affixes,
+      goldValue: computeGoldValue(rarity, chestTier),
+      chestTier,
+      setId: set.id,
+      setName: set.name,
+      parts: rolled.parts,
+    };
+  }
+
   const baseStats = scaleBaseStats(baseType.baseStats, chestTier, rarity);
   const affixes = rollAffixes(rarity, chestTier);
   return {

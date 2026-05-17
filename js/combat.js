@@ -1,20 +1,19 @@
 // Combat / dungeon logic. Resolution is instant (no per-turn animation in V1).
 import { state, notify } from './state.js';
 import { computeStats } from './character.js';
-import { MONSTER_TYPES, BOSS_TYPES, PLAYER_BASE } from './data.js';
+import { PLAYER_BASE, biomeForFloor } from './data.js';
 import { generateItem } from './loot.js';
-
-function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 export function isBossFloor(floor) {
   return floor > 0 && floor % 5 === 0;
 }
 
-// Pseudo-random but stable per floor: same floor always shows same monster name/emoji.
-// Stats however are deterministic from floor (no rng).
+// Pseudo-random but stable per floor: same floor always shows same monster.
+// Monster pool is determined by the floor's biome.
 function pickStableMonster(floor) {
-  const pool = isBossFloor(floor) ? BOSS_TYPES : MONSTER_TYPES;
-  return pool[floor % pool.length];
+  const biome = biomeForFloor(floor);
+  if (isBossFloor(floor)) return biome.boss;
+  return biome.monsters[floor % biome.monsters.length];
 }
 
 export function generateMonster(floor) {

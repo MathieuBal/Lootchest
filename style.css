@@ -359,6 +359,19 @@ button, input, select {
   font-size: 9px;
   color: var(--text-dim);
 }
+.dungeon-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.dungeon-biome {
+  font-size: 10px;
+  padding: 3px 8px;
+  background: var(--bg-panel-light);
+  border: 2px solid var(--border);
+  color: var(--text);
+}
 
 .monster-card {
   background: var(--bg-panel-light);
@@ -510,6 +523,60 @@ button, input, select {
   background: linear-gradient(135deg, #4a3a10, var(--bg-panel-light)) !important;
 }
 
+/* === Hud shards === */
+.hud-shards {
+  gap: 8px !important;
+  flex-wrap: wrap;
+}
+.shard-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  padding: 1px 4px;
+  border: 1px solid;
+}
+.shard-chip .shard-gem {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  transform: rotate(45deg);
+}
+.shard-c-common    { color: var(--r-common);    border-color: var(--r-common); }
+.shard-c-magic     { color: var(--r-magic);     border-color: var(--r-magic); }
+.shard-c-rare      { color: var(--r-rare);      border-color: var(--r-rare); }
+.shard-c-epic      { color: var(--r-epic);      border-color: var(--r-epic); }
+.shard-c-legendary { color: var(--r-legendary); border-color: var(--r-legendary); }
+.shard-c-ancestral { color: var(--r-ancestral); border-color: var(--r-ancestral); }
+.shard-g-common    { background: var(--r-common); }
+.shard-g-magic     { background: var(--r-magic); }
+.shard-g-rare      { background: var(--r-rare); }
+.shard-g-epic      { background: var(--r-epic); }
+.shard-g-legendary { background: var(--r-legendary); }
+.shard-g-ancestral { background: var(--r-ancestral); }
+
+/* === Hud orbs (currency) === */
+.hud-orbs {
+  gap: 4px !important;
+  flex-wrap: wrap;
+}
+.orb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 1px 5px;
+  border: 2px solid;
+}
+.orb-chip .orb-count {
+  font-size: 9px;
+  color: var(--text);
+}
+
+.forge-actions {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
 /* === Unique badge & flavor === */
 .unique-badge {
   display: inline-block;
@@ -657,6 +724,12 @@ button, input, select {
 .item-icon.r-epic      { border-color: var(--r-epic);      box-shadow: inset 0 0 14px rgba(179,91,214,0.5), 0 0 8px rgba(179,91,214,0.5); }
 .item-icon.r-legendary { border-color: var(--r-legendary); box-shadow: inset 0 0 16px rgba(255,122,26,0.6), 0 0 10px rgba(255,122,26,0.6); animation: pulse-leg 1.6s infinite; }
 .item-icon.r-ancestral { border-color: var(--r-ancestral); box-shadow: inset 0 0 18px rgba(255,48,80,0.7), 0 0 14px rgba(255,48,80,0.7); animation: pulse-anc 1.2s infinite; }
+.item-icon-composed svg { display: block; width: 100%; height: 100%; padding: 4px; box-sizing: border-box; }
+.item-icon.item-icon-big.item-icon-composed svg { padding: 6px; }
+.slot-visual { display: flex; align-items: center; justify-content: center; flex: 1; min-height: 0; }
+.slot-visual svg { display: block; max-width: 80%; max-height: 80%; }
+.equipment-slot { font-size: 24px; padding: 4px; }
+.equipment-slot.empty { font-size: 22px; }
 
 @keyframes pulse-leg {
   0%, 100% { box-shadow: inset 0 0 16px rgba(255,122,26,0.6), 0 0 10px rgba(255,122,26,0.6); }
@@ -780,6 +853,66 @@ button, input, select {
 .tooltip .tt-slot { color: var(--text-dim); margin-bottom: 6px; font-size: 8px; }
 .tooltip .tt-base { color: var(--text); margin-bottom: 4px; }
 .tooltip .tt-affix { color: var(--r-magic); }
+
+/* === Affix prefix/suffix badges === */
+.affix-type {
+  display: inline-block;
+  font-size: 7px;
+  padding: 1px 3px;
+  margin-right: 4px;
+  border: 1px solid;
+  vertical-align: middle;
+  font-weight: bold;
+}
+.affix-type.p { color: #ff8050; border-color: #ff8050; }
+.affix-type.s { color: #50c0ff; border-color: #50c0ff; }
+
+/* === Master craft sub-panel === */
+.master-craft-header {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: var(--gold);
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.master-craft-list {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.mc-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--bg-panel-light);
+  border: 2px solid var(--border);
+  font-size: 9px;
+  cursor: pointer;
+  transition: border-color 80ms, background 80ms;
+}
+.mc-row:hover:not(.disabled) {
+  border-color: var(--gold);
+  background: var(--border);
+}
+.mc-row.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.mc-name { color: var(--text); }
+.mc-range { color: var(--gold); font-size: 8px; }
+.mc-status { font-size: 8px; }
+.mc-status.ok      { color: #6acc6a; }
+.mc-status.present { color: var(--text-dim); font-style: italic; }
+.mc-status.full    { color: #ff8090; }
 .tooltip .tt-value { color: var(--gold); margin-top: 6px; border-top: 1px solid var(--border); padding-top: 4px; }
 
 /* === Modal === */
@@ -919,6 +1052,20 @@ button, input, select {
 .forge-btn .forge-cost {
   color: var(--gold);
   font-size: 9px;
+}
+.forge-btn-label {
+  font-size: 10px;
+  color: var(--text);
+}
+.forge-btn-desc {
+  font-size: 8px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.forge-actions {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
+  max-height: 280px;
+  overflow-y: auto;
 }
 
 /* === Toast === */

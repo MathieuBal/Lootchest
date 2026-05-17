@@ -57,16 +57,30 @@ export const BASE_TYPES = {
   ],
 };
 
-// Affix pool — each affix has a stat key, a label, a range per tier, and a flag if percent
+// Affix pool — each affix has a stat key, a label, a range per tier, percent flag, and a TYPE (prefix/suffix).
+// Prefixes are typically additive offensive/defensive mods. Suffixes are utility/ratio mods.
 export const AFFIXES = [
-  { id: 'vit',     stat: 'vitality',  label: 'Vie',          min: 3,  max: 8,  percent: false },
-  { id: 'dmg',     stat: 'damage',    label: 'Dégâts',       min: 2,  max: 6,  percent: false },
-  { id: 'arm',     stat: 'armor',     label: 'Armure',       min: 2,  max: 5,  percent: false },
-  { id: 'crit',    stat: 'crit',      label: 'Crit',         min: 1,  max: 4,  percent: true  },
-  { id: 'fire',    stat: 'fireDmg',   label: 'Dégâts feu',   min: 2,  max: 6,  percent: true  },
-  { id: 'gold',    stat: 'goldFind',  label: 'Or trouvé',    min: 3,  max: 9,  percent: true  },
-  { id: 'spd',     stat: 'speed',     label: 'Vitesse',      min: 1,  max: 3,  percent: true  },
+  { id: 'vit',     stat: 'vitality',  label: 'Vie',          min: 3,  max: 8,  percent: false, type: 'suffix', tags: ['life'] },
+  { id: 'dmg',     stat: 'damage',    label: 'Dégâts',       min: 2,  max: 6,  percent: false, type: 'prefix', tags: ['attack', 'physical'] },
+  { id: 'arm',     stat: 'armor',     label: 'Armure',       min: 2,  max: 5,  percent: false, type: 'prefix', tags: ['defense'] },
+  { id: 'crit',    stat: 'crit',      label: 'Crit',         min: 1,  max: 4,  percent: true,  type: 'suffix', tags: ['attack', 'critical'] },
+  { id: 'fire',    stat: 'fireDmg',   label: 'Dégâts feu',   min: 2,  max: 6,  percent: true,  type: 'prefix', tags: ['attack', 'elemental', 'fire'] },
+  { id: 'gold',    stat: 'goldFind',  label: 'Or trouvé',    min: 3,  max: 9,  percent: true,  type: 'suffix', tags: ['utility', 'gold'] },
+  { id: 'spd',     stat: 'speed',     label: 'Vitesse',      min: 1,  max: 3,  percent: true,  type: 'suffix', tags: ['utility', 'speed'] },
 ];
+
+export const AFFIXES_BY_ID = Object.fromEntries(AFFIXES.map(a => [a.id, a]));
+
+// Per-rarity max affixes by type. Drops will roll up to RARITY.affixes total (default count),
+// crafting (augm/exil/maître) can grow up to these caps.
+export const AFFIX_LIMITS = {
+  common:    { prefix: 0, suffix: 0 },
+  magic:     { prefix: 1, suffix: 1 },
+  rare:      { prefix: 2, suffix: 2 },
+  epic:      { prefix: 2, suffix: 2 },
+  legendary: { prefix: 3, suffix: 3 },
+  ancestral: { prefix: 3, suffix: 3 },
+};
 
 // Random adjectives for procedural item names
 export const NAME_PREFIXES = [
@@ -92,28 +106,76 @@ export const CHEST_OPEN_COOLDOWN_MS = 800;
 // Pity timer: every N non-legendary+ drops, force a legendary on the next chest open.
 export const PITY_THRESHOLD = 50;
 
-// Monsters for the dungeon. Stats are TIER 1 baseline, scaled by floor.
-export const MONSTER_TYPES = [
-  { name: 'Gobelin',        emoji: '👺', hpBase: 30, dmgBase: 4,  armorBase: 1, goldBase: 8  },
-  { name: 'Squelette',      emoji: '💀', hpBase: 25, dmgBase: 5,  armorBase: 0, goldBase: 10 },
-  { name: 'Slime',          emoji: '🟢', hpBase: 55, dmgBase: 3,  armorBase: 3, goldBase: 12 },
-  { name: 'Loup',           emoji: '🐺', hpBase: 35, dmgBase: 6,  armorBase: 1, goldBase: 9  },
-  { name: 'Araignée',       emoji: '🕷', hpBase: 28, dmgBase: 7,  armorBase: 0, goldBase: 11 },
-  { name: 'Chauve-souris',  emoji: '🦇', hpBase: 22, dmgBase: 5,  armorBase: 0, goldBase: 8  },
-  { name: 'Orc',            emoji: '👹', hpBase: 45, dmgBase: 7,  armorBase: 2, goldBase: 13 },
-  { name: 'Zombie',         emoji: '🧟', hpBase: 50, dmgBase: 5,  armorBase: 1, goldBase: 11 },
-  { name: 'Bandit',         emoji: '🥷', hpBase: 32, dmgBase: 8,  armorBase: 1, goldBase: 14 },
+// Biomes for the dungeon. Each biome covers a floor range and has its own monsters + boss.
+export const BIOMES = [
+  {
+    id: 'forest', name: 'Forêt', emoji: '🌲', floors: [1, 10],
+    bgGradient: 'linear-gradient(135deg, #1a3a1a, #2a4a2a)',
+    monsters: [
+      { name: 'Gobelin',        emoji: '👺', hpBase: 30, dmgBase: 4, armorBase: 1, goldBase: 8 },
+      { name: 'Loup',           emoji: '🐺', hpBase: 35, dmgBase: 6, armorBase: 1, goldBase: 9 },
+      { name: 'Araignée',       emoji: '🕷', hpBase: 28, dmgBase: 7, armorBase: 0, goldBase: 11 },
+      { name: 'Ours',           emoji: '🐻', hpBase: 55, dmgBase: 5, armorBase: 2, goldBase: 12 },
+      { name: 'Plante carnivore', emoji: '🌵', hpBase: 40, dmgBase: 4, armorBase: 1, goldBase: 10 },
+    ],
+    boss: { name: 'Roi Sylvain',  emoji: '🌳', hpBase: 140, dmgBase: 11, armorBase: 4, goldBase: 100 },
+  },
+  {
+    id: 'cave', name: 'Cavernes', emoji: '🪨', floors: [11, 20],
+    bgGradient: 'linear-gradient(135deg, #2a2418, #3a3424)',
+    monsters: [
+      { name: 'Chauve-souris',  emoji: '🦇', hpBase: 25, dmgBase: 6, armorBase: 0, goldBase: 10 },
+      { name: 'Squelette',      emoji: '💀', hpBase: 30, dmgBase: 5, armorBase: 1, goldBase: 11 },
+      { name: 'Slime',          emoji: '🟢', hpBase: 60, dmgBase: 3, armorBase: 4, goldBase: 13 },
+      { name: 'Troll',          emoji: '👹', hpBase: 55, dmgBase: 8, armorBase: 3, goldBase: 14 },
+      { name: 'Golem de pierre',emoji: '🗿', hpBase: 70, dmgBase: 6, armorBase: 5, goldBase: 15 },
+    ],
+    boss: { name: 'Hydre des Profondeurs', emoji: '🐲', hpBase: 160, dmgBase: 13, armorBase: 5, goldBase: 130 },
+  },
+  {
+    id: 'castle', name: 'Château', emoji: '🏰', floors: [21, 30],
+    bgGradient: 'linear-gradient(135deg, #2a1a3a, #3a2a4a)',
+    monsters: [
+      { name: 'Zombie',         emoji: '🧟', hpBase: 50, dmgBase: 6, armorBase: 1, goldBase: 13 },
+      { name: 'Bandit',         emoji: '🥷', hpBase: 35, dmgBase: 9, armorBase: 1, goldBase: 15 },
+      { name: 'Spectre',        emoji: '👻', hpBase: 30, dmgBase: 10, armorBase: 0, goldBase: 14 },
+      { name: 'Garde Maudit',   emoji: '⚔',  hpBase: 45, dmgBase: 8, armorBase: 3, goldBase: 16 },
+      { name: 'Sorcier',        emoji: '🧙', hpBase: 32, dmgBase: 11, armorBase: 0, goldBase: 18 },
+    ],
+    boss: { name: 'Roi Mort',   emoji: '☠', hpBase: 130, dmgBase: 16, armorBase: 4, goldBase: 160 },
+  },
+  {
+    id: 'hell', name: 'Enfer', emoji: '🔥', floors: [31, 40],
+    bgGradient: 'linear-gradient(135deg, #3a1408, #5a2814)',
+    monsters: [
+      { name: 'Diablotin',      emoji: '😈', hpBase: 32, dmgBase: 12, armorBase: 0, goldBase: 18 },
+      { name: 'Démonette',      emoji: '👹', hpBase: 40, dmgBase: 11, armorBase: 2, goldBase: 17 },
+      { name: 'Cerbère',        emoji: '🐶', hpBase: 55, dmgBase: 10, armorBase: 3, goldBase: 19 },
+      { name: 'Incube',         emoji: '😺', hpBase: 30, dmgBase: 14, armorBase: 0, goldBase: 20 },
+      { name: 'Démon de Lave',  emoji: '🌋', hpBase: 70, dmgBase: 10, armorBase: 4, goldBase: 22 },
+    ],
+    boss: { name: 'Seigneur Démon', emoji: '😈', hpBase: 150, dmgBase: 20, armorBase: 4, goldBase: 220 },
+  },
+  {
+    id: 'void', name: 'Néant', emoji: '🌌', floors: [41, 9999],
+    bgGradient: 'linear-gradient(135deg, #1a0838, #2a1448)',
+    monsters: [
+      { name: 'Ombre',          emoji: '🌑', hpBase: 50, dmgBase: 14, armorBase: 3, goldBase: 24 },
+      { name: 'Horreur',        emoji: '👁', hpBase: 65, dmgBase: 13, armorBase: 4, goldBase: 26 },
+      { name: 'Wraith',         emoji: '👤', hpBase: 45, dmgBase: 16, armorBase: 2, goldBase: 25 },
+      { name: 'Tentacule',      emoji: '🐙', hpBase: 75, dmgBase: 12, armorBase: 5, goldBase: 27 },
+      { name: 'Vide-marcheur',  emoji: '👽', hpBase: 60, dmgBase: 15, armorBase: 3, goldBase: 28 },
+    ],
+    boss: { name: 'Maître du Néant', emoji: '🌀', hpBase: 200, dmgBase: 22, armorBase: 6, goldBase: 320 },
+  },
 ];
 
-// Bosses appear every 5 floors. Stats much higher + guaranteed drop.
-export const BOSS_TYPES = [
-  { name: 'Dragon',           emoji: '🐉', hpBase: 120, dmgBase: 12, armorBase: 5, goldBase: 100 },
-  { name: 'Seigneur Démon',   emoji: '😈', hpBase: 100, dmgBase: 15, armorBase: 3, goldBase: 120 },
-  { name: 'Archisorcier',     emoji: '🧙', hpBase: 80,  dmgBase: 18, armorBase: 2, goldBase: 130 },
-  { name: 'Cyclope',          emoji: '👁', hpBase: 150, dmgBase: 10, armorBase: 6, goldBase: 110 },
-  { name: 'Liche',            emoji: '☠', hpBase: 90,  dmgBase: 16, armorBase: 4, goldBase: 125 },
-  { name: 'Hydre',            emoji: '🐲', hpBase: 140, dmgBase: 13, armorBase: 4, goldBase: 135 },
-];
+export function biomeForFloor(floor) {
+  for (const b of BIOMES) {
+    if (floor >= b.floors[0] && floor <= b.floors[1]) return b;
+  }
+  return BIOMES[BIOMES.length - 1];
+}
 
 // Player base stats (without equipment)
 export const PLAYER_BASE = {
@@ -154,7 +216,29 @@ export const ACHIEVEMENTS = [
   { id: 'full_set',       emoji: '🎭', name: 'Set complet',         desc: 'Équipe 4 pièces du même set',check: s => (s.stats?.maxSetEquipped||0) >= 4, reward: { gold: 5000 } },
   { id: 'first_ascend',   emoji: '🌟', name: 'Ascension',           desc: 'Effectue ta 1ère ascension',check: s => (s.prestige?.totalAscensions||0) >= 1, reward: { gold: 10000 } },
   { id: 'ascend_5',       emoji: '🌟', name: 'Ascensionné',         desc: 'Effectue 5 ascensions',   check: s => (s.prestige?.totalAscensions||0) >= 5, reward: { gold: 100000 } },
+  { id: 'first_salvage',  emoji: '💎', name: 'Recycleur',           desc: 'Accumule 10 cristaux',    check: s => totalShards(s) >= 10,        reward: { gold: 200 } },
+  { id: 'shard_100',      emoji: '💎', name: 'Collecte de cristaux',desc: 'Accumule 100 cristaux',    check: s => totalShards(s) >= 100,       reward: { gold: 1000 } },
+  { id: 'shard_1000',     emoji: '💎', name: 'Maître alchimiste',   desc: 'Accumule 1 000 cristaux',  check: s => totalShards(s) >= 1000,      reward: { gold: 10000 } },
+  { id: 'biome_cave',     emoji: '🪨', name: 'Spéléologue',         desc: 'Atteins les Cavernes (étage 11)',check: s => (s.combat?.highestUnlocked||1) >= 11, reward: { gold: 300 } },
+  { id: 'biome_castle',   emoji: '🏰', name: 'Conquérant',          desc: 'Atteins le Château (étage 21)',  check: s => (s.combat?.highestUnlocked||1) >= 21, reward: { gold: 1500 } },
+  { id: 'biome_hell',     emoji: '🔥', name: 'Damné',               desc: 'Atteins l\'Enfer (étage 31)',    check: s => (s.combat?.highestUnlocked||1) >= 31, reward: { gold: 5000 } },
+  { id: 'biome_void',     emoji: '🌌', name: 'Au-delà',             desc: 'Atteins le Néant (étage 41)',    check: s => (s.combat?.highestUnlocked||1) >= 41, reward: { gold: 15000 } },
+  { id: 'first_orb',      emoji: '🟢', name: 'Premier orbe',         desc: 'Trouve un orbe',                  check: s => totalOrbs(s) >= 1,            reward: { gold: 200 } },
+  { id: 'orb_50',         emoji: '⚗', name: 'Alchimiste',           desc: 'Accumule 50 orbes',                check: s => totalOrbs(s) >= 50,           reward: { gold: 2000 } },
+  { id: 'chaos_orb',      emoji: '🟠', name: 'Touche du Chaos',     desc: 'Trouve un Orbe du Chaos',          check: s => (s.orbs?.chaos||0) >= 1,      reward: { gold: 3000 } },
+  { id: 'exil_orb',       emoji: '🔴', name: 'Touche de l\'Exilé',  desc: 'Trouve un Orbe d\'Exil',           check: s => (s.orbs?.exil||0) >= 1,       reward: { gold: 10000 } },
+  { id: 'maitre_orb',     emoji: '🟪', name: 'Maître Forgeron',     desc: 'Trouve un Orbe Maître',            check: s => (s.orbs?.maitre||0) >= 1,     reward: { gold: 15000 } },
 ];
+
+function totalOrbs(s) {
+  if (!s.orbs) return 0;
+  return Object.values(s.orbs).reduce((sum, n) => sum + (n || 0), 0);
+}
+
+function totalShards(s) {
+  if (!s.shards) return 0;
+  return Object.values(s.shards).reduce((sum, n) => sum + (n || 0), 0);
+}
 
 // === Forge costs ===
 // Cost multipliers based on item.goldValue
@@ -163,6 +247,25 @@ export const FORGE_COSTS = {
   upgradeTierMult: 4,   // upgrade chestTier
   transmuteMult: 6,     // upgrade rarity
 };
+
+// === Currencies (PoE-style orbs) ===
+// Drop independently from item drops when opening chests.
+export const CURRENCY_TYPES = [
+  { id: 'transmu', name: 'Orbe de Transmutation', emoji: '🟢', color: '#6acc6a', desc: 'Transforme un objet commun en magique (+1 affixe)',  baseDropChance: 0.06 },
+  { id: 'augm',    name: 'Orbe d\'Augmentation',  emoji: '🔵', color: '#4a9ef5', desc: 'Ajoute un affixe à un objet magique (max 2)',         baseDropChance: 0.045 },
+  { id: 'alte',    name: 'Orbe d\'Altération',    emoji: '🟣', color: '#b35bd6', desc: 'Reroll complet d\'un objet magique',                  baseDropChance: 0.03 },
+  { id: 'regal',   name: 'Orbe Régal',            emoji: '🟡', color: '#f5c842', desc: 'Transforme un magique en rare (+1 affixe)',           baseDropChance: 0.02 },
+  { id: 'chaos',   name: 'Orbe du Chaos',         emoji: '🟠', color: '#ff7a1a', desc: 'Reroll complet d\'un objet rare ou plus',             baseDropChance: 0.012 },
+  { id: 'divin',   name: 'Orbe Divin',            emoji: '⚪', color: '#e0e0ff', desc: 'Reroll les VALEURS des affixes (mêmes stats)',        baseDropChance: 0.006 },
+  { id: 'exil',    name: 'Orbe d\'Exil',          emoji: '🔴', color: '#ff3050', desc: 'Ajoute un affixe à un rare+ (max +1)',                baseDropChance: 0.004 },
+  { id: 'pierre',  name: 'Pierre de Forge',       emoji: '🪨', color: '#a07840', desc: 'Augmente le tier de l\'objet de +1 (max T5)',         baseDropChance: 0.01 },
+  { id: 'maitre',  name: 'Orbe Maître',           emoji: '🟪', color: '#ff5fd0', desc: 'Ajoute un affixe AU CHOIX (respecte les limites prefix/suffix)', baseDropChance: 0.004 },
+];
+
+export const CURRENCY_BY_ID = Object.fromEntries(CURRENCY_TYPES.map(c => [c.id, c]));
+
+// Number of additional affixes craftable beyond the rarity's default count.
+export const MAX_BONUS_AFFIXES = 1;
 
 // === Unique legendaries (hand-crafted, occasionally replace a random legendary) ===
 export const UNIQUE_DROP_CHANCE = 0.3;

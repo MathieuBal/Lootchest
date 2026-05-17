@@ -5,7 +5,8 @@ import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from
 import { openChest, upgradeChest, canOpen } from './chest.js';
 import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
-import { reroll, upgradeTier, transmute } from './forge.js';
+import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
+import { CURRENCY_BY_ID } from './data.js';
 import { canAscend, ascend } from './prestige.js';
 import {
   unlockAudio, toggleMuted, isMuted, setMuted,
@@ -23,6 +24,7 @@ import {
 import {
   sellItem, sellAllOfRarities, addToInventory, sellDrop,
   unlockAutoSell, toggleAutoSell, isAutoSellOn,
+  salvageItem, salvageAllOfRarities,
 } from './inventory.js';
 import {
   renderAll, showDropPopup, hideDropPopup, getCurrentDrop,
@@ -32,7 +34,7 @@ import {
   showModal, hideModal, isModalOpen, showToast, setForgeSelected, getForgeSelectedId,
   showCombatBars, hideCombatBars, updateMonsterHp, updatePlayerHp,
   getMonsterEmojiCenter, getCharacterAvatarCenter, getChestCenter,
-  setInvSortMode, setInvSearchText,
+  setInvSortMode, setInvSearchText, setForgeMode,
 } from './ui.js';
 
 // === Init ===
@@ -82,8 +84,9 @@ const btnOpen = document.getElementById('btn-open');
 btnOpen.addEventListener('click', () => {
   if (!canOpen()) return;
   soundChestOpen();
-  const item = openChest();
-  if (!item) return;
+  const result = openChest();
+  if (!result) return;
+  const { item, orbs } = result;
   flashRarity(item.rarity);
   startCooldownAnim();
   setOpenButtonEnabled(false);
@@ -103,6 +106,19 @@ btnOpen.addEventListener('click', () => {
     if (item.rarity === 'legendary' || item.rarity === 'ancestral') {
       screenShake(item.rarity === 'ancestral' ? 10 : 6, 350);
     }
+  }
+
+  // Orb drops: floating text + small toast for each
+  if (orbs && orbs.length > 0) {
+    let offset = 0;
+    for (const orbId of orbs) {
+      const def = CURRENCY_BY_ID[orbId];
+      if (!def) continue;
+      floatingText(`+1 ${def.emoji}`, center.x, center.y - 40 - offset, def.color);
+      offset += 22;
+      spawnParticles(def.color, center.x, center.y, 12);
+    }
+    soundCoin();
   }
 
   // Auto-sell?
@@ -256,7 +272,14 @@ document.getElementById('inventory-grid').addEventListener('click', (e) => {
   if (!icon) return;
   const item = findItem(icon.dataset.itemId);
   if (!item) return;
-  if (e.shiftKey) {
+  if (e.ctrlKey || e.metaKey) {
+    const qty = salvageItem(item);
+    if (qty > 0) {
+      soundForge();
+      const r = icon.getBoundingClientRect();
+      floatingText(`+${qty} 💎`, r.left + r.width / 2, r.top, '#a0e0ff');
+    }
+  } else if (e.shiftKey) {
     sellItem(item);
     soundCoin();
   } else {
@@ -299,6 +322,29 @@ document.getElementById('btn-sell-filter').addEventListener('click', () => {
     const btn = document.getElementById('btn-sell-filter');
     const old = btn.textContent;
     btn.textContent = `+${earned} 💰`;
+    setTimeout(() => { btn.textContent = old; }, 900);
+  }
+});
+
+document.getElementById('btn-salvage-filter').addEventListener('click', () => {
+  const filterValue = document.getElementById('inv-filter').value;
+  let raritySet;
+  if (filterValue === 'all') {
+    raritySet = new Set(RARITIES.map(r => r.id));
+  } else {
+    const maxIdx = RARITIES.findIndex(r => r.id === filterValue);
+    raritySet = new Set(RARITIES.slice(0, maxIdx + 1).map(r => r.id));
+  }
+  // Never bulk-salvage ancestrals by accident
+  if (filterValue !== 'ancestral' && filterValue !== 'all') {
+    raritySet.delete('ancestral');
+  }
+  const { totalShards } = salvageAllOfRarities(raritySet);
+  if (totalShards > 0) {
+    soundForge();
+    const btn = document.getElementById('btn-salvage-filter');
+    const old = btn.textContent;
+    btn.textContent = `+${totalShards} 💎`;
     setTimeout(() => { btn.textContent = old; }, 900);
   }
 });
@@ -353,23 +399,48 @@ document.getElementById('forge-inventory').addEventListener('click', (e) => {
   setForgeSelected(icon.dataset.itemId);
 });
 
-// Forge: action buttons
-document.getElementById('btn-reroll').addEventListener('click', () => {
+// Forge: action button delegation
+document.getElementById('forge-actions').addEventListener('click', (e) => {
+  // Cancel button from master-craft mode
+  if (e.target.closest('[data-forge-action="cancel-master"]')) {
+    setForgeMode('actions');
+    soundClick();
+    return;
+  }
+  // Master-craft affix selection
+  const mcRow = e.target.closest('.mc-row[data-affix-id]');
+  if (mcRow) {
+    if (mcRow.classList.contains('disabled')) return;
+    const id = getForgeSelectedId();
+    const item = state.inventory.find(i => i.id === id);
+    if (!item) return;
+    if (applyMasterCraft(item, mcRow.dataset.affixId)) {
+      soundForge();
+      soundDrop(item.rarity);
+      setForgeMode('actions');
+    }
+    return;
+  }
+  // Normal forge action button
+  const btn = e.target.closest('button[data-forge-action]');
+  if (!btn) return;
+  const actionId = btn.dataset.forgeAction;
+  const action = FORGE_ACTIONS.find(a => a.id === actionId);
+  if (!action) return;
+  // Master craft button opens the sub-mode instead of applying directly
+  if (action.interactive && action.id === 'maitre') {
+    if (action.can(state.inventory.find(i => i.id === getForgeSelectedId()))) {
+      setForgeMode('master-craft');
+      soundClick();
+    }
+    return;
+  }
   const id = getForgeSelectedId();
   const item = state.inventory.find(i => i.id === id);
-  if (item && reroll(item)) soundForge();
-});
-document.getElementById('btn-upgrade-tier').addEventListener('click', () => {
-  const id = getForgeSelectedId();
-  const item = state.inventory.find(i => i.id === id);
-  if (item && upgradeTier(item)) soundForge();
-});
-document.getElementById('btn-transmute').addEventListener('click', () => {
-  const id = getForgeSelectedId();
-  const item = state.inventory.find(i => i.id === id);
-  if (item && transmute(item)) {
+  if (!item) return;
+  if (action.apply && action.apply(item)) {
     soundForge();
-    soundDrop(item.rarity);
+    if (action.id === 'transmutation' || action.id === 'regal') soundDrop(item.rarity);
   }
 });
 
