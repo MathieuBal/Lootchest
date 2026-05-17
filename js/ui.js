@@ -18,13 +18,23 @@ import { shardYield } from './inventory.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { SETS_BY_ID } from './data.js';
-import { chestSpriteSVG, characterSpriteSVG } from './sprites.js';
+import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG } from './sprites.js';
+import { getCompositionLayers } from './parts.js';
 
 // === Item icon helpers ===
 
 export function itemIconHTML(item, { big = false } = {}) {
   const r = RARITY_BY_ID[item.rarity];
-  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}" data-item-id="${item.id}">${item.emoji || '❔'}</div>`;
+  const inner = itemVisualHTML(item, big);
+  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}" data-item-id="${item.id}">${inner}</div>`;
+}
+
+function itemVisualHTML(item, big = false) {
+  if (item.parts) {
+    const layers = getCompositionLayers(item.baseTypeId, item.parts);
+    return composedSpriteSVG(layers, big ? 64 : 40);
+  }
+  return item.emoji || '❔';
 }
 
 function itemTotalStats(item) {
@@ -260,7 +270,7 @@ function renderCharacter() {
     if (item) {
       const r = RARITY_BY_ID[item.rarity];
       slotEl.style.borderColor = r.color;
-      slotEl.innerHTML = `${item.emoji}<span class="slot-label">${slot.name}</span>`;
+      slotEl.innerHTML = `<div class="slot-visual">${itemVisualHTML(item)}</div><span class="slot-label">${slot.name}</span>`;
       slotEl.dataset.itemId = item.id;
     } else {
       slotEl.innerHTML = `<span style="opacity:0.3">${slot.emptyEmoji}</span><span class="slot-label">${slot.name}</span>`;

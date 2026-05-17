@@ -6,6 +6,7 @@ import {
   SETS, SET_DROP_CHANCE, PRESTIGE_BONUS_PER_LEVEL,
 } from './data.js';
 import { state } from './state.js';
+import { rollWeaponParts, hasCompositionFor } from './parts.js';
 
 let _id = 0;
 function nextId() { return `it_${Date.now().toString(36)}_${(_id++).toString(36)}`; }
@@ -145,7 +146,15 @@ export function rebuildItemAffixesAndStats(item) {
     }
   }
 
-  item.baseStats = scaleBaseStats(baseType.baseStats, item.chestTier, item.rarity);
+  // Composed weapons: re-roll parts to scale with new tier/rarity.
+  if (item.parts && hasCompositionFor(item.baseTypeId)) {
+    const statMult = RARITY_BY_ID[item.rarity].statMult;
+    const { parts, baseStats } = rollWeaponParts(item.baseTypeId, item.chestTier, statMult);
+    item.parts = parts;
+    item.baseStats = baseStats;
+  } else {
+    item.baseStats = scaleBaseStats(baseType.baseStats, item.chestTier, item.rarity);
+  }
   item.affixes = rollAffixes(item.rarity, item.chestTier);
   item.goldValue = computeGoldValue(item.rarity, item.chestTier);
   // Regenerate name for regular items only; set/unique names are preserved.
@@ -192,6 +201,27 @@ function buildItem(chestTier, rarity) {
 function buildRegularItem(chestTier, rarity) {
   const slot = rollSlot();
   const baseType = pickRandom(BASE_TYPES[slot]);
+
+  // Composed item path: e.g. sword has parts that contribute baseStats + sprite layers
+  if (slot === 'weapon' && hasCompositionFor(baseType.id)) {
+    const statMult = RARITY_BY_ID[rarity].statMult;
+    const { parts, baseStats } = rollWeaponParts(baseType.id, chestTier, statMult);
+    const affixes = rollAffixes(rarity, chestTier);
+    return {
+      id: nextId(),
+      slot,
+      baseTypeId: baseType.id,
+      emoji: baseType.emoji,
+      rarity,
+      name: makeName(baseType, rarity),
+      baseStats,
+      affixes,
+      goldValue: computeGoldValue(rarity, chestTier),
+      chestTier,
+      parts,
+    };
+  }
+
   const baseStats = scaleBaseStats(baseType.baseStats, chestTier, rarity);
   const affixes = rollAffixes(rarity, chestTier);
   return {

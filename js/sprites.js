@@ -57,9 +57,8 @@ const CHARACTER_PALETTE = {
   C: '#a8a8c0', // armor highlight
 };
 
-function gridToSVG(layout, palette, sizePx) {
+function gridToRects(layout, palette) {
   const cells = layout.length;
-  const pixelSize = sizePx / cells;
   let rects = '';
   for (let y = 0; y < cells; y++) {
     const row = layout[y];
@@ -68,6 +67,24 @@ function gridToSVG(layout, palette, sizePx) {
       if (ch === '.' || !palette[ch]) continue;
       rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="${palette[ch]}"/>`;
     }
+  }
+  return rects;
+}
+
+function gridToSVG(layout, palette, sizePx) {
+  const cells = layout.length;
+  const rects = gridToRects(layout, palette);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cells} ${cells}" width="${sizePx}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${rects}</svg>`;
+}
+
+// Compose multiple pixel layers ({layout, palette}) onto a single SVG.
+// Later layers overlap earlier ones.
+export function composedSpriteSVG(layers, sizePx = 64) {
+  if (!layers || layers.length === 0) return '';
+  const cells = layers[0].layout.length;
+  let rects = '';
+  for (const layer of layers) {
+    rects += gridToRects(layer.layout, layer.palette);
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cells} ${cells}" width="${sizePx}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${rects}</svg>`;
 }
