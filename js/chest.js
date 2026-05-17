@@ -1,7 +1,21 @@
 // Chest open / upgrade logic.
 import { state, notify } from './state.js';
-import { CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS } from './data.js';
+import { CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, CURRENCY_TYPES } from './data.js';
 import { generateItemFromChest } from './loot.js';
+
+// Roll each currency type independently. Higher chest tier slightly boosts rates.
+// Returns array of currency IDs that dropped this open.
+export function rollOrbDrops(chestTier) {
+  const tierBoost = 1 + (chestTier - 1) * 0.18;
+  const earned = [];
+  for (const c of CURRENCY_TYPES) {
+    if (Math.random() < c.baseDropChance * tierBoost) {
+      state.orbs[c.id] = (state.orbs[c.id] || 0) + 1;
+      earned.push(c.id);
+    }
+  }
+  return earned;
+}
 
 let lastOpenAt = 0;
 
@@ -18,8 +32,9 @@ export function openChest() {
   lastOpenAt = Date.now();
   state.opened += 1;
   const item = generateItemFromChest(state.chestTier);
+  const orbs = rollOrbDrops(state.chestTier);
   notify();
-  return item;
+  return { item, orbs };
 }
 
 export function getCurrentTier() {

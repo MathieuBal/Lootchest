@@ -56,6 +56,10 @@ export const state = {
     legendary: 0,
     ancestral: 0,
   },
+  orbs: {
+    transmu: 0, augm: 0, alte: 0, regal: 0,
+    chaos: 0, divin: 0, exil: 0, pierre: 0,
+  },
 };
 
 // Init empty equipment slots
@@ -106,6 +110,10 @@ export function replaceState(newState) {
   for (const k of ['common','magic','rare','epic','legendary','ancestral']) {
     if (state.shards[k] === undefined) state.shards[k] = 0;
   }
+  if (!state.orbs) state.orbs = {};
+  for (const k of ['transmu','augm','alte','regal','chaos','divin','exil','pierre']) {
+    if (state.orbs[k] === undefined) state.orbs[k] = 0;
+  }
   notify();
 }
 
@@ -126,5 +134,6 @@ export function resetState() {
   state.stats = { legendaryDropped: 0, ancestralDropped: 0, uniquesDropped: 0, itemsSold: 0, totalGoldEarned: 0, forgesPerformed: 0, maxSetEquipped: 0 };
   state.prestige = { level: 0, totalAscensions: 0 };
   state.shards = { common: 0, magic: 0, rare: 0, epic: 0, legendary: 0, ancestral: 0 };
+  state.orbs = { transmu: 0, augm: 0, alte: 0, regal: 0, chaos: 0, divin: 0, exil: 0, pierre: 0 };
   notify();
 }

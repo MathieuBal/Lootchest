@@ -209,7 +209,16 @@ export const ACHIEVEMENTS = [
   { id: 'biome_castle',   emoji: '🏰', name: 'Conquérant',          desc: 'Atteins le Château (étage 21)',  check: s => (s.combat?.highestUnlocked||1) >= 21, reward: { gold: 1500 } },
   { id: 'biome_hell',     emoji: '🔥', name: 'Damné',               desc: 'Atteins l\'Enfer (étage 31)',    check: s => (s.combat?.highestUnlocked||1) >= 31, reward: { gold: 5000 } },
   { id: 'biome_void',     emoji: '🌌', name: 'Au-delà',             desc: 'Atteins le Néant (étage 41)',    check: s => (s.combat?.highestUnlocked||1) >= 41, reward: { gold: 15000 } },
+  { id: 'first_orb',      emoji: '🟢', name: 'Premier orbe',         desc: 'Trouve un orbe',                  check: s => totalOrbs(s) >= 1,            reward: { gold: 200 } },
+  { id: 'orb_50',         emoji: '⚗', name: 'Alchimiste',           desc: 'Accumule 50 orbes',                check: s => totalOrbs(s) >= 50,           reward: { gold: 2000 } },
+  { id: 'chaos_orb',      emoji: '🟠', name: 'Touche du Chaos',     desc: 'Trouve un Orbe du Chaos',          check: s => (s.orbs?.chaos||0) >= 1,      reward: { gold: 3000 } },
+  { id: 'exil_orb',       emoji: '🔴', name: 'Touche de l\'Exilé',  desc: 'Trouve un Orbe d\'Exil',           check: s => (s.orbs?.exil||0) >= 1,       reward: { gold: 10000 } },
 ];
+
+function totalOrbs(s) {
+  if (!s.orbs) return 0;
+  return Object.values(s.orbs).reduce((sum, n) => sum + (n || 0), 0);
+}
 
 function totalShards(s) {
   if (!s.shards) return 0;
@@ -223,6 +232,24 @@ export const FORGE_COSTS = {
   upgradeTierMult: 4,   // upgrade chestTier
   transmuteMult: 6,     // upgrade rarity
 };
+
+// === Currencies (PoE-style orbs) ===
+// Drop independently from item drops when opening chests.
+export const CURRENCY_TYPES = [
+  { id: 'transmu', name: 'Orbe de Transmutation', emoji: '🟢', color: '#6acc6a', desc: 'Transforme un objet commun en magique (+1 affixe)',  baseDropChance: 0.06 },
+  { id: 'augm',    name: 'Orbe d\'Augmentation',  emoji: '🔵', color: '#4a9ef5', desc: 'Ajoute un affixe à un objet magique (max 2)',         baseDropChance: 0.045 },
+  { id: 'alte',    name: 'Orbe d\'Altération',    emoji: '🟣', color: '#b35bd6', desc: 'Reroll complet d\'un objet magique',                  baseDropChance: 0.03 },
+  { id: 'regal',   name: 'Orbe Régal',            emoji: '🟡', color: '#f5c842', desc: 'Transforme un magique en rare (+1 affixe)',           baseDropChance: 0.02 },
+  { id: 'chaos',   name: 'Orbe du Chaos',         emoji: '🟠', color: '#ff7a1a', desc: 'Reroll complet d\'un objet rare ou plus',             baseDropChance: 0.012 },
+  { id: 'divin',   name: 'Orbe Divin',            emoji: '⚪', color: '#e0e0ff', desc: 'Reroll les VALEURS des affixes (mêmes stats)',        baseDropChance: 0.006 },
+  { id: 'exil',    name: 'Orbe d\'Exil',          emoji: '🔴', color: '#ff3050', desc: 'Ajoute un affixe à un rare+ (max +1)',                baseDropChance: 0.004 },
+  { id: 'pierre',  name: 'Pierre de Forge',       emoji: '🪨', color: '#a07840', desc: 'Augmente le tier de l\'objet de +1 (max T5)',         baseDropChance: 0.01 },
+];
+
+export const CURRENCY_BY_ID = Object.fromEntries(CURRENCY_TYPES.map(c => [c.id, c]));
+
+// Number of additional affixes craftable beyond the rarity's default count.
+export const MAX_BONUS_AFFIXES = 1;
 
 // === Unique legendaries (hand-crafted, occasionally replace a random legendary) ===
 export const UNIQUE_DROP_CHANCE = 0.3;

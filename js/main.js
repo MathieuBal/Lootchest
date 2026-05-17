@@ -5,7 +5,8 @@ import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from
 import { openChest, upgradeChest, canOpen } from './chest.js';
 import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
-import { reroll, upgradeTier, transmute, rerollPlus } from './forge.js';
+import { FORGE_ACTIONS } from './forge.js';
+import { CURRENCY_BY_ID } from './data.js';
 import { canAscend, ascend } from './prestige.js';
 import {
   unlockAudio, toggleMuted, isMuted, setMuted,
@@ -83,8 +84,9 @@ const btnOpen = document.getElementById('btn-open');
 btnOpen.addEventListener('click', () => {
   if (!canOpen()) return;
   soundChestOpen();
-  const item = openChest();
-  if (!item) return;
+  const result = openChest();
+  if (!result) return;
+  const { item, orbs } = result;
   flashRarity(item.rarity);
   startCooldownAnim();
   setOpenButtonEnabled(false);
@@ -104,6 +106,19 @@ btnOpen.addEventListener('click', () => {
     if (item.rarity === 'legendary' || item.rarity === 'ancestral') {
       screenShake(item.rarity === 'ancestral' ? 10 : 6, 350);
     }
+  }
+
+  // Orb drops: floating text + small toast for each
+  if (orbs && orbs.length > 0) {
+    let offset = 0;
+    for (const orbId of orbs) {
+      const def = CURRENCY_BY_ID[orbId];
+      if (!def) continue;
+      floatingText(`+1 ${def.emoji}`, center.x, center.y - 40 - offset, def.color);
+      offset += 22;
+      spawnParticles(def.color, center.x, center.y, 12);
+    }
+    soundCoin();
   }
 
   // Auto-sell?
@@ -384,31 +399,19 @@ document.getElementById('forge-inventory').addEventListener('click', (e) => {
   setForgeSelected(icon.dataset.itemId);
 });
 
-// Forge: action buttons
-document.getElementById('btn-reroll').addEventListener('click', () => {
+// Forge: action button delegation
+document.getElementById('forge-actions').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-forge-action]');
+  if (!btn) return;
+  const actionId = btn.dataset.forgeAction;
+  const action = FORGE_ACTIONS.find(a => a.id === actionId);
+  if (!action) return;
   const id = getForgeSelectedId();
   const item = state.inventory.find(i => i.id === id);
-  if (item && reroll(item)) soundForge();
-});
-document.getElementById('btn-upgrade-tier').addEventListener('click', () => {
-  const id = getForgeSelectedId();
-  const item = state.inventory.find(i => i.id === id);
-  if (item && upgradeTier(item)) soundForge();
-});
-document.getElementById('btn-transmute').addEventListener('click', () => {
-  const id = getForgeSelectedId();
-  const item = state.inventory.find(i => i.id === id);
-  if (item && transmute(item)) {
+  if (!item) return;
+  if (action.apply(item)) {
     soundForge();
-    soundDrop(item.rarity);
-  }
-});
-document.getElementById('btn-reroll-plus').addEventListener('click', () => {
-  const id = getForgeSelectedId();
-  const item = state.inventory.find(i => i.id === id);
-  if (item && rerollPlus(item)) {
-    soundForge();
-    soundDrop(item.rarity);
+    if (action.id === 'transmutation' || action.id === 'regal') soundDrop(item.rarity);
   }
 });
 

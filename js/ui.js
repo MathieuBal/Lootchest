@@ -9,12 +9,9 @@ import { computeStats, computePower, computeSetSummary } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
 import { biomeForFloor } from './data.js';
-import {
-  rerollCost, upgradeTierCost, transmuteCost,
-  canReroll, canUpgradeTier, canTransmute,
-  rerollPlusGoldCost, canRerollPlus, REROLL_PLUS_SHARD_COST,
-} from './forge.js';
+import { FORGE_ACTIONS } from './forge.js';
 import { shardYield } from './inventory.js';
+import { CURRENCY_TYPES, CURRENCY_BY_ID } from './data.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { SETS_BY_ID } from './data.js';
@@ -148,11 +145,26 @@ function renderShards() {
   const nonZero = RARITIES.filter(r => (shards[r.id] || 0) > 0);
   if (nonZero.length === 0) {
     el.style.display = 'none';
+  } else {
+    el.style.display = '';
+    el.innerHTML = nonZero.map(r =>
+      `<span class="shard-chip shard-c-${r.cssClass}" title="${r.name}"><span class="shard-gem shard-g-${r.cssClass}"></span>${shards[r.id].toLocaleString('fr-FR')}</span>`
+    ).join('');
+  }
+  renderOrbs();
+}
+
+function renderOrbs() {
+  const el = document.getElementById('hud-orbs');
+  const orbs = state.orbs || {};
+  const nonZero = CURRENCY_TYPES.filter(c => (orbs[c.id] || 0) > 0);
+  if (nonZero.length === 0) {
+    el.style.display = 'none';
     return;
   }
   el.style.display = '';
-  el.innerHTML = nonZero.map(r =>
-    `<span class="shard-chip shard-c-${r.cssClass}" title="${r.name}"><span class="shard-gem shard-g-${r.cssClass}"></span>${shards[r.id].toLocaleString('fr-FR')}</span>`
+  el.innerHTML = nonZero.map(c =>
+    `<span class="orb-chip" style="border-color:${c.color};color:${c.color}" title="${c.name}: ${c.desc}">${c.emoji}<span class="orb-count">${orbs[c.id]}</span></span>`
   ).join('');
 }
 
@@ -647,31 +659,42 @@ export function renderForgeModal() {
     ${itemIconHTML(selected, { big: true })}
     <div class="forge-preview-info">
       <div class="forge-preview-name rt-${r.cssClass}">${selected.name}</div>
-      <div style="color: var(--text-dim);">T${selected.chestTier} · ${slot.name} · <span class="rt-${r.cssClass}">${r.name}</span></div>
+      <div style="color: var(--text-dim);">T${selected.chestTier} · ${slot.name} · <span class="rt-${r.cssClass}">${r.name}</span> · ${selected.affixes.length} affixe${selected.affixes.length > 1 ? 's' : ''}</div>
       ${Object.entries(selected.baseStats || {}).map(([k, v]) => `<div>+${v} ${statLabel(k)}</div>`).join('')}
       ${(selected.affixes || []).map(a => `<div class="item-affix">+${a.value}${a.percent ? '%' : ''} ${a.label}</div>`).join('')}
       <div style="color: var(--gold); margin-top: 4px;">💰 ${selected.goldValue}</div>
     </div>
   `;
 
-  // Action costs
-  document.getElementById('reroll-cost').textContent = rerollCost(selected).toLocaleString('fr-FR');
-  document.getElementById('upgrade-tier-cost').textContent = upgradeTierCost(selected).toLocaleString('fr-FR');
-  document.getElementById('transmute-cost').textContent = transmuteCost(selected).toLocaleString('fr-FR');
-  document.getElementById('reroll-plus-cost').textContent = rerollPlusGoldCost(selected).toLocaleString('fr-FR');
-  document.getElementById('reroll-plus-shard-cost').textContent = REROLL_PLUS_SHARD_COST;
-
-  document.getElementById('forge-tier-from').textContent = `T${selected.chestTier}`;
-  document.getElementById('forge-tier-to').textContent = `T${Math.min(5, selected.chestTier + 1)}`;
-  const rIdx = RARITIES.findIndex(rr => rr.id === selected.rarity);
-  const nextR = RARITIES[rIdx + 1];
-  document.getElementById('forge-rarity-from').textContent = r.name;
-  document.getElementById('forge-rarity-to').textContent = nextR ? nextR.name : '—';
-
-  document.getElementById('btn-reroll').disabled = !canReroll(selected);
-  document.getElementById('btn-upgrade-tier').disabled = !canUpgradeTier(selected);
-  document.getElementById('btn-transmute').disabled = !canTransmute(selected);
-  document.getElementById('btn-reroll-plus').disabled = !canRerollPlus(selected);
+  // Render action buttons dynamically
+  const actionsEl = document.getElementById('forge-actions');
+  actionsEl.innerHTML = '';
+  for (const action of FORGE_ACTIONS) {
+    const enabled = action.can(selected);
+    let costHTML;
+    if (action.orb) {
+      const orbDef = CURRENCY_BY_ID[action.orb];
+      const have = state.orbs[action.orb] || 0;
+      const haveColor = have >= 1 ? orbDef.color : '#666';
+      costHTML = `<div class="forge-cost" style="color:${haveColor}">${orbDef.emoji} ${have}</div>`;
+    } else if (action.shards) {
+      const have = state.shards[selected.rarity] || 0;
+      const haveColor = have >= action.shards ? '#a0e0ff' : '#666';
+      costHTML = `<div class="forge-cost" style="color:${haveColor}">${have}/${action.shards} 💎</div>`;
+    } else {
+      costHTML = '';
+    }
+    const btn = document.createElement('button');
+    btn.className = 'btn forge-btn';
+    btn.dataset.forgeAction = action.id;
+    btn.disabled = !enabled;
+    btn.innerHTML = `
+      <div class="forge-btn-label">${action.label}</div>
+      <div class="forge-btn-desc">${action.desc}</div>
+      ${costHTML}
+    `;
+    actionsEl.appendChild(btn);
+  }
 }
 
 // === Modal show/hide ===

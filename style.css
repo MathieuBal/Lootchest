@@ -555,6 +555,24 @@ button, input, select {
 .shard-g-legendary { background: var(--r-legendary); }
 .shard-g-ancestral { background: var(--r-ancestral); }
 
+/* === Hud orbs (currency) === */
+.hud-orbs {
+  gap: 4px !important;
+  flex-wrap: wrap;
+}
+.orb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 1px 5px;
+  border: 2px solid;
+}
+.orb-chip .orb-count {
+  font-size: 9px;
+  color: var(--text);
+}
+
 .forge-actions {
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
@@ -974,6 +992,20 @@ button, input, select {
 .forge-btn .forge-cost {
   color: var(--gold);
   font-size: 9px;
+}
+.forge-btn-label {
+  font-size: 10px;
+  color: var(--text);
+}
+.forge-btn-desc {
+  font-size: 8px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.forge-actions {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
+  max-height: 280px;
+  overflow-y: auto;
 }
 
 /* === Toast === */
