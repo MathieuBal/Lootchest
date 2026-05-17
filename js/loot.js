@@ -7,6 +7,7 @@ import {
 } from './data.js';
 import { state } from './state.js';
 import { rollWeaponParts, hasCompositionFor } from './parts.js';
+import { rareDropMultiplier, pityReduction } from './talents.js';
 
 let _id = 0;
 function nextId() { return `it_${Date.now().toString(36)}_${(_id++).toString(36)}`; }
@@ -33,7 +34,7 @@ function pickRandom(arr) {
 export function rollRarity(chestTier) {
   const tier = CHEST_TIERS.find(t => t.tier === chestTier);
   const prestigeLevel = state.prestige?.level || 0;
-  const rareMult = Math.pow(PRESTIGE_BONUS_PER_LEVEL.rareDropWeightMult, prestigeLevel);
+  const rareMult = Math.pow(PRESTIGE_BONUS_PER_LEVEL.rareDropWeightMult, prestigeLevel) * rareDropMultiplier();
   const rarePlusSet = new Set(['rare', 'epic', 'legendary', 'ancestral']);
   const entries = Object.entries(tier.weights)
     .filter(([_, w]) => w > 0)
@@ -96,7 +97,8 @@ function computeGoldValue(rarity, chestTier) {
 // Forces a legendary if PITY_THRESHOLD non-legendary+ drops have been seen.
 export function generateItemFromChest(chestTier) {
   let rarity = rollRarity(chestTier);
-  if (state.pity.sinceLegendary >= PITY_THRESHOLD - 1 && rarity !== 'legendary' && rarity !== 'ancestral') {
+  const effectivePity = Math.max(5, PITY_THRESHOLD - pityReduction());
+  if (state.pity.sinceLegendary >= effectivePity - 1 && rarity !== 'legendary' && rarity !== 'ancestral') {
     rarity = 'legendary';
   }
   if (rarity === 'legendary' || rarity === 'ancestral') {
@@ -121,6 +123,11 @@ function trackDropStats(item) {
   if (item.rarity === 'legendary') state.stats.legendaryDropped += 1;
   else if (item.rarity === 'ancestral') state.stats.ancestralDropped += 1;
   if (item.uniqueId) state.stats.uniquesDropped += 1;
+  // Codex discovery
+  if (state.codex) {
+    if (item.uniqueId) state.codex.uniques[item.uniqueId] = true;
+    if (item.setId) state.codex.sets[item.setId] = (state.codex.sets[item.setId] || 0) + 1;
+  }
 }
 
 // Forge helpers — rebuild item in-place based on its current slot/baseTypeId/rarity/chestTier.

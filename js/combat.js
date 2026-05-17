@@ -3,6 +3,7 @@ import { state, notify } from './state.js';
 import { computeStats } from './character.js';
 import { PLAYER_BASE, biomeForFloor } from './data.js';
 import { generateItem } from './loot.js';
+import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
 
 export function isBossFloor(floor) {
   return floor > 0 && floor % 5 === 0;
@@ -38,8 +39,8 @@ export function generateMonster(floor) {
 // events: array of { type: 'player_hit' | 'monster_hit', dmg, isCrit?, monsterHp, playerHp }
 export function resolveFight(monster) {
   const stats = computeStats();
-  const playerMaxHp = PLAYER_BASE.hp + (stats.vitality || 0) * 5;
-  const playerDmg = Math.max(1, PLAYER_BASE.damage + (stats.damage || 0) - monster.armor);
+  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier());
+  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier()) - monster.armor);
   const playerArmor = (stats.armor || 0);
   const monsterDmg = Math.max(1, monster.damage - playerArmor);
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
@@ -74,7 +75,32 @@ export function resolveFight(monster) {
   return { won, log, turns, playerHpLeft: Math.max(0, pHp), playerMaxHp, events };
 }
 
-// Returns { result, monster, droppedItem, advanced }
+// Reward template for crossing a milestone (every 25 floors).
+function buildMilestoneReward(level) {
+  return {
+    gold: Math.floor(500 * Math.pow(level, 1.8)),
+    orbs: {
+      chaos:  Math.min(5, level),
+      pierre: Math.min(3, Math.ceil(level / 2)),
+      exil:   Math.max(0, Math.min(3, level - 1)),
+      maitre: Math.max(0, Math.min(2, Math.floor(level / 2))),
+    },
+  };
+}
+
+function grantMilestoneReward(level) {
+  const reward = buildMilestoneReward(level);
+  state.gold += reward.gold;
+  for (const [orbId, qty] of Object.entries(reward.orbs)) {
+    if (qty > 0) state.orbs[orbId] = (state.orbs[orbId] || 0) + qty;
+  }
+  // +1 talent point per milestone
+  state.talentPoints = (state.talentPoints || 0) + 1;
+  reward.talentPoints = 1;
+  return reward;
+}
+
+// Returns { result, monster, droppedItem, advanced, milestone }
 export function attemptCurrentFloor() {
   const floor = state.combat.currentFloor;
   const monster = generateMonster(floor);
@@ -82,32 +108,44 @@ export function attemptCurrentFloor() {
 
   let droppedItem = null;
   let advanced = false;
+  let milestone = null;
   if (result.won) {
     state.combat.kills += 1;
-    if (monster.isBoss) state.combat.bossKills += 1;
+    if (monster.isBoss) {
+      state.combat.bossKills += 1;
+      // Codex: track boss kills per biome
+      const biome = biomeForFloor(floor);
+      if (state.codex && biome) {
+        state.codex.bosses[biome.id] = (state.codex.bosses[biome.id] || 0) + 1;
+      }
+    }
+    monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier());
     state.gold += monster.goldReward;
 
     if (Math.random() < monster.dropChance) {
-      // Item tier = floor / 5 (rounded up), capped to 5
       const itemTier = Math.min(5, Math.max(1, Math.ceil(floor / 5)));
       droppedItem = generateItem(itemTier);
-      // Boss guarantees at least rare-tier rarity by re-rolling if too low
       if (monster.isBoss && (droppedItem.rarity === 'common' || droppedItem.rarity === 'magic')) {
         droppedItem = generateItem(itemTier);
-        // (one re-roll is enough for soft guarantee)
       }
     }
 
     if (floor === state.combat.highestUnlocked) {
       state.combat.highestUnlocked = floor + 1;
       advanced = true;
+      // Milestone crossed? Only on first-time progression beyond a multiple of 25.
+      if (floor > 0 && floor % 25 === 0) {
+        const level = floor / 25;
+        const reward = grantMilestoneReward(level);
+        milestone = { floor, level, reward };
+      }
     }
     state.combat.currentFloor = floor + 1;
   } else {
     state.combat.deaths += 1;
   }
   notify();
-  return { result, monster, droppedItem, advanced };
+  return { result, monster, droppedItem, advanced, milestone };
 }
 
 export function setCurrentFloor(floor) {

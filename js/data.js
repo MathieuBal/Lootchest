@@ -92,14 +92,38 @@ export const NAME_SUFFIXES = [
   'de la Lune', 'du Loup', 'du Néant', 'de la Tempête', 'du Sage',
 ];
 
-// Chest tiers. Each tier defines drop weights and upgrade cost to NEXT tier.
+// Chest tiers. T1-T5 are default; T6-T10 require corresponding prestige level.
 export const CHEST_TIERS = [
-  { tier: 1, name: 'Bois',      emoji: '📦', weights: { common: 75, magic: 23, rare:  2, epic:  0, legendary: 0, ancestral: 0 }, upgradeCost: 250 },
-  { tier: 2, name: 'Fer',       emoji: '🗃', weights: { common: 45, magic: 38, rare: 14, epic:  3, legendary: 0, ancestral: 0 }, upgradeCost: 1500 },
-  { tier: 3, name: 'Or',        emoji: '🏆', weights: { common: 20, magic: 35, rare: 30, epic: 12, legendary: 3, ancestral: 0 }, upgradeCost: 8000 },
-  { tier: 4, name: 'Mythique',  emoji: '🎁', weights: { common:  5, magic: 25, rare: 35, epic: 25, legendary: 9, ancestral: 1 }, upgradeCost: 40000 },
-  { tier: 5, name: 'Ancestral', emoji: '⚱',  weights: { common:  0, magic: 10, rare: 25, epic: 35, legendary: 20, ancestral: 10 }, upgradeCost: null },
+  { tier: 1,  name: 'Bois',       emoji: '📦', weights: { common: 75, magic: 23, rare:  2, epic:  0, legendary:  0, ancestral:  0 }, upgradeCost: 250 },
+  { tier: 2,  name: 'Fer',        emoji: '🗃', weights: { common: 45, magic: 38, rare: 14, epic:  3, legendary:  0, ancestral:  0 }, upgradeCost: 1500 },
+  { tier: 3,  name: 'Or',         emoji: '🏆', weights: { common: 20, magic: 35, rare: 30, epic: 12, legendary:  3, ancestral:  0 }, upgradeCost: 8000 },
+  { tier: 4,  name: 'Mythique',   emoji: '🎁', weights: { common:  5, magic: 25, rare: 35, epic: 25, legendary:  9, ancestral:  1 }, upgradeCost: 40000 },
+  { tier: 5,  name: 'Ancestral',  emoji: '⚱',  weights: { common:  0, magic: 10, rare: 25, epic: 35, legendary: 20, ancestral: 10 }, upgradeCost: 250000 },
+  { tier: 6,  name: 'Stellaire',  emoji: '✨', weights: { common:  0, magic:  5, rare: 18, epic: 32, legendary: 28, ancestral: 17 }, upgradeCost: 1500000,   prestigeReq: 1 },
+  { tier: 7,  name: 'Cosmique',   emoji: '🌠', weights: { common:  0, magic:  0, rare: 12, epic: 28, legendary: 35, ancestral: 25 }, upgradeCost: 8000000,   prestigeReq: 2 },
+  { tier: 8,  name: 'Vide',       emoji: '🕳', weights: { common:  0, magic:  0, rare:  6, epic: 22, legendary: 38, ancestral: 34 }, upgradeCost: 40000000,  prestigeReq: 3 },
+  { tier: 9,  name: 'Primordial', emoji: '🌌', weights: { common:  0, magic:  0, rare:  2, epic: 15, legendary: 38, ancestral: 45 }, upgradeCost: 200000000, prestigeReq: 4 },
+  { tier: 10, name: 'Divin',      emoji: '☀',  weights: { common:  0, magic:  0, rare:  0, epic:  8, legendary: 32, ancestral: 60 }, upgradeCost: null,      prestigeReq: 5 },
 ];
+
+export function maxAllowedChestTier(prestigeLevel) {
+  return Math.min(10, 5 + (prestigeLevel || 0));
+}
+
+// === Talents ===
+// Per-rank passive bonuses. Points earned via ascension (2 per) and dungeon milestones (1 per).
+export const TALENTS = [
+  { id: 'merchant',       emoji: '💰', name: 'Marchand habile',     desc: '+10% prix de vente par rang',           maxRank: 5, perRank: { sellMult: 0.10 } },
+  { id: 'sharpEye',       emoji: '👁',  name: 'Œil aiguisé',         desc: '+5% poids des raretés rare+ par rang',  maxRank: 5, perRank: { rareMult: 0.05 } },
+  { id: 'berserker',      emoji: '⚔',  name: 'Berserker',           desc: '+10% dégâts en donjon par rang',        maxRank: 5, perRank: { dmgMult: 0.10 } },
+  { id: 'tanky',          emoji: '❤',  name: 'Endurci',             desc: '+15% PV max par rang',                  maxRank: 5, perRank: { hpMult: 0.15 } },
+  { id: 'treasureHunter', emoji: '💎', name: 'Chasseur de trésors', desc: '+25% or des monstres par rang',         maxRank: 4, perRank: { monsterGoldMult: 0.25 } },
+  { id: 'orbFinder',      emoji: '🟪', name: 'Trouveur d\'orbes',   desc: '+15% drop d\'orbes par rang',           maxRank: 4, perRank: { orbDropMult: 0.15 } },
+  { id: 'recycler',       emoji: '♻',  name: 'Recycleur',           desc: '+1 cristal par recyclage par rang',     maxRank: 3, perRank: { shardBonus: 1 } },
+  { id: 'pityMaster',     emoji: '✨', name: 'Maître pity',         desc: '-10 au pity timer par rang',            maxRank: 3, perRank: { pityReduction: 10 } },
+];
+
+export const TALENT_BY_ID = Object.fromEntries(TALENTS.map(t => [t.id, t]));
 
 export const CHEST_OPEN_COOLDOWN_MS = 800;
 
@@ -194,6 +218,8 @@ export const ACHIEVEMENTS = [
   { id: 'tier_3',         emoji: '🏆', name: 'Coffre d\'or',       desc: 'Atteins le tier 3',        check: s => s.chestTier >= 3,              reward: { gold: 1000 } },
   { id: 'tier_4',         emoji: '🎁', name: 'Coffre mythique',    desc: 'Atteins le tier 4',        check: s => s.chestTier >= 4,              reward: { gold: 5000 } },
   { id: 'tier_5',         emoji: '⚱',  name: 'Coffre ancestral',   desc: 'Atteins le tier 5',        check: s => s.chestTier >= 5,              reward: { gold: 25000 } },
+  { id: 'tier_7',         emoji: '🌠', name: 'Coffre cosmique',     desc: 'Atteins le tier 7',        check: s => s.chestTier >= 7,              reward: { gold: 250000 } },
+  { id: 'tier_10',        emoji: '☀',  name: 'Coffre divin',        desc: 'Atteins le tier 10 (max)', check: s => s.chestTier >= 10,             reward: { gold: 5000000 } },
   { id: 'first_legendary',emoji: '🔥', name: 'Légende vivante',    desc: 'Loote un objet légendaire',check: s => (s.stats?.legendaryDropped||0) >= 1, reward: { gold: 1000 } },
   { id: 'first_ancestral',emoji: '💀', name: 'Sang ancestral',     desc: 'Loote un ancestral',       check: s => (s.stats?.ancestralDropped||0) >= 1, reward: { gold: 10000 } },
   { id: 'sell_100',       emoji: '💰', name: 'Marchand',           desc: 'Vends 100 objets',         check: s => (s.stats?.itemsSold||0) >= 100, reward: { gold: 500 } },
@@ -228,6 +254,11 @@ export const ACHIEVEMENTS = [
   { id: 'chaos_orb',      emoji: '🟠', name: 'Touche du Chaos',     desc: 'Trouve un Orbe du Chaos',          check: s => (s.orbs?.chaos||0) >= 1,      reward: { gold: 3000 } },
   { id: 'exil_orb',       emoji: '🔴', name: 'Touche de l\'Exilé',  desc: 'Trouve un Orbe d\'Exil',           check: s => (s.orbs?.exil||0) >= 1,       reward: { gold: 10000 } },
   { id: 'maitre_orb',     emoji: '🟪', name: 'Maître Forgeron',     desc: 'Trouve un Orbe Maître',            check: s => (s.orbs?.maitre||0) >= 1,     reward: { gold: 15000 } },
+  { id: 'floor_100',      emoji: '🎯', name: 'Centenaire',          desc: 'Atteins l\'étage 100',             check: s => (s.combat?.highestUnlocked||1) >= 100, reward: { gold: 50000 } },
+  { id: 'floor_250',      emoji: '🏆', name: 'Légende du Donjon',   desc: 'Atteins l\'étage 250',             check: s => (s.combat?.highestUnlocked||1) >= 250, reward: { gold: 250000 } },
+  { id: 'codex_uniques',  emoji: '📖', name: 'Bibliothécaire',       desc: 'Découvre tous les uniques',        check: s => Object.keys(s.codex?.uniques || {}).length >= 10, reward: { gold: 50000 } },
+  { id: 'codex_sets',     emoji: '📖', name: 'Collectionneur de sets', desc: 'Découvre tous les sets',         check: s => Object.keys(s.codex?.sets || {}).length >= 6,    reward: { gold: 30000 } },
+  { id: 'codex_bosses',   emoji: '👑', name: 'Tueur de boss légendaire', desc: 'Tue tous les boss de biome',   check: s => Object.keys(s.codex?.bosses || {}).length >= 5,  reward: { gold: 100000 } },
 ];
 
 function totalOrbs(s) {

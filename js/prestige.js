@@ -15,6 +15,7 @@ export function ascend() {
   if (!canAscend()) return false;
   state.prestige.level += 1;
   state.prestige.totalAscensions += 1;
+  state.talentPoints = (state.talentPoints || 0) + 2;
   // Reset run state — keep achievements unlocked, prestige itself, ui prefs, stats counters.
   state.gold = 0;
   state.chestTier = 1;

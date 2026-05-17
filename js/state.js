@@ -60,6 +60,14 @@ export const state = {
     transmu: 0, augm: 0, alte: 0, regal: 0,
     chaos: 0, divin: 0, exil: 0, pierre: 0, maitre: 0,
   },
+  talents: {},        // { talentId: rank }
+  talentPoints: 0,    // unspent points
+  milestonesGranted: {}, // { milestoneLevel: true } - one-shot tracking
+  codex: {
+    uniques: {},      // { uniqueId: true }
+    sets: {},         // { setId: piecesSeen (count) }
+    bosses: {},       // { biomeId: killCount }
+  },
 };
 
 // Init empty equipment slots
@@ -114,6 +122,13 @@ export function replaceState(newState) {
   for (const k of ['transmu','augm','alte','regal','chaos','divin','exil','pierre','maitre']) {
     if (state.orbs[k] === undefined) state.orbs[k] = 0;
   }
+  if (!state.talents) state.talents = {};
+  if (state.talentPoints === undefined) state.talentPoints = 0;
+  if (!state.milestonesGranted) state.milestonesGranted = {};
+  if (!state.codex) state.codex = { uniques: {}, sets: {}, bosses: {} };
+  if (!state.codex.uniques) state.codex.uniques = {};
+  if (!state.codex.sets) state.codex.sets = {};
+  if (!state.codex.bosses) state.codex.bosses = {};
   notify();
 }
 
@@ -135,5 +150,9 @@ export function resetState() {
   state.prestige = { level: 0, totalAscensions: 0 };
   state.shards = { common: 0, magic: 0, rare: 0, epic: 0, legendary: 0, ancestral: 0 };
   state.orbs = { transmu: 0, augm: 0, alte: 0, regal: 0, chaos: 0, divin: 0, exil: 0, pierre: 0, maitre: 0 };
+  state.talents = {};
+  state.talentPoints = 0;
+  state.milestonesGranted = {};
+  state.codex = { uniques: {}, sets: {}, bosses: {} };
   notify();
 }

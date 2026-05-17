@@ -6,7 +6,7 @@ import {
   ACHIEVEMENTS,
 } from './data.js';
 import { computeStats, computePower, computeSetSummary } from './character.js';
-import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining } from './chest.js';
+import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining, nextTierLockedBy } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
 import { biomeForFloor } from './data.js';
 import { FORGE_ACTIONS, availableMasterCraftAffixes } from './forge.js';
@@ -14,8 +14,9 @@ import { shardYield } from './inventory.js';
 import { CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID } from './data.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
-import { SETS_BY_ID } from './data.js';
-import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG } from './sprites.js';
+import { SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, UNIQUE_LEGENDARIES, BIOMES } from './data.js';
+import { rankOf, canUpgradeTalent } from './talents.js';
+import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG } from './sprites.js';
 import { getCompositionLayers } from './parts.js';
 
 // === Item icon helpers ===
@@ -144,6 +145,51 @@ function renderHUD() {
 
   // Shards display
   renderShards();
+
+  // Talent points badge
+  const pts = state.talentPoints || 0;
+  const badge = document.getElementById('talent-points-badge');
+  if (badge) {
+    badge.textContent = pts;
+    badge.style.color = pts > 0 ? '#6acc6a' : '';
+  }
+}
+
+export function renderTalentsModal() {
+  document.getElementById('talent-points-display').textContent = state.talentPoints || 0;
+  const grid = document.getElementById('talents-grid');
+  grid.innerHTML = '';
+  for (const t of TALENTS) {
+    const rank = rankOf(t.id);
+    const max = t.maxRank;
+    const ratio = rank / max;
+    const canBuy = canUpgradeTalent(t.id);
+    const isMax = rank >= max;
+    const el = document.createElement('div');
+    el.className = 'talent' + (isMax ? ' maxed' : '') + (rank > 0 ? ' has-rank' : '');
+    el.innerHTML = `
+      <div class="talent-emoji">${t.emoji}</div>
+      <div class="talent-info">
+        <div class="talent-name">${t.name}</div>
+        <div class="talent-desc">${t.desc}</div>
+        <div class="talent-bar"><div class="talent-bar-fill" style="width:${ratio * 100}%"></div></div>
+        <div class="talent-rank">${rank}/${max}${rank > 0 ? ` · effet : ${formatTalentEffect(t, rank)}` : ''}</div>
+      </div>
+      <button class="btn btn-small talent-buy" data-talent="${t.id}" ${canBuy ? '' : 'disabled'}>${isMax ? 'MAX' : '+1'}</button>
+    `;
+    grid.appendChild(el);
+  }
+}
+
+function formatTalentEffect(t, rank) {
+  const eff = t.perRank;
+  const entries = Object.entries(eff).map(([k, v]) => {
+    const total = v * rank;
+    const isMult = k.endsWith('Mult');
+    if (isMult) return `+${Math.round(total * 100)}%`;
+    return `+${total}`;
+  });
+  return entries.join(' · ');
 }
 
 function renderShards() {
@@ -186,8 +232,14 @@ function renderChest() {
   document.getElementById('chest-tier-label').textContent = `Tier ${tier.tier} — ${tier.name}`;
 
   if (next) {
-    document.getElementById('next-tier-name').textContent = next.name;
-    document.getElementById('upgrade-cost').textContent = tier.upgradeCost.toLocaleString('fr-FR');
+    const lockedBy = nextTierLockedBy();
+    if (lockedBy) {
+      document.getElementById('next-tier-name').textContent = `${next.name} 🔒`;
+      document.getElementById('upgrade-cost').textContent = `Ascension Niv ${lockedBy}`;
+    } else {
+      document.getElementById('next-tier-name').textContent = next.name;
+      document.getElementById('upgrade-cost').textContent = tier.upgradeCost.toLocaleString('fr-FR');
+    }
     const btn = document.getElementById('btn-upgrade');
     btn.disabled = !canUpgrade();
     btn.style.display = '';
@@ -275,9 +327,27 @@ function renderAutoSell() {
 // === Character panel ===
 
 function renderCharacter() {
-  // Render pixel-art character sprite
+  // Paper-doll: character + equipped gear layered together.
   const avatarEl = document.getElementById('character-avatar');
-  if (avatarEl) avatarEl.innerHTML = characterSpriteSVG(80);
+  if (avatarEl) {
+    avatarEl.innerHTML = composeCharacterWithGearSVG(state.equipment, 110);
+    // Glow color = highest equipped rarity (for visual feedback of build power)
+    const rarityIdx = Object.fromEntries(RARITIES.map((r, i) => [r.id, i]));
+    let bestRarity = null, bestIdx = -1;
+    for (const it of Object.values(state.equipment)) {
+      if (!it) continue;
+      const idx = rarityIdx[it.rarity];
+      if (idx > bestIdx) { bestIdx = idx; bestRarity = it.rarity; }
+    }
+    if (bestRarity) {
+      const r = RARITY_BY_ID[bestRarity];
+      avatarEl.style.boxShadow = `inset 0 0 24px ${r.color}55, 0 0 12px ${r.color}66`;
+      avatarEl.style.borderColor = r.color;
+    } else {
+      avatarEl.style.boxShadow = '';
+      avatarEl.style.borderColor = '';
+    }
+  }
 
   const grid = document.getElementById('equipment-grid');
   grid.innerHTML = '';
@@ -769,6 +839,93 @@ export function showModal(id) {
   document.getElementById(id).classList.remove('hidden');
   if (id === 'achievements-modal') renderAchievementsModal();
   if (id === 'forge-modal') renderForgeModal();
+  if (id === 'talents-modal') renderTalentsModal();
+  if (id === 'codex-modal') renderCodexModal();
+}
+
+export function renderCodexModal() {
+  const codex = state.codex || { uniques: {}, sets: {}, bosses: {} };
+  const uniquesFound = Object.keys(codex.uniques).length;
+  const setsFound = Object.keys(codex.sets).length;
+  const bossesFound = Object.keys(codex.bosses).length;
+  const total = UNIQUE_LEGENDARIES.length + SETS.length + BIOMES.length;
+  const found = uniquesFound + setsFound + bossesFound;
+  const pct = Math.round((found / total) * 100);
+
+  document.getElementById('codex-pct').textContent = pct;
+  document.getElementById('codex-uniques-count').textContent = uniquesFound;
+  document.getElementById('codex-uniques-total').textContent = UNIQUE_LEGENDARIES.length;
+  document.getElementById('codex-sets-count').textContent = setsFound;
+  document.getElementById('codex-sets-total').textContent = SETS.length;
+  document.getElementById('codex-bosses-count').textContent = bossesFound;
+  document.getElementById('codex-bosses-total').textContent = BIOMES.length;
+
+  // Uniques
+  const uniquesEl = document.getElementById('codex-uniques');
+  uniquesEl.innerHTML = '';
+  for (const u of UNIQUE_LEGENDARIES) {
+    const known = !!codex.uniques[u.id];
+    const el = document.createElement('div');
+    el.className = 'codex-entry' + (known ? ' known' : ' locked');
+    el.innerHTML = known
+      ? `<div class="codex-emoji">${u.emoji}</div>
+         <div class="codex-info">
+           <div class="codex-name rt-legendary">${u.name}</div>
+           <div class="codex-flavor">"${u.flavor}"</div>
+         </div>`
+      : `<div class="codex-emoji">❓</div>
+         <div class="codex-info">
+           <div class="codex-name">??? (légendaire)</div>
+           <div class="codex-flavor">Loot un légendaire unique pour le découvrir.</div>
+         </div>`;
+    uniquesEl.appendChild(el);
+  }
+
+  // Sets
+  const setsEl = document.getElementById('codex-sets');
+  setsEl.innerHTML = '';
+  for (const s of SETS) {
+    const piecesSeen = codex.sets[s.id] || 0;
+    const known = piecesSeen > 0;
+    const totalPieces = Object.keys(s.pieces).length;
+    const bonuses = Object.entries(s.bonuses).map(([k, b]) => `(${k}) ${b.map(bb => `+${bb.value}${bb.percent?'%':''} ${bb.label}`).join(', ')}`).join(' · ');
+    const el = document.createElement('div');
+    el.className = 'codex-entry' + (known ? ' known' : ' locked');
+    el.innerHTML = known
+      ? `<div class="codex-emoji" style="color:${s.color}">●</div>
+         <div class="codex-info">
+           <div class="codex-name" style="color:${s.color}">Set ${s.name}</div>
+           <div class="codex-flavor">${piecesSeen} pièce${piecesSeen>1?'s':''} découverte${piecesSeen>1?'s':''} / ${totalPieces} · ${bonuses}</div>
+         </div>`
+      : `<div class="codex-emoji">❓</div>
+         <div class="codex-info">
+           <div class="codex-name">??? (set)</div>
+           <div class="codex-flavor">Trouve une pièce de ce set pour le découvrir.</div>
+         </div>`;
+    setsEl.appendChild(el);
+  }
+
+  // Bosses
+  const bossesEl = document.getElementById('codex-bosses');
+  bossesEl.innerHTML = '';
+  for (const b of BIOMES) {
+    const kills = codex.bosses[b.id] || 0;
+    const known = kills > 0;
+    const el = document.createElement('div');
+    el.className = 'codex-entry' + (known ? ' known' : ' locked');
+    el.innerHTML = known
+      ? `<div class="codex-emoji">${b.boss.emoji}</div>
+         <div class="codex-info">
+           <div class="codex-name">${b.boss.name}</div>
+           <div class="codex-flavor">${b.emoji} ${b.name} · ${kills} kill${kills>1?'s':''}</div>
+         </div>`
+      : `<div class="codex-emoji">❓</div>
+         <div class="codex-info">
+           <div class="codex-name">??? (boss ${b.emoji} ${b.name})</div>
+           <div class="codex-flavor">Tue ce boss pour le découvrir.</div>
+         </div>`;
+    bossesEl.appendChild(el);
+  }
 }
 
 export function hideModal(id) {
@@ -790,4 +947,6 @@ export function renderAll() {
   // Re-render open modals if needed
   if (isModalOpen('forge-modal')) renderForgeModal();
   if (isModalOpen('achievements-modal')) renderAchievementsModal();
+  if (isModalOpen('talents-modal')) renderTalentsModal();
+  if (isModalOpen('codex-modal')) renderCodexModal();
 }

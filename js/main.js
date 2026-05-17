@@ -6,6 +6,7 @@ import { openChest, upgradeChest, canOpen } from './chest.js';
 import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
 import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
+import { upgradeTalent } from './talents.js';
 import { CURRENCY_BY_ID } from './data.js';
 import { canAscend, ascend } from './prestige.js';
 import {
@@ -188,7 +189,7 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
   if (fightBtn.disabled) return;
   fightBtn.disabled = true;
 
-  const { result, monster, droppedItem, advanced } = attemptCurrentFloor();
+  const { result, monster, droppedItem, advanced, milestone } = attemptCurrentFloor();
 
   // Animate combat HP bars + damage numbers, then apply consequences.
   const playerMaxHp = result.playerMaxHp;
@@ -231,6 +232,23 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
   }
 
   if (advanced) appendCombatLog([`🆙 Nouvel étage débloqué : ${state.combat.highestUnlocked}`], 'reward');
+
+  if (milestone) {
+    const orbBits = Object.entries(milestone.reward.orbs)
+      .filter(([_, q]) => q > 0)
+      .map(([id, q]) => `${q} ${CURRENCY_BY_ID[id].emoji}`)
+      .join(' · ');
+    appendCombatLog([
+      `🎉 PALIER ÉTAGE ${milestone.floor} ATTEINT (niv ${milestone.level})`,
+      `+${milestone.reward.gold.toLocaleString('fr-FR')} 💰${orbBits ? ' · ' + orbBits : ''}`,
+    ], 'reward');
+    showToast('🎉', `Palier étage ${milestone.floor} !`, `+${milestone.reward.gold.toLocaleString('fr-FR')} 💰  ${orbBits}`);
+    soundAchievement();
+    soundUpgrade();
+    screenShake(14, 600);
+    spawnParticles('#ffe14a', window.innerWidth / 2, window.innerHeight / 2, 60, { minSpeed: 150, maxSpeed: 400, size: 10 });
+    floatingText(`PALIER ${milestone.level}`, window.innerWidth / 2, window.innerHeight / 3, '#f5c842');
+  }
 
   if (droppedItem) {
     appendCombatLog([`🎁 Drop : ${droppedItem.name}`], 'reward');
@@ -375,6 +393,23 @@ document.body.addEventListener('mouseleave', hideTooltip);
 
 document.getElementById('btn-achievements').addEventListener('click', () => {
   showModal('achievements-modal');
+});
+
+document.getElementById('btn-talents').addEventListener('click', () => {
+  showModal('talents-modal');
+});
+
+document.getElementById('btn-codex').addEventListener('click', () => {
+  showModal('codex-modal');
+});
+
+document.getElementById('talents-grid').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-talent]');
+  if (!btn || btn.disabled) return;
+  if (upgradeTalent(btn.dataset.talent)) {
+    soundClick();
+    soundUpgrade();
+  }
 });
 
 document.getElementById('btn-forge').addEventListener('click', () => {
@@ -535,6 +570,8 @@ document.addEventListener('keydown', (e) => {
     if (isModalOpen('forge-modal')) { hideModal('forge-modal'); return; }
     if (isModalOpen('achievements-modal')) { hideModal('achievements-modal'); return; }
     if (isModalOpen('help-modal')) { hideModal('help-modal'); return; }
+    if (isModalOpen('talents-modal')) { hideModal('talents-modal'); return; }
+    if (isModalOpen('codex-modal')) { hideModal('codex-modal'); return; }
   } else if (e.key === ' ' || e.code === 'Space') {
     // Spacebar: chest open OR fight depending on current tab
     if (getCurrentDrop()) return;
