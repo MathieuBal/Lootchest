@@ -25,6 +25,7 @@
       <button id="btn-achievements" class="btn btn-small" title="Succès">🏆 <span id="ach-count">0</span>/<span id="ach-total">0</span></button>
       <button id="btn-forge" class="btn btn-small" title="Forge">⚒ Forge</button>
       <button id="btn-ascend" class="btn btn-small" title="Ascension">🌟 Ascension</button>
+      <button id="btn-mute" class="btn btn-small" title="Couper le son">🔊</button>
       <button id="btn-export" class="btn btn-small">Exporter</button>
       <button id="btn-import" class="btn btn-small">Importer</button>
       <button id="btn-reset" class="btn btn-small btn-danger">Reset</button>
@@ -86,6 +87,16 @@
           <div class="monster-name" id="monster-name">Gobelin</div>
           <div class="monster-stats" id="monster-stats"></div>
           <div class="monster-difficulty" id="monster-difficulty">Facile</div>
+          <div class="hp-bar-wrap monster-hp hidden" id="monster-hp-wrap">
+            <div class="hp-bar"><div class="hp-fill" id="monster-hp-fill"></div></div>
+            <div class="hp-label" id="monster-hp-label">0/0</div>
+          </div>
+        </div>
+
+        <div class="player-hp-wrap hidden" id="player-hp-wrap">
+          <div class="hp-bar-label">⚔ Vous</div>
+          <div class="hp-bar"><div class="hp-fill player" id="player-hp-fill"></div></div>
+          <div class="hp-label" id="player-hp-label">0/0</div>
         </div>
 
         <button id="btn-fight" class="btn btn-primary btn-big">⚔ Combattre</button>

@@ -30,6 +30,7 @@ export const state = {
   },
   ui: {
     leftTab: 'chest',     // 'chest' | 'dungeon'
+    muted: false,
   },
   achievements: {
     unlocked: {},         // { [id]: true }
@@ -85,7 +86,8 @@ export function replaceState(newState) {
   }
   if (!state.combat) state.combat = { currentFloor: 1, highestUnlocked: 1, kills: 0, deaths: 0, bossKills: 0 };
   if (!state.pity) state.pity = { sinceLegendary: 0 };
-  if (!state.ui) state.ui = { leftTab: 'chest' };
+  if (!state.ui) state.ui = { leftTab: 'chest', muted: false };
+  if (state.ui.muted === undefined) state.ui.muted = false;
   if (!state.achievements) state.achievements = { unlocked: {} };
   if (!state.stats) state.stats = {};
   for (const k of ['legendaryDropped','ancestralDropped','uniquesDropped','itemsSold','totalGoldEarned','forgesPerformed','maxSetEquipped']) {
@@ -107,7 +109,7 @@ export function resetState() {
   }
   state.combat = { currentFloor: 1, highestUnlocked: 1, kills: 0, deaths: 0, bossKills: 0 };
   state.pity = { sinceLegendary: 0 };
-  state.ui = { leftTab: 'chest' };
+  state.ui = { leftTab: 'chest', muted: state.ui?.muted || false };
   state.achievements = { unlocked: {} };
   state.stats = { legendaryDropped: 0, ancestralDropped: 0, uniquesDropped: 0, itemsSold: 0, totalGoldEarned: 0, forgesPerformed: 0, maxSetEquipped: 0 };
   state.prestige = { level: 0, totalAscensions: 0 };

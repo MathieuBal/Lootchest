@@ -917,6 +917,90 @@ button, input, select {
   to { opacity: 0; transform: translateX(40%); }
 }
 
+/* === HP bars === */
+.hp-bar-wrap, .player-hp-wrap {
+  margin-top: 8px;
+}
+.hp-bar-wrap.hidden, .player-hp-wrap.hidden { display: none; }
+.hp-bar-label {
+  font-size: 8px;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+  text-align: left;
+}
+.hp-bar {
+  height: 12px;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  overflow: hidden;
+  position: relative;
+}
+.hp-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(180deg, #ff5050, #c02020);
+  transition: width 200ms cubic-bezier(0.3, 0.8, 0.4, 1);
+  transform-origin: left;
+}
+.hp-fill.player {
+  background: linear-gradient(180deg, #50e060, #20a030);
+}
+.hp-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 7px;
+  color: #fff;
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+  pointer-events: none;
+  margin-top: 14px;  /* offset below the bar */
+}
+.player-hp-wrap .hp-label { margin-top: 18px; }
+
+/* === Floating damage numbers === */
+.floating-damage {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: #ff5050;
+  text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+  white-space: nowrap;
+}
+.floating-damage.crit {
+  font-size: 18px;
+  color: var(--gold);
+}
+.floating-damage.player-took {
+  color: #ff8050;
+}
+.floating-damage.heal {
+  color: #6acc6a;
+}
+
+/* === Particle === */
+.particle {
+  border-radius: 0;
+}
+
+/* === Item comparison in tooltip === */
+.tt-compare {
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--border);
+}
+.tt-compare-title {
+  font-size: 8px;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+}
+.tt-compare .better { color: #6acc6a; }
+.tt-compare .worse  { color: #ff5050; }
+.tt-compare .same   { color: var(--text-dim); font-style: italic; }
+
+/* === Monster card during combat === */
+.monster-card.combat .monster-difficulty { display: none; }
+
 /* === Responsive === */
 @media (max-width: 800px) {
   .layout { grid-template-columns: 1fr; }
