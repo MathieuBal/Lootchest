@@ -188,7 +188,7 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
   if (fightBtn.disabled) return;
   fightBtn.disabled = true;
 
-  const { result, monster, droppedItem, advanced } = attemptCurrentFloor();
+  const { result, monster, droppedItem, advanced, milestone } = attemptCurrentFloor();
 
   // Animate combat HP bars + damage numbers, then apply consequences.
   const playerMaxHp = result.playerMaxHp;
@@ -231,6 +231,23 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
   }
 
   if (advanced) appendCombatLog([`🆙 Nouvel étage débloqué : ${state.combat.highestUnlocked}`], 'reward');
+
+  if (milestone) {
+    const orbBits = Object.entries(milestone.reward.orbs)
+      .filter(([_, q]) => q > 0)
+      .map(([id, q]) => `${q} ${CURRENCY_BY_ID[id].emoji}`)
+      .join(' · ');
+    appendCombatLog([
+      `🎉 PALIER ÉTAGE ${milestone.floor} ATTEINT (niv ${milestone.level})`,
+      `+${milestone.reward.gold.toLocaleString('fr-FR')} 💰${orbBits ? ' · ' + orbBits : ''}`,
+    ], 'reward');
+    showToast('🎉', `Palier étage ${milestone.floor} !`, `+${milestone.reward.gold.toLocaleString('fr-FR')} 💰  ${orbBits}`);
+    soundAchievement();
+    soundUpgrade();
+    screenShake(14, 600);
+    spawnParticles('#ffe14a', window.innerWidth / 2, window.innerHeight / 2, 60, { minSpeed: 150, maxSpeed: 400, size: 10 });
+    floatingText(`PALIER ${milestone.level}`, window.innerWidth / 2, window.innerHeight / 3, '#f5c842');
+  }
 
   if (droppedItem) {
     appendCombatLog([`🎁 Drop : ${droppedItem.name}`], 'reward');

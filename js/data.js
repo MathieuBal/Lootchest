@@ -228,6 +228,8 @@ export const ACHIEVEMENTS = [
   { id: 'chaos_orb',      emoji: '🟠', name: 'Touche du Chaos',     desc: 'Trouve un Orbe du Chaos',          check: s => (s.orbs?.chaos||0) >= 1,      reward: { gold: 3000 } },
   { id: 'exil_orb',       emoji: '🔴', name: 'Touche de l\'Exilé',  desc: 'Trouve un Orbe d\'Exil',           check: s => (s.orbs?.exil||0) >= 1,       reward: { gold: 10000 } },
   { id: 'maitre_orb',     emoji: '🟪', name: 'Maître Forgeron',     desc: 'Trouve un Orbe Maître',            check: s => (s.orbs?.maitre||0) >= 1,     reward: { gold: 15000 } },
+  { id: 'floor_100',      emoji: '🎯', name: 'Centenaire',          desc: 'Atteins l\'étage 100',             check: s => (s.combat?.highestUnlocked||1) >= 100, reward: { gold: 50000 } },
+  { id: 'floor_250',      emoji: '🏆', name: 'Légende du Donjon',   desc: 'Atteins l\'étage 250',             check: s => (s.combat?.highestUnlocked||1) >= 250, reward: { gold: 250000 } },
 ];
 
 function totalOrbs(s) {
