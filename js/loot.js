@@ -255,7 +255,7 @@ function buildUniqueLegendary(chestTier) {
     ...a,
     value: Math.max(1, Math.round(a.value * (0.7 + 0.3 * chestTier))),
   }));
-  return {
+  const item = {
     id: nextId(),
     slot: tpl.slot,
     baseTypeId: tpl.baseTypeId,
@@ -269,6 +269,12 @@ function buildUniqueLegendary(chestTier) {
     uniqueId: tpl.id,
     flavor: tpl.flavor,
   };
+  // Visual-only composed sprite for weapon uniques (sword for now). Stats unchanged.
+  if (tpl.slot === 'weapon' && hasCompositionFor(tpl.baseTypeId)) {
+    const rolled = rollWeaponParts(tpl.baseTypeId, chestTier, 1);
+    if (rolled) item.parts = rolled.parts;
+  }
+  return item;
 }
 
 function buildSetPiece(chestTier, rarity) {
@@ -279,6 +285,29 @@ function buildSetPiece(chestTier, rarity) {
   const piece = set.pieces[slot];
   const baseType = BASE_TYPES[slot].find(b => b.id === piece.baseTypeId)
                 || BASE_TYPES[slot][0];
+
+  // Composed weapon path: parts contribute baseStats AND visual.
+  if (slot === 'weapon' && hasCompositionFor(piece.baseTypeId)) {
+    const statMult = RARITY_BY_ID[rarity].statMult;
+    const rolled = rollWeaponParts(piece.baseTypeId, chestTier, statMult);
+    const affixes = rollAffixes(rarity, chestTier);
+    return {
+      id: nextId(),
+      slot,
+      baseTypeId: piece.baseTypeId,
+      emoji: piece.emoji,
+      rarity,
+      name: piece.name,
+      baseStats: rolled.baseStats,
+      affixes,
+      goldValue: computeGoldValue(rarity, chestTier),
+      chestTier,
+      setId: set.id,
+      setName: set.name,
+      parts: rolled.parts,
+    };
+  }
+
   const baseStats = scaleBaseStats(baseType.baseStats, chestTier, rarity);
   const affixes = rollAffixes(rarity, chestTier);
   return {

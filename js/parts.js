@@ -438,7 +438,7 @@ export function rollWeaponParts(weaponBaseTypeId, chestTier, statMult) {
 // blade (back) → guard → grip → pommel (front).
 export function getCompositionLayers(weaponBaseTypeId, parts) {
   const def = WEAPON_PARTS[weaponBaseTypeId];
-  if (!def) return [];
+  if (!def || !Array.isArray(parts)) return [];
   const variantById = {};
   for (const partDef of def.parts) {
     variantById[partDef.type] = Object.fromEntries(partDef.variants.map(v => [v.id, v]));
