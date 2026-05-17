@@ -63,6 +63,11 @@ export const state = {
   talents: {},        // { talentId: rank }
   talentPoints: 0,    // unspent points
   milestonesGranted: {}, // { milestoneLevel: true } - one-shot tracking
+  codex: {
+    uniques: {},      // { uniqueId: true }
+    sets: {},         // { setId: piecesSeen (count) }
+    bosses: {},       // { biomeId: killCount }
+  },
 };
 
 // Init empty equipment slots
@@ -120,6 +125,10 @@ export function replaceState(newState) {
   if (!state.talents) state.talents = {};
   if (state.talentPoints === undefined) state.talentPoints = 0;
   if (!state.milestonesGranted) state.milestonesGranted = {};
+  if (!state.codex) state.codex = { uniques: {}, sets: {}, bosses: {} };
+  if (!state.codex.uniques) state.codex.uniques = {};
+  if (!state.codex.sets) state.codex.sets = {};
+  if (!state.codex.bosses) state.codex.bosses = {};
   notify();
 }
 
@@ -144,5 +153,6 @@ export function resetState() {
   state.talents = {};
   state.talentPoints = 0;
   state.milestonesGranted = {};
+  state.codex = { uniques: {}, sets: {}, bosses: {} };
   notify();
 }

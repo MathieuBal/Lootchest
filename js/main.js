@@ -399,6 +399,10 @@ document.getElementById('btn-talents').addEventListener('click', () => {
   showModal('talents-modal');
 });
 
+document.getElementById('btn-codex').addEventListener('click', () => {
+  showModal('codex-modal');
+});
+
 document.getElementById('talents-grid').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-talent]');
   if (!btn || btn.disabled) return;
@@ -566,6 +570,8 @@ document.addEventListener('keydown', (e) => {
     if (isModalOpen('forge-modal')) { hideModal('forge-modal'); return; }
     if (isModalOpen('achievements-modal')) { hideModal('achievements-modal'); return; }
     if (isModalOpen('help-modal')) { hideModal('help-modal'); return; }
+    if (isModalOpen('talents-modal')) { hideModal('talents-modal'); return; }
+    if (isModalOpen('codex-modal')) { hideModal('codex-modal'); return; }
   } else if (e.key === ' ' || e.code === 'Space') {
     // Spacebar: chest open OR fight depending on current tab
     if (getCurrentDrop()) return;

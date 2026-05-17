@@ -26,6 +26,7 @@
     <div class="hud-actions">
       <button id="btn-achievements" class="btn btn-small" title="Succès">🏆 <span id="ach-count">0</span>/<span id="ach-total">0</span></button>
       <button id="btn-talents" class="btn btn-small" title="Arbre de talents">🌳 <span id="talent-points-badge">0</span></button>
+      <button id="btn-codex" class="btn btn-small" title="Codex de découvertes">📖</button>
       <button id="btn-forge" class="btn btn-small" title="Forge">⚒ Forge</button>
       <button id="btn-ascend" class="btn btn-small" title="Ascension">🌟 Ascension</button>
       <button id="btn-mute" class="btn btn-small" title="Couper le son">🔊</button>
@@ -170,6 +171,24 @@
     </div>
   </div>
 
+  <!-- CODEX MODAL -->
+  <div id="codex-modal" class="modal hidden">
+    <div class="modal-inner modal-wide">
+      <div class="modal-header">
+        <h2>📖 Codex — <span id="codex-pct">0</span>% découvert</h2>
+        <button class="btn btn-small modal-close" data-close="codex-modal">✕</button>
+      </div>
+      <div class="codex-body">
+        <h3 class="codex-section">Légendaires uniques (<span id="codex-uniques-count">0</span>/<span id="codex-uniques-total">0</span>)</h3>
+        <div class="codex-list" id="codex-uniques"></div>
+        <h3 class="codex-section">Sets (<span id="codex-sets-count">0</span>/<span id="codex-sets-total">0</span>)</h3>
+        <div class="codex-list" id="codex-sets"></div>
+        <h3 class="codex-section">Boss de biome (<span id="codex-bosses-count">0</span>/<span id="codex-bosses-total">0</span>)</h3>
+        <div class="codex-list" id="codex-bosses"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- TALENTS MODAL -->
   <div id="talents-modal" class="modal hidden">
     <div class="modal-inner modal-wide">
@@ -261,6 +280,9 @@
         <h3>🌟 Ascension &amp; 🌳 Talents</h3>
         <p>À T5 coffre + étage 50, ascensionne : tu repars de zéro mais gagnes un niveau de prestige permanent (+25% drops rares et or par niveau, cumulatif). Chaque ascension débloque un nouveau tier de coffre (T6 Stellaire → T10 Divin) et donne +2 points de talent.</p>
         <p>Chaque palier d'étage du donjon (25/50/75/100…) donne aussi +1 point de talent. Bouton 🌳 dans le HUD pour ouvrir l'arbre.</p>
+
+        <h3>📖 Codex</h3>
+        <p>Track tes découvertes — uniques lootés, sets découverts, boss de biome tués. Bouton 📖 dans le HUD. Trois succès "100% complet" sont en jeu (uniques, sets, boss).</p>
 
         <h3>💡 Raccourcis</h3>
         <ul>

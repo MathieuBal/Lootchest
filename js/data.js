@@ -256,6 +256,9 @@ export const ACHIEVEMENTS = [
   { id: 'maitre_orb',     emoji: '🟪', name: 'Maître Forgeron',     desc: 'Trouve un Orbe Maître',            check: s => (s.orbs?.maitre||0) >= 1,     reward: { gold: 15000 } },
   { id: 'floor_100',      emoji: '🎯', name: 'Centenaire',          desc: 'Atteins l\'étage 100',             check: s => (s.combat?.highestUnlocked||1) >= 100, reward: { gold: 50000 } },
   { id: 'floor_250',      emoji: '🏆', name: 'Légende du Donjon',   desc: 'Atteins l\'étage 250',             check: s => (s.combat?.highestUnlocked||1) >= 250, reward: { gold: 250000 } },
+  { id: 'codex_uniques',  emoji: '📖', name: 'Bibliothécaire',       desc: 'Découvre tous les uniques',        check: s => Object.keys(s.codex?.uniques || {}).length >= 10, reward: { gold: 50000 } },
+  { id: 'codex_sets',     emoji: '📖', name: 'Collectionneur de sets', desc: 'Découvre tous les sets',         check: s => Object.keys(s.codex?.sets || {}).length >= 6,    reward: { gold: 30000 } },
+  { id: 'codex_bosses',   emoji: '👑', name: 'Tueur de boss légendaire', desc: 'Tue tous les boss de biome',   check: s => Object.keys(s.codex?.bosses || {}).length >= 5,  reward: { gold: 100000 } },
 ];
 
 function totalOrbs(s) {

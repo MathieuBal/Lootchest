@@ -123,6 +123,11 @@ function trackDropStats(item) {
   if (item.rarity === 'legendary') state.stats.legendaryDropped += 1;
   else if (item.rarity === 'ancestral') state.stats.ancestralDropped += 1;
   if (item.uniqueId) state.stats.uniquesDropped += 1;
+  // Codex discovery
+  if (state.codex) {
+    if (item.uniqueId) state.codex.uniques[item.uniqueId] = true;
+    if (item.setId) state.codex.sets[item.setId] = (state.codex.sets[item.setId] || 0) + 1;
+  }
 }
 
 // Forge helpers — rebuild item in-place based on its current slot/baseTypeId/rarity/chestTier.

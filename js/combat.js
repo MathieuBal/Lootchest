@@ -111,7 +111,14 @@ export function attemptCurrentFloor() {
   let milestone = null;
   if (result.won) {
     state.combat.kills += 1;
-    if (monster.isBoss) state.combat.bossKills += 1;
+    if (monster.isBoss) {
+      state.combat.bossKills += 1;
+      // Codex: track boss kills per biome
+      const biome = biomeForFloor(floor);
+      if (state.codex && biome) {
+        state.codex.bosses[biome.id] = (state.codex.bosses[biome.id] || 0) + 1;
+      }
+    }
     monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier());
     state.gold += monster.goldReward;
 

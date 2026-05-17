@@ -955,6 +955,37 @@ button, input, select {
   color: var(--gold);
 }
 
+/* === Codex === */
+.codex-body { overflow-y: auto; padding: 4px; }
+.codex-section {
+  font-size: 11px;
+  color: var(--gold);
+  margin: 12px 0 6px 0;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+.codex-section:first-child { margin-top: 0; }
+.codex-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 6px;
+}
+.codex-entry {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  background: var(--bg-panel-light);
+  border: 2px solid var(--border);
+}
+.codex-entry.known { border-color: var(--accent); }
+.codex-entry.locked { opacity: 0.5; }
+.codex-emoji { font-size: 24px; }
+.codex-info { min-width: 0; }
+.codex-name { font-size: 10px; margin-bottom: 3px; }
+.codex-flavor { font-size: 8px; color: var(--text-dim); line-height: 1.4; }
+
 /* === Talents grid === */
 .talents-hint {
   font-size: 9px;
