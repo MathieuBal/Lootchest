@@ -2,14 +2,16 @@
 import { state, notify } from './state.js';
 import { CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, CURRENCY_TYPES } from './data.js';
 import { generateItemFromChest } from './loot.js';
+import { orbDropMultiplier } from './talents.js';
 
 // Roll each currency type independently. Higher chest tier slightly boosts rates.
 // Returns array of currency IDs that dropped this open.
 export function rollOrbDrops(chestTier) {
   const tierBoost = 1 + (chestTier - 1) * 0.18;
+  const talentBoost = orbDropMultiplier();
   const earned = [];
   for (const c of CURRENCY_TYPES) {
-    if (Math.random() < c.baseDropChance * tierBoost) {
+    if (Math.random() < c.baseDropChance * tierBoost * talentBoost) {
       state.orbs[c.id] = (state.orbs[c.id] || 0) + 1;
       earned.push(c.id);
     }

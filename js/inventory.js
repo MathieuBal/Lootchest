@@ -1,13 +1,14 @@
 // Inventory + selling + auto-sell unlock logic.
 import { state, notify } from './state.js';
 import { AUTOSELL_UNLOCK_COSTS, PRESTIGE_BONUS_PER_LEVEL } from './data.js';
+import { sellMultiplier, shardBonus } from './talents.js';
 
 function prestigeGoldMult() {
   return Math.pow(PRESTIGE_BONUS_PER_LEVEL.goldMult, state.prestige?.level || 0);
 }
 
 function sellPrice(item, goldFindBonus) {
-  return Math.round(item.goldValue * (1 + goldFindBonus / 100) * prestigeGoldMult());
+  return Math.round(item.goldValue * (1 + goldFindBonus / 100) * prestigeGoldMult() * sellMultiplier());
 }
 
 export function addToInventory(item) {
@@ -111,10 +112,8 @@ export function isAutoSellOn(rarityId) {
 // === Salvage / shards ===
 
 export function shardYield(item) {
-  // Yields shards of item's rarity. Scales with chest tier (roughly).
-  // common T1 = 1, rare T3 = ~3-4, legendary T5 = ~12-14
   const base = Math.max(1, Math.floor(item.goldValue / 25));
-  return base + Math.floor(item.chestTier / 2);
+  return base + Math.floor(item.chestTier / 2) + shardBonus();
 }
 
 export function salvageItem(item) {

@@ -25,6 +25,7 @@
     </div>
     <div class="hud-actions">
       <button id="btn-achievements" class="btn btn-small" title="Succès">🏆 <span id="ach-count">0</span>/<span id="ach-total">0</span></button>
+      <button id="btn-talents" class="btn btn-small" title="Arbre de talents">🌳 <span id="talent-points-badge">0</span></button>
       <button id="btn-forge" class="btn btn-small" title="Forge">⚒ Forge</button>
       <button id="btn-ascend" class="btn btn-small" title="Ascension">🌟 Ascension</button>
       <button id="btn-mute" class="btn btn-small" title="Couper le son">🔊</button>
@@ -169,6 +170,18 @@
     </div>
   </div>
 
+  <!-- TALENTS MODAL -->
+  <div id="talents-modal" class="modal hidden">
+    <div class="modal-inner modal-wide">
+      <div class="modal-header">
+        <h2>🌳 Talents — points disponibles : <span id="talent-points-display">0</span></h2>
+        <button class="btn btn-small modal-close" data-close="talents-modal">✕</button>
+      </div>
+      <div class="talents-hint">Gagne 1 point par palier d'étage (25, 50, 75...) et 2 points par ascension.</div>
+      <div class="talents-grid" id="talents-grid"></div>
+    </div>
+  </div>
+
   <!-- ACHIEVEMENTS MODAL -->
   <div id="achievements-modal" class="modal hidden">
     <div class="modal-inner modal-wide">
@@ -245,8 +258,9 @@
         <h3>🎭 Sets &amp; ✨ Uniques</h3>
         <p>Les <strong>sets</strong> (Dragon, Ombre, Titan, Phénix, Givre, Liche) donnent des bonus à 2/3/4 pièces équipées. Les <strong>uniques</strong> sont des légendaires nommés avec affixes fixes et flavor text.</p>
 
-        <h3>🌟 Ascension</h3>
-        <p>À T5 coffre + étage 50, ascensionne : tu repars de zéro mais gagnes un niveau de prestige permanent (+25% drops rares et or par niveau, cumulatif).</p>
+        <h3>🌟 Ascension &amp; 🌳 Talents</h3>
+        <p>À T5 coffre + étage 50, ascensionne : tu repars de zéro mais gagnes un niveau de prestige permanent (+25% drops rares et or par niveau, cumulatif). Chaque ascension débloque un nouveau tier de coffre (T6 Stellaire → T10 Divin) et donne +2 points de talent.</p>
+        <p>Chaque palier d'étage du donjon (25/50/75/100…) donne aussi +1 point de talent. Bouton 🌳 dans le HUD pour ouvrir l'arbre.</p>
 
         <h3>💡 Raccourcis</h3>
         <ul>

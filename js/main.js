@@ -6,6 +6,7 @@ import { openChest, upgradeChest, canOpen } from './chest.js';
 import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
 import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
+import { upgradeTalent } from './talents.js';
 import { CURRENCY_BY_ID } from './data.js';
 import { canAscend, ascend } from './prestige.js';
 import {
@@ -392,6 +393,19 @@ document.body.addEventListener('mouseleave', hideTooltip);
 
 document.getElementById('btn-achievements').addEventListener('click', () => {
   showModal('achievements-modal');
+});
+
+document.getElementById('btn-talents').addEventListener('click', () => {
+  showModal('talents-modal');
+});
+
+document.getElementById('talents-grid').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-talent]');
+  if (!btn || btn.disabled) return;
+  if (upgradeTalent(btn.dataset.talent)) {
+    soundClick();
+    soundUpgrade();
+  }
 });
 
 document.getElementById('btn-forge').addEventListener('click', () => {

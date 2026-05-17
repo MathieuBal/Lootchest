@@ -3,6 +3,7 @@ import { state, notify } from './state.js';
 import { computeStats } from './character.js';
 import { PLAYER_BASE, biomeForFloor } from './data.js';
 import { generateItem } from './loot.js';
+import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
 
 export function isBossFloor(floor) {
   return floor > 0 && floor % 5 === 0;
@@ -38,8 +39,8 @@ export function generateMonster(floor) {
 // events: array of { type: 'player_hit' | 'monster_hit', dmg, isCrit?, monsterHp, playerHp }
 export function resolveFight(monster) {
   const stats = computeStats();
-  const playerMaxHp = PLAYER_BASE.hp + (stats.vitality || 0) * 5;
-  const playerDmg = Math.max(1, PLAYER_BASE.damage + (stats.damage || 0) - monster.armor);
+  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier());
+  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier()) - monster.armor);
   const playerArmor = (stats.armor || 0);
   const monsterDmg = Math.max(1, monster.damage - playerArmor);
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
@@ -93,6 +94,9 @@ function grantMilestoneReward(level) {
   for (const [orbId, qty] of Object.entries(reward.orbs)) {
     if (qty > 0) state.orbs[orbId] = (state.orbs[orbId] || 0) + qty;
   }
+  // +1 talent point per milestone
+  state.talentPoints = (state.talentPoints || 0) + 1;
+  reward.talentPoints = 1;
   return reward;
 }
 
@@ -108,6 +112,7 @@ export function attemptCurrentFloor() {
   if (result.won) {
     state.combat.kills += 1;
     if (monster.isBoss) state.combat.bossKills += 1;
+    monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier());
     state.gold += monster.goldReward;
 
     if (Math.random() < monster.dropChance) {

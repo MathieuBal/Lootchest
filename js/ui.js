@@ -14,7 +14,8 @@ import { shardYield } from './inventory.js';
 import { CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID } from './data.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
-import { SETS_BY_ID } from './data.js';
+import { SETS_BY_ID, TALENTS, TALENT_BY_ID } from './data.js';
+import { rankOf, canUpgradeTalent } from './talents.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG } from './sprites.js';
 import { getCompositionLayers } from './parts.js';
 
@@ -144,6 +145,51 @@ function renderHUD() {
 
   // Shards display
   renderShards();
+
+  // Talent points badge
+  const pts = state.talentPoints || 0;
+  const badge = document.getElementById('talent-points-badge');
+  if (badge) {
+    badge.textContent = pts;
+    badge.style.color = pts > 0 ? '#6acc6a' : '';
+  }
+}
+
+export function renderTalentsModal() {
+  document.getElementById('talent-points-display').textContent = state.talentPoints || 0;
+  const grid = document.getElementById('talents-grid');
+  grid.innerHTML = '';
+  for (const t of TALENTS) {
+    const rank = rankOf(t.id);
+    const max = t.maxRank;
+    const ratio = rank / max;
+    const canBuy = canUpgradeTalent(t.id);
+    const isMax = rank >= max;
+    const el = document.createElement('div');
+    el.className = 'talent' + (isMax ? ' maxed' : '') + (rank > 0 ? ' has-rank' : '');
+    el.innerHTML = `
+      <div class="talent-emoji">${t.emoji}</div>
+      <div class="talent-info">
+        <div class="talent-name">${t.name}</div>
+        <div class="talent-desc">${t.desc}</div>
+        <div class="talent-bar"><div class="talent-bar-fill" style="width:${ratio * 100}%"></div></div>
+        <div class="talent-rank">${rank}/${max}${rank > 0 ? ` · effet : ${formatTalentEffect(t, rank)}` : ''}</div>
+      </div>
+      <button class="btn btn-small talent-buy" data-talent="${t.id}" ${canBuy ? '' : 'disabled'}>${isMax ? 'MAX' : '+1'}</button>
+    `;
+    grid.appendChild(el);
+  }
+}
+
+function formatTalentEffect(t, rank) {
+  const eff = t.perRank;
+  const entries = Object.entries(eff).map(([k, v]) => {
+    const total = v * rank;
+    const isMult = k.endsWith('Mult');
+    if (isMult) return `+${Math.round(total * 100)}%`;
+    return `+${total}`;
+  });
+  return entries.join(' · ');
 }
 
 function renderShards() {
@@ -775,6 +821,7 @@ export function showModal(id) {
   document.getElementById(id).classList.remove('hidden');
   if (id === 'achievements-modal') renderAchievementsModal();
   if (id === 'forge-modal') renderForgeModal();
+  if (id === 'talents-modal') renderTalentsModal();
 }
 
 export function hideModal(id) {
@@ -796,4 +843,5 @@ export function renderAll() {
   // Re-render open modals if needed
   if (isModalOpen('forge-modal')) renderForgeModal();
   if (isModalOpen('achievements-modal')) renderAchievementsModal();
+  if (isModalOpen('talents-modal')) renderTalentsModal();
 }

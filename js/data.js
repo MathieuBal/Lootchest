@@ -110,6 +110,21 @@ export function maxAllowedChestTier(prestigeLevel) {
   return Math.min(10, 5 + (prestigeLevel || 0));
 }
 
+// === Talents ===
+// Per-rank passive bonuses. Points earned via ascension (2 per) and dungeon milestones (1 per).
+export const TALENTS = [
+  { id: 'merchant',       emoji: '💰', name: 'Marchand habile',     desc: '+10% prix de vente par rang',           maxRank: 5, perRank: { sellMult: 0.10 } },
+  { id: 'sharpEye',       emoji: '👁',  name: 'Œil aiguisé',         desc: '+5% poids des raretés rare+ par rang',  maxRank: 5, perRank: { rareMult: 0.05 } },
+  { id: 'berserker',      emoji: '⚔',  name: 'Berserker',           desc: '+10% dégâts en donjon par rang',        maxRank: 5, perRank: { dmgMult: 0.10 } },
+  { id: 'tanky',          emoji: '❤',  name: 'Endurci',             desc: '+15% PV max par rang',                  maxRank: 5, perRank: { hpMult: 0.15 } },
+  { id: 'treasureHunter', emoji: '💎', name: 'Chasseur de trésors', desc: '+25% or des monstres par rang',         maxRank: 4, perRank: { monsterGoldMult: 0.25 } },
+  { id: 'orbFinder',      emoji: '🟪', name: 'Trouveur d\'orbes',   desc: '+15% drop d\'orbes par rang',           maxRank: 4, perRank: { orbDropMult: 0.15 } },
+  { id: 'recycler',       emoji: '♻',  name: 'Recycleur',           desc: '+1 cristal par recyclage par rang',     maxRank: 3, perRank: { shardBonus: 1 } },
+  { id: 'pityMaster',     emoji: '✨', name: 'Maître pity',         desc: '-10 au pity timer par rang',            maxRank: 3, perRank: { pityReduction: 10 } },
+];
+
+export const TALENT_BY_ID = Object.fromEntries(TALENTS.map(t => [t.id, t]));
+
 export const CHEST_OPEN_COOLDOWN_MS = 800;
 
 // Pity timer: every N non-legendary+ drops, force a legendary on the next chest open.
