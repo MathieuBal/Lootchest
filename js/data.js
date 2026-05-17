@@ -89,6 +89,219 @@ export const CHEST_TIERS = [
 
 export const CHEST_OPEN_COOLDOWN_MS = 800;
 
+// Pity timer: every N non-legendary+ drops, force a legendary on the next chest open.
+export const PITY_THRESHOLD = 50;
+
+// Monsters for the dungeon. Stats are TIER 1 baseline, scaled by floor.
+export const MONSTER_TYPES = [
+  { name: 'Gobelin',        emoji: '👺', hpBase: 30, dmgBase: 4,  armorBase: 1, goldBase: 8  },
+  { name: 'Squelette',      emoji: '💀', hpBase: 25, dmgBase: 5,  armorBase: 0, goldBase: 10 },
+  { name: 'Slime',          emoji: '🟢', hpBase: 55, dmgBase: 3,  armorBase: 3, goldBase: 12 },
+  { name: 'Loup',           emoji: '🐺', hpBase: 35, dmgBase: 6,  armorBase: 1, goldBase: 9  },
+  { name: 'Araignée',       emoji: '🕷', hpBase: 28, dmgBase: 7,  armorBase: 0, goldBase: 11 },
+  { name: 'Chauve-souris',  emoji: '🦇', hpBase: 22, dmgBase: 5,  armorBase: 0, goldBase: 8  },
+  { name: 'Orc',            emoji: '👹', hpBase: 45, dmgBase: 7,  armorBase: 2, goldBase: 13 },
+  { name: 'Zombie',         emoji: '🧟', hpBase: 50, dmgBase: 5,  armorBase: 1, goldBase: 11 },
+  { name: 'Bandit',         emoji: '🥷', hpBase: 32, dmgBase: 8,  armorBase: 1, goldBase: 14 },
+];
+
+// Bosses appear every 5 floors. Stats much higher + guaranteed drop.
+export const BOSS_TYPES = [
+  { name: 'Dragon',           emoji: '🐉', hpBase: 120, dmgBase: 12, armorBase: 5, goldBase: 100 },
+  { name: 'Seigneur Démon',   emoji: '😈', hpBase: 100, dmgBase: 15, armorBase: 3, goldBase: 120 },
+  { name: 'Archisorcier',     emoji: '🧙', hpBase: 80,  dmgBase: 18, armorBase: 2, goldBase: 130 },
+  { name: 'Cyclope',          emoji: '👁', hpBase: 150, dmgBase: 10, armorBase: 6, goldBase: 110 },
+  { name: 'Liche',            emoji: '☠', hpBase: 90,  dmgBase: 16, armorBase: 4, goldBase: 125 },
+  { name: 'Hydre',            emoji: '🐲', hpBase: 140, dmgBase: 13, armorBase: 4, goldBase: 135 },
+];
+
+// Player base stats (without equipment)
+export const PLAYER_BASE = {
+  hp: 100,
+  damage: 5,
+  armor: 0,
+};
+
+// === Achievements ===
+// Each: { id, name, desc, emoji, check(state) => bool, reward: { gold } }
+export const ACHIEVEMENTS = [
+  { id: 'first_chest',    emoji: '📦', name: 'Premier coffre',     desc: 'Ouvre 1 coffre',           check: s => s.opened >= 1,                 reward: { gold: 50 } },
+  { id: 'open_100',       emoji: '📦', name: 'Collectionneur',     desc: 'Ouvre 100 coffres',        check: s => s.opened >= 100,               reward: { gold: 500 } },
+  { id: 'open_1000',      emoji: '📦', name: 'Trésorier',          desc: 'Ouvre 1000 coffres',       check: s => s.opened >= 1000,              reward: { gold: 5000 } },
+  { id: 'tier_2',         emoji: '🗃', name: 'Coffre de fer',      desc: 'Atteins le tier 2',        check: s => s.chestTier >= 2,              reward: { gold: 200 } },
+  { id: 'tier_3',         emoji: '🏆', name: 'Coffre d\'or',       desc: 'Atteins le tier 3',        check: s => s.chestTier >= 3,              reward: { gold: 1000 } },
+  { id: 'tier_4',         emoji: '🎁', name: 'Coffre mythique',    desc: 'Atteins le tier 4',        check: s => s.chestTier >= 4,              reward: { gold: 5000 } },
+  { id: 'tier_5',         emoji: '⚱',  name: 'Coffre ancestral',   desc: 'Atteins le tier 5',        check: s => s.chestTier >= 5,              reward: { gold: 25000 } },
+  { id: 'first_legendary',emoji: '🔥', name: 'Légende vivante',    desc: 'Loote un objet légendaire',check: s => (s.stats?.legendaryDropped||0) >= 1, reward: { gold: 1000 } },
+  { id: 'first_ancestral',emoji: '💀', name: 'Sang ancestral',     desc: 'Loote un ancestral',       check: s => (s.stats?.ancestralDropped||0) >= 1, reward: { gold: 10000 } },
+  { id: 'sell_100',       emoji: '💰', name: 'Marchand',           desc: 'Vends 100 objets',         check: s => (s.stats?.itemsSold||0) >= 100, reward: { gold: 500 } },
+  { id: 'sell_1000',      emoji: '💰', name: 'Magnat',             desc: 'Vends 1000 objets',        check: s => (s.stats?.itemsSold||0) >= 1000,reward: { gold: 5000 } },
+  { id: 'first_kill',     emoji: '🗡', name: 'Premier sang',       desc: 'Tue 1 monstre',            check: s => (s.combat?.kills||0) >= 1,     reward: { gold: 50 } },
+  { id: 'kill_100',       emoji: '🗡', name: 'Boucher',            desc: 'Tue 100 monstres',         check: s => (s.combat?.kills||0) >= 100,   reward: { gold: 1000 } },
+  { id: 'kill_1000',      emoji: '🗡', name: 'Génocidaire',        desc: 'Tue 1000 monstres',        check: s => (s.combat?.kills||0) >= 1000,  reward: { gold: 10000 } },
+  { id: 'first_boss',     emoji: '👑', name: 'Tueur de boss',      desc: 'Tue 1 boss',               check: s => (s.combat?.bossKills||0) >= 1, reward: { gold: 500 } },
+  { id: 'boss_10',        emoji: '👑', name: 'Briseur de boss',    desc: 'Tue 10 boss',              check: s => (s.combat?.bossKills||0) >= 10,reward: { gold: 5000 } },
+  { id: 'floor_10',       emoji: '🗺', name: 'Explorateur',        desc: 'Atteins l\'étage 10',      check: s => (s.combat?.highestUnlocked||1) >= 10, reward: { gold: 500 } },
+  { id: 'floor_25',       emoji: '🗺', name: 'Aventurier',         desc: 'Atteins l\'étage 25',      check: s => (s.combat?.highestUnlocked||1) >= 25, reward: { gold: 2500 } },
+  { id: 'floor_50',       emoji: '🗺', name: 'Héros',              desc: 'Atteins l\'étage 50',      check: s => (s.combat?.highestUnlocked||1) >= 50, reward: { gold: 10000 } },
+  { id: 'fully_equipped', emoji: '🛡', name: 'Tout équipé',        desc: 'Équipe les 6 emplacements',check: s => Object.values(s.equipment).filter(Boolean).length >= 6, reward: { gold: 300 } },
+  { id: 'rich_10k',       emoji: '🤑', name: 'Riche',              desc: 'Accumule 10 000 or',       check: s => s.gold >= 10000,               reward: { gold: 500 } },
+  { id: 'rich_100k',      emoji: '🤑', name: 'Magnat de l\'or',    desc: 'Accumule 100 000 or',      check: s => s.gold >= 100000,              reward: { gold: 5000 } },
+  { id: 'first_forge',    emoji: '⚒', name: 'Forgeron',           desc: 'Utilise la forge 1 fois',  check: s => (s.stats?.forgesPerformed||0) >= 1, reward: { gold: 200 } },
+  { id: 'forge_50',       emoji: '⚒', name: 'Maître forgeron',    desc: 'Utilise la forge 50 fois', check: s => (s.stats?.forgesPerformed||0) >= 50,reward: { gold: 3000 } },
+  { id: 'first_unique',   emoji: '✨', name: 'Trouvaille rare',     desc: 'Loote un objet unique',   check: s => (s.stats?.uniquesDropped||0) >= 1, reward: { gold: 2000 } },
+  { id: 'first_set',      emoji: '🎭', name: 'Set partiel',         desc: 'Équipe 2 pièces du même set',check: s => (s.stats?.maxSetEquipped||0) >= 2, reward: { gold: 500 } },
+  { id: 'full_set',       emoji: '🎭', name: 'Set complet',         desc: 'Équipe 4 pièces du même set',check: s => (s.stats?.maxSetEquipped||0) >= 4, reward: { gold: 5000 } },
+  { id: 'first_ascend',   emoji: '🌟', name: 'Ascension',           desc: 'Effectue ta 1ère ascension',check: s => (s.prestige?.totalAscensions||0) >= 1, reward: { gold: 10000 } },
+  { id: 'ascend_5',       emoji: '🌟', name: 'Ascensionné',         desc: 'Effectue 5 ascensions',   check: s => (s.prestige?.totalAscensions||0) >= 5, reward: { gold: 100000 } },
+];
+
+// === Forge costs ===
+// Cost multipliers based on item.goldValue
+export const FORGE_COSTS = {
+  rerollMult: 1.5,      // reroll affixes
+  upgradeTierMult: 4,   // upgrade chestTier
+  transmuteMult: 6,     // upgrade rarity
+};
+
+// === Unique legendaries (hand-crafted, occasionally replace a random legendary) ===
+export const UNIQUE_DROP_CHANCE = 0.3;
+
+export const UNIQUE_LEGENDARIES = [
+  {
+    id: 'dragon_fang', slot: 'weapon', baseTypeId: 'sword', emoji: '🗡',
+    name: 'Croc du Dragon Endormi',
+    flavor: 'Forgé dans le souffle d\'un dragon millénaire.',
+    baseStatBonus: { damage: 20 },
+    fixedAffixes: [
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts',     value: 25, percent: false },
+      { id: 'fire', stat: 'fireDmg',  label: 'Dégâts feu', value: 30, percent: true },
+      { id: 'crit', stat: 'crit',     label: 'Crit',       value: 15, percent: true },
+      { id: 'spd',  stat: 'speed',    label: 'Vitesse',    value: 8,  percent: true },
+    ],
+  },
+  {
+    id: 'merchant_ring', slot: 'ring', baseTypeId: 'signet', emoji: '💎',
+    name: 'Anneau du Marchand Éternel',
+    flavor: 'L\'or appelle l\'or.',
+    fixedAffixes: [
+      { id: 'gold', stat: 'goldFind', label: 'Or trouvé', value: 50, percent: true },
+      { id: 'vit',  stat: 'vitality', label: 'Vie',       value: 20, percent: false },
+      { id: 'crit', stat: 'crit',     label: 'Crit',      value: 10, percent: true },
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts',    value: 8,  percent: false },
+    ],
+  },
+  {
+    id: 'dead_king_crown', slot: 'helmet', baseTypeId: 'crown', emoji: '👑',
+    name: 'Couronne du Roi Mort',
+    flavor: 'Les morts gouvernent les vivants.',
+    baseStatBonus: { armor: 15, vitality: 20 },
+    fixedAffixes: [
+      { id: 'vit',  stat: 'vitality', label: 'Vie',       value: 40, percent: false },
+      { id: 'arm',  stat: 'armor',    label: 'Armure',    value: 12, percent: false },
+      { id: 'gold', stat: 'goldFind', label: 'Or trouvé', value: 25, percent: true },
+      { id: 'crit', stat: 'crit',     label: 'Crit',      value: 10, percent: true },
+    ],
+  },
+  {
+    id: 'eternal_aegis', slot: 'shield', baseTypeId: 'tower', emoji: '🛡',
+    name: 'Pavois Éternel',
+    flavor: 'Aucun coup ne le traversa jamais.',
+    baseStatBonus: { armor: 25, vitality: 30 },
+    fixedAffixes: [
+      { id: 'arm',  stat: 'armor',    label: 'Armure',     value: 25, percent: false },
+      { id: 'vit',  stat: 'vitality', label: 'Vie',        value: 50, percent: false },
+      { id: 'fire', stat: 'fireDmg',  label: 'Dégâts feu', value: 15, percent: true },
+    ],
+  },
+  {
+    id: 'luck_charm', slot: 'amulet', baseTypeId: 'talisman', emoji: '🍀',
+    name: 'Talisman de Chance Insolente',
+    flavor: 'Certains naissent chanceux.',
+    fixedAffixes: [
+      { id: 'crit', stat: 'crit',     label: 'Crit',       value: 30, percent: true },
+      { id: 'gold', stat: 'goldFind', label: 'Or trouvé',  value: 30, percent: true },
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts',     value: 10, percent: false },
+      { id: 'spd',  stat: 'speed',    label: 'Vitesse',    value: 10, percent: true },
+    ],
+  },
+  {
+    id: 'shadow_garb', slot: 'armor', baseTypeId: 'robe', emoji: '🥷',
+    name: 'Robe de l\'Assassin de l\'Ombre',
+    flavor: 'Frappe vite, frappe fort, disparais.',
+    baseStatBonus: { armor: 10, vitality: 15 },
+    fixedAffixes: [
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts',  value: 15, percent: false },
+      { id: 'crit', stat: 'crit',     label: 'Crit',    value: 25, percent: true },
+      { id: 'spd',  stat: 'speed',    label: 'Vitesse', value: 20, percent: true },
+      { id: 'vit',  stat: 'vitality', label: 'Vie',     value: 25, percent: false },
+    ],
+  },
+];
+
+// === Sets (themed item collections with bonuses at 2/3/4 pieces) ===
+export const SETS = [
+  {
+    id: 'dragon', name: 'Dragon', color: '#ff5500',
+    pieces: {
+      helmet: { baseTypeId: 'helm',  emoji: '🪖', name: 'Heaume Dragonien' },
+      armor:  { baseTypeId: 'plate', emoji: '🦺', name: 'Plastron Dragonien' },
+      weapon: { baseTypeId: 'sword', emoji: '🗡', name: 'Épée Dragonienne' },
+      shield: { baseTypeId: 'tower', emoji: '🛡', name: 'Bouclier Dragonien' },
+    },
+    bonuses: {
+      2: [{ stat: 'fireDmg', value: 25, percent: true,  label: 'Dégâts feu' }],
+      3: [{ stat: 'damage',  value: 20, percent: false, label: 'Dégâts' }],
+      4: [{ stat: 'crit',    value: 25, percent: true,  label: 'Crit' }],
+    },
+  },
+  {
+    id: 'shadow', name: 'Ombre', color: '#8855ff',
+    pieces: {
+      armor:  { baseTypeId: 'robe',    emoji: '🥋', name: 'Robe de l\'Ombre' },
+      weapon: { baseTypeId: 'dagger',  emoji: '🗡', name: 'Dague de l\'Ombre' },
+      ring:   { baseTypeId: 'band',    emoji: '💍', name: 'Anneau de l\'Ombre' },
+      amulet: { baseTypeId: 'pendant', emoji: '📿', name: 'Pendentif de l\'Ombre' },
+    },
+    bonuses: {
+      2: [{ stat: 'speed',  value: 20, percent: true,  label: 'Vitesse' }],
+      3: [{ stat: 'crit',   value: 25, percent: true,  label: 'Crit' }],
+      4: [{ stat: 'damage', value: 30, percent: false, label: 'Dégâts' }],
+    },
+  },
+  {
+    id: 'titan', name: 'Titan', color: '#ffaa00',
+    pieces: {
+      helmet: { baseTypeId: 'helm',   emoji: '🪖', name: 'Heaume Titan' },
+      armor:  { baseTypeId: 'plate',  emoji: '🦺', name: 'Plastron Titan' },
+      shield: { baseTypeId: 'tower',  emoji: '🛡', name: 'Bouclier Titan' },
+      ring:   { baseTypeId: 'signet', emoji: '💎', name: 'Anneau Titan' },
+    },
+    bonuses: {
+      2: [{ stat: 'armor',    value: 25, percent: false, label: 'Armure' }],
+      3: [{ stat: 'vitality', value: 40, percent: false, label: 'Vie' }],
+      4: [{ stat: 'damage',   value: 25, percent: false, label: 'Dégâts' }],
+    },
+  },
+];
+
+export const SETS_BY_ID = Object.fromEntries(SETS.map(s => [s.id, s]));
+
+// Set piece drop chance per rarity (only rare+ can be set pieces)
+export const SET_DROP_CHANCE = { rare: 0.10, epic: 0.18, legendary: 0.20, ancestral: 0.25 };
+
+// === Prestige ===
+export const PRESTIGE_REQUIREMENTS = {
+  minChestTier: 5,
+  minFloor: 50,
+};
+
+export const PRESTIGE_BONUS_PER_LEVEL = {
+  rareDropWeightMult: 1.25,
+  goldMult: 1.25,
+};
+
+
 // Auto-sell unlock costs (per rarity). Common is free from start.
 export const AUTOSELL_UNLOCK_COSTS = {
   common: 0,

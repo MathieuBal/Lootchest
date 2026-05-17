@@ -3,6 +3,10 @@ import { state, subscribe, resetState } from './state.js';
 import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
 import { openChest, upgradeChest, canOpen } from './chest.js';
+import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
+import { checkAchievements, onAchievementUnlocked } from './achievements.js';
+import { reroll, upgradeTier, transmute } from './forge.js';
+import { canAscend, ascend } from './prestige.js';
 import {
   equipItem, unequipSlot,
 } from './character.js';
@@ -14,14 +18,25 @@ import {
   renderAll, showDropPopup, hideDropPopup, getCurrentDrop,
   flashRarity, startCooldownAnim, setOpenButtonEnabled,
   showTooltip, moveTooltip, hideTooltip,
+  setActiveTab, appendCombatLog,
+  showModal, hideModal, isModalOpen, showToast, setForgeSelected, getForgeSelectedId,
 } from './ui.js';
 
 // === Init ===
 
 loadFromLocal();
 startAutosave();
+// Order matters: check achievements BEFORE renderAll so rewards show immediately
+subscribe(checkAchievements);
 subscribe(renderAll);
+onAchievementUnlocked(ach => {
+  const rewardLine = ach.reward?.gold ? `+${ach.reward.gold.toLocaleString('fr-FR')} 💰` : '';
+  showToast(ach.emoji, `Succès débloqué : ${ach.name}`, rewardLine);
+});
 renderAll();
+setActiveTab(state.ui?.leftTab || 'chest');
+// First check on load (in case of imported save with already-met conditions)
+checkAchievements();
 
 // === Helpers ===
 
@@ -78,6 +93,49 @@ document.getElementById('btn-sell').addEventListener('click', () => {
 
 document.getElementById('btn-upgrade').addEventListener('click', () => {
   upgradeChest();
+});
+
+// === Tabs ===
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => setActiveTab(t.dataset.tab));
+});
+
+// === Dungeon: floor selection ===
+
+document.getElementById('btn-floor-prev').addEventListener('click', () => {
+  setCurrentFloor(state.combat.currentFloor - 1);
+});
+document.getElementById('btn-floor-next').addEventListener('click', () => {
+  setCurrentFloor(state.combat.currentFloor + 1);
+});
+
+// === Dungeon: fight ===
+
+document.getElementById('btn-fight').addEventListener('click', () => {
+  const fightBtn = document.getElementById('btn-fight');
+  if (fightBtn.disabled) return;
+  fightBtn.disabled = true;
+  setTimeout(() => { fightBtn.disabled = false; }, 400);
+
+  const { result, monster, droppedItem, advanced } = attemptCurrentFloor();
+  appendCombatLog(result.log, result.won ? 'win' : 'lose');
+  if (advanced) appendCombatLog([`🆙 Nouvel étage débloqué : ${state.combat.highestUnlocked}`], 'reward');
+
+  // Flash on win (boss flash legendary color)
+  if (result.won) {
+    flashRarity(monster.isBoss ? 'legendary' : 'magic');
+  }
+
+  if (droppedItem) {
+    appendCombatLog([`🎁 Drop : ${droppedItem.name}`], 'reward');
+    // Respect auto-sell
+    if (isAutoSellOn(droppedItem.rarity)) {
+      sellDrop(droppedItem);
+    } else {
+      showDropPopup(droppedItem);
+    }
+  }
 });
 
 // === Auto-sell toggle/unlock (event delegation) ===
@@ -167,6 +225,66 @@ document.body.addEventListener('mousemove', (e) => {
 
 document.body.addEventListener('mouseleave', hideTooltip);
 
+// === Modals: achievements + forge ===
+
+document.getElementById('btn-achievements').addEventListener('click', () => {
+  showModal('achievements-modal');
+});
+
+document.getElementById('btn-forge').addEventListener('click', () => {
+  showModal('forge-modal');
+});
+
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', () => hideModal(btn.dataset.close));
+});
+
+// Close modal by clicking the dark backdrop
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', (e) => {
+    if (e.target === m) hideModal(m.id);
+  });
+});
+
+// Forge: select item from forge inventory
+document.getElementById('forge-inventory').addEventListener('click', (e) => {
+  const icon = e.target.closest('[data-item-id]');
+  if (!icon) return;
+  setForgeSelected(icon.dataset.itemId);
+});
+
+// Forge: action buttons
+document.getElementById('btn-reroll').addEventListener('click', () => {
+  const id = getForgeSelectedId();
+  const item = state.inventory.find(i => i.id === id);
+  if (item) reroll(item);
+});
+document.getElementById('btn-upgrade-tier').addEventListener('click', () => {
+  const id = getForgeSelectedId();
+  const item = state.inventory.find(i => i.id === id);
+  if (item) upgradeTier(item);
+});
+document.getElementById('btn-transmute').addEventListener('click', () => {
+  const id = getForgeSelectedId();
+  const item = state.inventory.find(i => i.id === id);
+  if (item) transmute(item);
+});
+
+// === Ascension ===
+
+document.getElementById('btn-ascend').addEventListener('click', () => {
+  if (!canAscend()) return;
+  const newLevel = (state.prestige?.level || 0) + 1;
+  const msg = `🌟 Ascension Niv ${newLevel} ?\n\n`
+    + `Tu repars de zéro (or, items, coffre T1, étage 1).\n`
+    + `Tu gardes : succès, prestige, statistiques.\n\n`
+    + `Bonus permanent : +${Math.round((Math.pow(1.25, newLevel) - 1) * 100)}% drops raretés et or de vente.\n\n`
+    + `Confirmer ?`;
+  if (confirm(msg)) {
+    ascend();
+  }
+});
+
 // === Save controls ===
 
 document.getElementById('btn-export').addEventListener('click', () => {
@@ -203,11 +321,19 @@ document.addEventListener('keydown', (e) => {
     if (drop) {
       addToInventory(drop);
       hideDropPopup();
+      return;
     }
+    if (isModalOpen('forge-modal')) { hideModal('forge-modal'); return; }
+    if (isModalOpen('achievements-modal')) { hideModal('achievements-modal'); return; }
   } else if (e.key === ' ' || e.code === 'Space') {
-    // Spacebar to open chest (only if no popup open)
-    if (!getCurrentDrop() && canOpen()) {
-      e.preventDefault();
+    // Spacebar: chest open OR fight depending on current tab
+    if (getCurrentDrop()) return;
+    // Ignore if focus on input (file/select)
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    e.preventDefault();
+    if (state.ui.leftTab === 'dungeon') {
+      document.getElementById('btn-fight').click();
+    } else if (canOpen()) {
       btnOpen.click();
     }
   }

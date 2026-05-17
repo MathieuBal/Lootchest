@@ -19,8 +19,12 @@
       <span class="hud-stat" title="Tier du coffre"><span class="icon">📦</span>T<span id="hud-tier">1</span> <span id="hud-tier-name">Bois</span></span>
       <span class="hud-stat" title="Power Score du perso"><span class="icon">⚡</span><span id="hud-power">0</span></span>
       <span class="hud-stat" title="Coffres ouverts"><span class="icon">🗝</span><span id="hud-opened">0</span></span>
+      <span class="hud-stat hud-prestige" id="hud-prestige" title="Niveau de prestige" style="display:none"><span class="icon">🌟</span>Niv <span id="hud-prestige-level">0</span></span>
     </div>
     <div class="hud-actions">
+      <button id="btn-achievements" class="btn btn-small" title="Succès">🏆 <span id="ach-count">0</span>/<span id="ach-total">0</span></button>
+      <button id="btn-forge" class="btn btn-small" title="Forge">⚒ Forge</button>
+      <button id="btn-ascend" class="btn btn-small" title="Ascension">🌟 Ascension</button>
       <button id="btn-export" class="btn btn-small">Exporter</button>
       <button id="btn-import" class="btn btn-small">Importer</button>
       <button id="btn-reset" class="btn btn-small btn-danger">Reset</button>
@@ -29,35 +33,81 @@
   </header>
 
   <main class="layout">
-    <!-- COFFRE (gauche) -->
-    <section class="panel panel-chest">
-      <h2 class="panel-title">Coffre</h2>
-      <div class="chest-visual" id="chest-visual">
-        <div class="chest-emoji" id="chest-emoji">📦</div>
-        <div class="chest-tier-label" id="chest-tier-label">Tier 1 — Bois</div>
+    <!-- PANEAU GAUCHE — Coffre / Donjon (onglets) -->
+    <section class="panel panel-left">
+      <div class="tabs">
+        <button class="tab active" data-tab="chest">📦 Coffre</button>
+        <button class="tab" data-tab="dungeon">⚔️ Donjon <span class="tab-badge" id="tab-badge-dungeon">1</span></button>
       </div>
-      <button id="btn-open" class="btn btn-primary btn-big">Ouvrir le coffre</button>
-      <div class="chest-cooldown"><div id="cooldown-bar" class="cooldown-bar"></div></div>
 
-      <div class="chest-upgrade">
-        <div class="upgrade-info">
-          <span>Prochain tier : <span id="next-tier-name">Fer</span></span>
-          <span class="upgrade-cost">Coût : <span id="upgrade-cost">100</span> 💰</span>
+      <!-- Onglet Coffre -->
+      <div class="tab-content" data-content="chest">
+        <div class="chest-visual" id="chest-visual">
+          <div class="chest-emoji" id="chest-emoji">📦</div>
+          <div class="chest-tier-label" id="chest-tier-label">Tier 1 — Bois</div>
+          <div class="pity-bar-wrap" title="Légendaire garanti tous les 50 coffres">
+            <div class="pity-bar-label">Pity : <span id="pity-count">0</span>/<span id="pity-max">50</span></div>
+            <div class="pity-bar"><div id="pity-fill" class="pity-fill"></div></div>
+          </div>
         </div>
-        <button id="btn-upgrade" class="btn">Améliorer le coffre</button>
+        <button id="btn-open" class="btn btn-primary btn-big">Ouvrir le coffre</button>
+        <div class="chest-cooldown"><div id="cooldown-bar" class="cooldown-bar"></div></div>
+
+        <div class="chest-upgrade">
+          <div class="upgrade-info">
+            <span>Prochain tier : <span id="next-tier-name">Fer</span></span>
+            <span class="upgrade-cost">Coût : <span id="upgrade-cost">100</span> 💰</span>
+          </div>
+          <button id="btn-upgrade" class="btn">Améliorer le coffre</button>
+        </div>
+
+        <div class="autosell">
+          <div class="autosell-title">Auto-vente</div>
+          <div class="autosell-grid" id="autosell-grid"></div>
+        </div>
       </div>
 
-      <div class="autosell">
-        <div class="autosell-title">Auto-vente</div>
-        <div class="autosell-grid" id="autosell-grid"></div>
+      <!-- Onglet Donjon -->
+      <div class="tab-content hidden" data-content="dungeon">
+        <div class="dungeon-header">
+          <div class="dungeon-floor-selector">
+            <button id="btn-floor-prev" class="btn btn-small">◀</button>
+            <div class="dungeon-floor-display">
+              <div class="dungeon-floor-label">Étage</div>
+              <div class="dungeon-floor-num" id="dungeon-floor-num">1</div>
+            </div>
+            <button id="btn-floor-next" class="btn btn-small">▶</button>
+          </div>
+          <div class="dungeon-best">Record : étage <span id="dungeon-best">1</span></div>
+        </div>
+
+        <div class="monster-card" id="monster-card">
+          <div class="monster-emoji" id="monster-emoji">👺</div>
+          <div class="monster-name" id="monster-name">Gobelin</div>
+          <div class="monster-stats" id="monster-stats"></div>
+          <div class="monster-difficulty" id="monster-difficulty">Facile</div>
+        </div>
+
+        <button id="btn-fight" class="btn btn-primary btn-big">⚔ Combattre</button>
+
+        <div class="combat-log" id="combat-log">
+          <div class="combat-log-empty">Aucun combat. Affronte le monstre !</div>
+        </div>
+
+        <div class="dungeon-stats">
+          <span>🗡 Kills : <span id="dungeon-kills">0</span></span>
+          <span>💀 Morts : <span id="dungeon-deaths">0</span></span>
+          <span>👑 Boss : <span id="dungeon-boss-kills">0</span></span>
+        </div>
       </div>
     </section>
 
     <!-- PERSO (droite) -->
     <section class="panel panel-character">
       <h2 class="panel-title">Personnage</h2>
-      <div class="character-avatar">🧙</div>
+      <div class="character-avatar" id="character-avatar"></div>
       <div class="equipment-grid" id="equipment-grid"></div>
+      <div class="set-summary" id="set-summary"></div>
       <div class="character-stats" id="character-stats"></div>
     </section>
   </main>
@@ -90,6 +140,51 @@
       </div>
     </div>
   </div>
+
+  <!-- ACHIEVEMENTS MODAL -->
+  <div id="achievements-modal" class="modal hidden">
+    <div class="modal-inner modal-wide">
+      <div class="modal-header">
+        <h2>🏆 Succès (<span id="modal-ach-count">0</span>/<span id="modal-ach-total">0</span>)</h2>
+        <button class="btn btn-small modal-close" data-close="achievements-modal">✕</button>
+      </div>
+      <div class="achievements-grid" id="achievements-grid"></div>
+    </div>
+  </div>
+
+  <!-- FORGE MODAL -->
+  <div id="forge-modal" class="modal hidden">
+    <div class="modal-inner modal-wide">
+      <div class="modal-header">
+        <h2>⚒ Forge</h2>
+        <button class="btn btn-small modal-close" data-close="forge-modal">✕</button>
+      </div>
+      <div class="forge-body">
+        <div class="forge-instructions" id="forge-instructions">Sélectionne un objet dans ton inventaire à forger :</div>
+        <div class="forge-inventory" id="forge-inventory"></div>
+        <div class="forge-selected hidden" id="forge-selected">
+          <div class="forge-preview" id="forge-preview"></div>
+          <div class="forge-actions">
+            <button id="btn-reroll" class="btn forge-btn">
+              <div>🎲 Rerouler affixes</div>
+              <div class="forge-cost"><span id="reroll-cost">—</span> 💰</div>
+            </button>
+            <button id="btn-upgrade-tier" class="btn forge-btn">
+              <div>📈 Monter tier (<span id="forge-tier-from">1</span> → <span id="forge-tier-to">2</span>)</div>
+              <div class="forge-cost"><span id="upgrade-tier-cost">—</span> 💰</div>
+            </button>
+            <button id="btn-transmute" class="btn forge-btn">
+              <div>✨ Transmuter (<span id="forge-rarity-from">—</span> → <span id="forge-rarity-to">—</span>)</div>
+              <div class="forge-cost"><span id="transmute-cost">—</span> 💰</div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast-container" class="toast-container"></div>
 
   <!-- TOOLTIP -->
   <div id="tooltip" class="tooltip hidden"></div>

@@ -1,6 +1,14 @@
 // Inventory + selling + auto-sell unlock logic.
 import { state, notify } from './state.js';
-import { AUTOSELL_UNLOCK_COSTS } from './data.js';
+import { AUTOSELL_UNLOCK_COSTS, PRESTIGE_BONUS_PER_LEVEL } from './data.js';
+
+function prestigeGoldMult() {
+  return Math.pow(PRESTIGE_BONUS_PER_LEVEL.goldMult, state.prestige?.level || 0);
+}
+
+function sellPrice(item, goldFindBonus) {
+  return Math.round(item.goldValue * (1 + goldFindBonus / 100) * prestigeGoldMult());
+}
 
 export function addToInventory(item) {
   state.inventory.push(item);
@@ -32,8 +40,12 @@ export function sellItem(item) {
   }
   if (!removed) return 0;
   const goldFindBonus = computeGoldFindBonus();
-  const earned = Math.round(removed.goldValue * (1 + goldFindBonus / 100));
+  const earned = sellPrice(removed, goldFindBonus);
   state.gold += earned;
+  if (state.stats) {
+    state.stats.itemsSold += 1;
+    state.stats.totalGoldEarned += earned;
+  }
   notify();
   return earned;
 }
@@ -51,17 +63,23 @@ function computeGoldFindBonus() {
 
 export function sellAllOfRarities(raritySet) {
   let totalEarned = 0;
+  let sold = 0;
   const goldFindBonus = computeGoldFindBonus();
   const remaining = [];
   for (const item of state.inventory) {
     if (raritySet.has(item.rarity)) {
-      totalEarned += Math.round(item.goldValue * (1 + goldFindBonus / 100));
+      totalEarned += sellPrice(item, goldFindBonus);
+      sold += 1;
     } else {
       remaining.push(item);
     }
   }
   state.inventory = remaining;
   state.gold += totalEarned;
+  if (state.stats) {
+    state.stats.itemsSold += sold;
+    state.stats.totalGoldEarned += totalEarned;
+  }
   notify();
   return totalEarned;
 }
@@ -94,8 +112,12 @@ export function isAutoSellOn(rarityId) {
 // Used by auto-sell on a fresh drop.
 export function sellDrop(item) {
   const goldFindBonus = computeGoldFindBonus();
-  const earned = Math.round(item.goldValue * (1 + goldFindBonus / 100));
+  const earned = sellPrice(item, goldFindBonus);
   state.gold += earned;
+  if (state.stats) {
+    state.stats.itemsSold += 1;
+    state.stats.totalGoldEarned += earned;
+  }
   notify();
   return earned;
 }

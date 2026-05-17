@@ -18,6 +18,35 @@ export const state = {
     legendary: { unlocked: false, on: false },
     ancestral: { unlocked: false, on: false },
   },
+  combat: {
+    currentFloor: 1,
+    highestUnlocked: 1,
+    kills: 0,
+    deaths: 0,
+    bossKills: 0,
+  },
+  pity: {
+    sinceLegendary: 0,
+  },
+  ui: {
+    leftTab: 'chest',     // 'chest' | 'dungeon'
+  },
+  achievements: {
+    unlocked: {},         // { [id]: true }
+  },
+  stats: {
+    legendaryDropped: 0,
+    ancestralDropped: 0,
+    uniquesDropped: 0,
+    itemsSold: 0,
+    totalGoldEarned: 0,
+    forgesPerformed: 0,
+    maxSetEquipped: 0,
+  },
+  prestige: {
+    level: 0,
+    totalAscensions: 0,
+  },
 };
 
 // Init empty equipment slots
@@ -54,6 +83,15 @@ export function replaceState(newState) {
       state.autoSell[r] = { unlocked: r === 'common', on: false };
     }
   }
+  if (!state.combat) state.combat = { currentFloor: 1, highestUnlocked: 1, kills: 0, deaths: 0, bossKills: 0 };
+  if (!state.pity) state.pity = { sinceLegendary: 0 };
+  if (!state.ui) state.ui = { leftTab: 'chest' };
+  if (!state.achievements) state.achievements = { unlocked: {} };
+  if (!state.stats) state.stats = {};
+  for (const k of ['legendaryDropped','ancestralDropped','uniquesDropped','itemsSold','totalGoldEarned','forgesPerformed','maxSetEquipped']) {
+    if (state.stats[k] === undefined) state.stats[k] = 0;
+  }
+  if (!state.prestige) state.prestige = { level: 0, totalAscensions: 0 };
   notify();
 }
 
@@ -67,5 +105,11 @@ export function resetState() {
     state.autoSell[r].unlocked = (r === 'common');
     state.autoSell[r].on = false;
   }
+  state.combat = { currentFloor: 1, highestUnlocked: 1, kills: 0, deaths: 0, bossKills: 0 };
+  state.pity = { sinceLegendary: 0 };
+  state.ui = { leftTab: 'chest' };
+  state.achievements = { unlocked: {} };
+  state.stats = { legendaryDropped: 0, ancestralDropped: 0, uniquesDropped: 0, itemsSold: 0, totalGoldEarned: 0, forgesPerformed: 0, maxSetEquipped: 0 };
+  state.prestige = { level: 0, totalAscensions: 0 };
   notify();
 }
