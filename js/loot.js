@@ -202,8 +202,8 @@ function buildRegularItem(chestTier, rarity) {
   const slot = rollSlot();
   const baseType = pickRandom(BASE_TYPES[slot]);
 
-  // Composed item path: e.g. sword has parts that contribute baseStats + sprite layers
-  if (slot === 'weapon' && hasCompositionFor(baseType.id)) {
+  // Composed item path: any base type registered in WEAPON_PARTS (weapons + armor).
+  if (hasCompositionFor(baseType.id)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
     const { parts, baseStats } = rollWeaponParts(baseType.id, chestTier, statMult);
     const affixes = rollAffixes(rarity, chestTier);
@@ -269,8 +269,8 @@ function buildUniqueLegendary(chestTier) {
     uniqueId: tpl.id,
     flavor: tpl.flavor,
   };
-  // Visual-only composed sprite for weapon uniques (sword for now). Stats unchanged.
-  if (tpl.slot === 'weapon' && hasCompositionFor(tpl.baseTypeId)) {
+  // Visual-only composed sprite for uniques whose base type has parts (weapons + armor).
+  if (hasCompositionFor(tpl.baseTypeId)) {
     const rolled = rollWeaponParts(tpl.baseTypeId, chestTier, 1);
     if (rolled) item.parts = rolled.parts;
   }
@@ -286,8 +286,8 @@ function buildSetPiece(chestTier, rarity) {
   const baseType = BASE_TYPES[slot].find(b => b.id === piece.baseTypeId)
                 || BASE_TYPES[slot][0];
 
-  // Composed weapon path: parts contribute baseStats AND visual.
-  if (slot === 'weapon' && hasCompositionFor(piece.baseTypeId)) {
+  // Composed item path (weapons + armor): parts contribute baseStats AND visual.
+  if (hasCompositionFor(piece.baseTypeId)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
     const rolled = rollWeaponParts(piece.baseTypeId, chestTier, statMult);
     const affixes = rollAffixes(rarity, chestTier);
