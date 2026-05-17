@@ -574,6 +574,47 @@ button, input, select {
   border: 2px solid var(--border);
   padding: 4px 6px;
 }
+.inv-search {
+  background: var(--bg-panel-light);
+  color: var(--text);
+  border: 2px solid var(--border);
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 9px;
+  width: 130px;
+}
+.inv-search:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+/* === Help modal === */
+.help-body {
+  overflow-y: auto;
+  padding: 4px 4px 4px 0;
+  font-size: 9px;
+  line-height: 1.8;
+}
+.help-body h3 {
+  margin: 12px 0 4px 0;
+  font-size: 10px;
+  color: var(--gold);
+}
+.help-body h3:first-child { margin-top: 0; }
+.help-body p { margin: 4px 0; color: var(--text); }
+.help-body em { color: var(--accent); font-style: normal; }
+.help-body strong { color: var(--gold); font-weight: normal; }
+.help-body ul { padding-left: 18px; margin: 4px 0; }
+.help-body li { margin: 3px 0; color: var(--text-dim); }
+.help-body kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  background: var(--bg-panel-light);
+  border: 2px solid var(--border);
+  font-size: 8px;
+  color: var(--gold);
+  margin: 0 2px;
+}
 
 .inventory-grid {
   display: grid;
@@ -917,10 +958,113 @@ button, input, select {
   to { opacity: 0; transform: translateX(40%); }
 }
 
+/* === HP bars === */
+.hp-bar-wrap, .player-hp-wrap {
+  margin-top: 8px;
+}
+.hp-bar-wrap.hidden, .player-hp-wrap.hidden { display: none; }
+.hp-bar-label {
+  font-size: 8px;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+  text-align: left;
+}
+.hp-bar {
+  height: 12px;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  overflow: hidden;
+  position: relative;
+}
+.hp-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(180deg, #ff5050, #c02020);
+  transition: width 200ms cubic-bezier(0.3, 0.8, 0.4, 1);
+  transform-origin: left;
+}
+.hp-fill.player {
+  background: linear-gradient(180deg, #50e060, #20a030);
+}
+.hp-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 7px;
+  color: #fff;
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+  pointer-events: none;
+  margin-top: 14px;  /* offset below the bar */
+}
+.player-hp-wrap .hp-label { margin-top: 18px; }
+
+/* === Floating damage numbers === */
+.floating-damage {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: #ff5050;
+  text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+  white-space: nowrap;
+}
+.floating-damage.crit {
+  font-size: 18px;
+  color: var(--gold);
+}
+.floating-damage.player-took {
+  color: #ff8050;
+}
+.floating-damage.heal {
+  color: #6acc6a;
+}
+
+/* === Particle === */
+.particle {
+  border-radius: 0;
+}
+
+/* === Item comparison in tooltip === */
+.tt-compare {
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--border);
+}
+.tt-compare-title {
+  font-size: 8px;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+}
+.tt-compare .better { color: #6acc6a; }
+.tt-compare .worse  { color: #ff5050; }
+.tt-compare .same   { color: var(--text-dim); font-style: italic; }
+
+/* === Monster card during combat === */
+.monster-card.combat .monster-difficulty { display: none; }
+
 /* === Responsive === */
 @media (max-width: 800px) {
   .layout { grid-template-columns: 1fr; }
   .hud-title { font-size: 11px; }
-  .hud-stats { gap: 10px; }
+  .hud-stats { gap: 8px; flex-wrap: wrap; }
+  .hud { padding: 10px 12px; gap: 10px; }
+  .hud-actions { flex-wrap: wrap; gap: 4px; }
   body { font-size: 9px; }
+  .panel { padding: 10px; }
+  .equipment-grid { gap: 6px; }
+  .equipment-slot { font-size: 22px; }
+  .character-avatar svg { width: 60px; height: 60px; }
+  .chest-emoji svg { width: 72px; height: 72px; }
+  .inventory-actions { flex-wrap: wrap; gap: 6px; }
+  .inv-search { width: 100%; }
+  .forge-actions { grid-template-columns: 1fr; }
+  .achievements-grid { grid-template-columns: 1fr; }
+  .drop-popup-inner { padding: 14px; min-width: 0; }
+  .drop-item .item-icon-big { width: 60px; height: 60px; font-size: 42px; }
+  .toast-container { right: 6px; top: 60px; max-width: 70vw; }
+}
+@media (max-width: 480px) {
+  .hud-title { font-size: 9px; letter-spacing: 1px; }
+  .tab { padding: 6px 8px; font-size: 9px; }
+  .btn-big { padding: 12px 16px; font-size: 10px; }
 }

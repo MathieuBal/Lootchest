@@ -35,7 +35,8 @@ export function generateMonster(floor) {
   };
 }
 
-// Returns { won, log[], turns, damageTaken, playerMaxHp }
+// Returns { won, log[], turns, damageTaken, playerMaxHp, events[] }
+// events: array of { type: 'player_hit' | 'monster_hit', dmg, isCrit?, monsterHp, playerHp }
 export function resolveFight(monster) {
   const stats = computeStats();
   const playerMaxHp = PLAYER_BASE.hp + (stats.vitality || 0) * 5;
@@ -44,20 +45,21 @@ export function resolveFight(monster) {
   const monsterDmg = Math.max(1, monster.damage - playerArmor);
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   const fireBonus = (stats.fireDmg || 0) / 100;
-  const avgDmg = playerDmg * (1 + critChance + fireBonus);
 
-  // turn-based: each turn player hits, then if monster alive it hits back.
   let pHp = playerMaxHp;
   let mHp = monster.hp;
   let turns = 0;
   const maxTurns = 200;
+  const events = [];
   while (turns < maxTurns) {
     turns++;
     const isCrit = Math.random() < critChance;
     const hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + fireBonus * Math.random()));
-    mHp -= hit;
+    mHp = Math.max(0, mHp - hit);
+    events.push({ type: 'player_hit', dmg: hit, isCrit, monsterHp: mHp, playerHp: pHp });
     if (mHp <= 0) break;
-    pHp -= monsterDmg;
+    pHp = Math.max(0, pHp - monsterDmg);
+    events.push({ type: 'monster_hit', dmg: monsterDmg, monsterHp: mHp, playerHp: pHp });
     if (pHp <= 0) break;
   }
   const won = mHp <= 0;
@@ -65,13 +67,12 @@ export function resolveFight(monster) {
     `Vous (${playerMaxHp} PV, ${playerDmg} dmg) vs ${monster.name} (${monster.hp} PV, ${monster.damage} dmg)`,
   ];
   if (won) {
-    const damageTaken = playerMaxHp - Math.max(0, pHp);
     log.push(`Victoire en ${turns} tours · PV restants : ${Math.max(0, pHp)}/${playerMaxHp}`);
     log.push(`+${monster.goldReward} 💰`);
   } else {
     log.push(`Défaite après ${turns} tours. Reviens plus fort !`);
   }
-  return { won, log, turns, playerHpLeft: Math.max(0, pHp), playerMaxHp };
+  return { won, log, turns, playerHpLeft: Math.max(0, pHp), playerMaxHp, events };
 }
 
 // Returns { result, monster, droppedItem, advanced }

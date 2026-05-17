@@ -21,6 +21,38 @@ export function itemIconHTML(item, { big = false } = {}) {
   return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}" data-item-id="${item.id}">${item.emoji || '❔'}</div>`;
 }
 
+function itemTotalStats(item) {
+  const total = {};
+  for (const [k, v] of Object.entries(item.baseStats || {})) total[k] = (total[k] || 0) + v;
+  for (const a of item.affixes || []) total[a.stat] = (total[a.stat] || 0) + a.value;
+  return total;
+}
+
+const PCT_STATS = new Set(['crit', 'fireDmg', 'goldFind', 'speed']);
+
+function comparisonHTML(item) {
+  // Only show comparison if item is in inventory AND another item is equipped in same slot
+  const equipped = state.equipment[item.slot];
+  if (!equipped || equipped.id === item.id) return '';
+  const inInventory = state.inventory.some(i => i.id === item.id);
+  if (!inInventory) return '';
+  const a = itemTotalStats(item);
+  const b = itemTotalStats(equipped);
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  const rows = [];
+  for (const k of keys) {
+    const diff = (a[k] || 0) - (b[k] || 0);
+    if (diff === 0) continue;
+    const cls = diff > 0 ? 'better' : 'worse';
+    const sign = diff > 0 ? '+' : '';
+    rows.push(`<div class="${cls}">${sign}${diff}${PCT_STATS.has(k) ? '%' : ''} ${statLabel(k)}</div>`);
+  }
+  if (rows.length === 0) {
+    return `<div class="tt-compare"><div class="tt-compare-title">vs équipé</div><div class="same">Identique</div></div>`;
+  }
+  return `<div class="tt-compare"><div class="tt-compare-title">vs équipé</div>${rows.join('')}</div>`;
+}
+
 export function itemDetailsHTML(item) {
   const r = RARITY_BY_ID[item.rarity];
   const slot = SLOT_BY_ID[item.slot];
@@ -45,6 +77,7 @@ export function itemDetailsHTML(item) {
     ${affixLines}
     ${flavor}
     <div class="tt-value">💰 ${item.goldValue} or</div>
+    ${comparisonHTML(item)}
   `;
 }
 
@@ -259,18 +292,47 @@ function renderInventoryFilter() {
   }
 }
 
+let invSortMode = 'rarity';
+let invSearchText = '';
+
+export function setInvSortMode(mode) { invSortMode = mode; renderInventory(); }
+export function setInvSearchText(text) { invSearchText = (text || '').toLowerCase(); renderInventory(); }
+
+function sortInventory(items, mode) {
+  const rarityOrder = Object.fromEntries(RARITIES.map((r, i) => [r.id, i]));
+  const slotOrder = Object.fromEntries(SLOTS.map((s, i) => [s.id, i]));
+  const arr = [...items];
+  switch (mode) {
+    case 'value':
+      arr.sort((a, b) => b.goldValue - a.goldValue || rarityOrder[b.rarity] - rarityOrder[a.rarity]);
+      break;
+    case 'tier':
+      arr.sort((a, b) => b.chestTier - a.chestTier || rarityOrder[b.rarity] - rarityOrder[a.rarity]);
+      break;
+    case 'slot':
+      arr.sort((a, b) => slotOrder[a.slot] - slotOrder[b.slot] || rarityOrder[b.rarity] - rarityOrder[a.rarity]);
+      break;
+    case 'rarity':
+    default:
+      arr.sort((a, b) => rarityOrder[b.rarity] - rarityOrder[a.rarity] || b.goldValue - a.goldValue);
+  }
+  return arr;
+}
+
 function renderInventory() {
   document.getElementById('inv-count').textContent = state.inventory.length;
   const grid = document.getElementById('inventory-grid');
   grid.innerHTML = '';
 
-  // Sort by rarity (desc) then by goldValue desc
-  const rarityOrder = Object.fromEntries(RARITIES.map((r, i) => [r.id, i]));
-  const sorted = [...state.inventory].sort((a, b) => {
-    const dr = rarityOrder[b.rarity] - rarityOrder[a.rarity];
-    if (dr !== 0) return dr;
-    return b.goldValue - a.goldValue;
-  });
+  let items = state.inventory;
+  if (invSearchText) {
+    items = items.filter(it =>
+      it.name.toLowerCase().includes(invSearchText)
+      || (it.setId || '').toLowerCase().includes(invSearchText)
+      || (it.flavor || '').toLowerCase().includes(invSearchText)
+    );
+  }
+  const sorted = sortInventory(items, invSortMode);
 
   for (const item of sorted) {
     const el = document.createElement('div');
@@ -386,6 +448,52 @@ export function setOpenButtonEnabled(enabled) {
 }
 
 // === Master render ===
+
+// === Combat HP bars ===
+
+export function showCombatBars(playerMaxHp, monsterMaxHp) {
+  document.getElementById('monster-card').classList.add('combat');
+  document.getElementById('monster-hp-wrap').classList.remove('hidden');
+  document.getElementById('player-hp-wrap').classList.remove('hidden');
+  updateMonsterHp(monsterMaxHp, monsterMaxHp);
+  updatePlayerHp(playerMaxHp, playerMaxHp);
+}
+
+export function hideCombatBars() {
+  document.getElementById('monster-card').classList.remove('combat');
+  document.getElementById('monster-hp-wrap').classList.add('hidden');
+  document.getElementById('player-hp-wrap').classList.add('hidden');
+}
+
+export function updateMonsterHp(current, max) {
+  const pct = Math.max(0, (current / max) * 100);
+  document.getElementById('monster-hp-fill').style.width = `${pct}%`;
+  document.getElementById('monster-hp-label').textContent = `${Math.max(0, Math.round(current))}/${Math.round(max)}`;
+}
+
+export function updatePlayerHp(current, max) {
+  const pct = Math.max(0, (current / max) * 100);
+  document.getElementById('player-hp-fill').style.width = `${pct}%`;
+  document.getElementById('player-hp-label').textContent = `${Math.max(0, Math.round(current))}/${Math.round(max)}`;
+}
+
+export function getMonsterEmojiCenter() {
+  const el = document.getElementById('monster-emoji');
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+export function getCharacterAvatarCenter() {
+  const el = document.getElementById('character-avatar');
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+export function getChestCenter() {
+  const el = document.getElementById('chest-emoji');
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
 
 // === Combat log ===
 
