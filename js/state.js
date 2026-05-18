@@ -4,7 +4,7 @@ import { SLOTS, AUTOSELL_UNLOCK_COSTS } from './data.js';
 const listeners = new Set();
 
 export const state = {
-  version: 1,
+  version: 2,
   gold: 0,
   chestTier: 1,
   opened: 0,

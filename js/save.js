@@ -2,6 +2,46 @@
 import { state, replaceState, subscribe } from './state.js';
 
 const KEY = 'lootchest.save.v1';
+export const CURRENT_SAVE_VERSION = 2;
+
+// Migrations are run sequentially: from version N → N+1.
+// Each function receives `data` and mutates it in place (or returns a new object).
+const MIGRATIONS = {
+  // 1 → 2 : add `mode` field to autoSell slots, default 'sell'.
+  //         Add `settings` block. Add `locked` flag on items (false default — handled lazily).
+  1: (data) => {
+    if (data.autoSell) {
+      for (const r of Object.keys(data.autoSell)) {
+        if (!data.autoSell[r].mode) data.autoSell[r].mode = 'sell';
+      }
+    }
+    if (!data.settings) {
+      data.settings = {
+        fastCombat: false, reducedParticles: false,
+        confirmAscend: true, confirmDestructiveSell: true, hardMode: false,
+      };
+    }
+    data.version = 2;
+    return data;
+  },
+};
+
+function migrateSave(data) {
+  if (!data || typeof data !== 'object') return data;
+  let version = data.version || 1;
+  while (version < CURRENT_SAVE_VERSION) {
+    const fn = MIGRATIONS[version];
+    if (!fn) {
+      data.version = CURRENT_SAVE_VERSION;
+      break;
+    }
+    const next = fn(data);
+    if (next && typeof next === 'object') data = next;
+    version = data.version || version + 1;
+  }
+  data.version = CURRENT_SAVE_VERSION;
+  return data;
+}
 let timer = null;
 
 export function startAutosave() {
@@ -21,7 +61,7 @@ export function loadFromLocal() {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return false;
-    const data = JSON.parse(raw);
+    const data = migrateSave(JSON.parse(raw));
     replaceState(data);
     return true;
   } catch (e) {
@@ -52,7 +92,7 @@ export function importSave(file) {
     const reader = new FileReader();
     reader.onload = e => {
       try {
-        const data = JSON.parse(e.target.result);
+        const data = migrateSave(JSON.parse(e.target.result));
         replaceState(data);
         resolve(true);
       } catch (err) {
