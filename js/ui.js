@@ -26,7 +26,17 @@ import { getCompositionLayers } from './parts.js';
 export function itemIconHTML(item, { big = false } = {}) {
   const r = RARITY_BY_ID[item.rarity];
   const inner = itemVisualHTML(item, big);
-  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}" data-item-id="${item.id}">${inner}</div>`;
+  const setBadge = item.setId ? setBadgeHTML(item, big) : '';
+  const uniqueBadge = item.uniqueId && !item.setId ? '<div class="item-unique-chip" title="Unique">✨</div>' : '';
+  const setStyle = item.setId && SETS_BY_ID[item.setId] ? ` style="--set-color: ${SETS_BY_ID[item.setId].color}"` : '';
+  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}${item.setId ? ' item-icon-set' : ''}"${setStyle} data-item-id="${item.id}">${inner}${setBadge}${uniqueBadge}</div>`;
+}
+
+function setBadgeHTML(item, big) {
+  const set = SETS_BY_ID[item.setId];
+  if (!set) return '';
+  const initial = set.name.charAt(0).toUpperCase();
+  return `<div class="item-set-chip" title="Set : ${set.name}" style="background:${set.color}">${initial}</div>`;
 }
 
 function itemVisualHTML(item, big = false) {
