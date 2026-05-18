@@ -14,8 +14,8 @@ import { shardYield } from './inventory.js';
 import { CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID } from './data.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
-import { SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, UNIQUE_LEGENDARIES, BIOMES } from './data.js';
-import { rankOf, canUpgradeTalent, pityReduction } from './talents.js';
+import { SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, TALENT_CATEGORIES, TALENT_MASTERY_THRESHOLD, UNIQUE_LEGENDARIES, BIOMES } from './data.js';
+import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talents.js';
 import { SKILLS, getActiveSkills } from './skills.js';
 import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG } from './sprites.js';
@@ -253,18 +253,34 @@ export function renderTalentsModal() {
   document.getElementById('talent-points-display').textContent = state.talentPoints || 0;
   const grid = document.getElementById('talents-grid');
   grid.innerHTML = '';
+
+  // Category mastery summary bar
+  const mastery = document.createElement('div');
+  mastery.className = 'talent-mastery-row';
+  mastery.innerHTML = Object.entries(TALENT_CATEGORIES).map(([key, cat]) => {
+    const pts = categoryPoints(key);
+    const active = pts >= TALENT_MASTERY_THRESHOLD;
+    return `<div class="talent-mastery-chip ${active ? 'active' : ''}" style="border-color:${cat.color}" title="${cat.desc}">
+      <span style="color:${cat.color}">${cat.emoji} ${cat.name}</span>
+      <span class="talent-mastery-pts">${pts}/${TALENT_MASTERY_THRESHOLD}${active ? ' ✓' : ''}</span>
+    </div>`;
+  }).join('');
+  grid.appendChild(mastery);
+
   for (const t of TALENTS) {
     const rank = rankOf(t.id);
     const max = t.maxRank;
     const ratio = rank / max;
     const canBuy = canUpgradeTalent(t.id);
     const isMax = rank >= max;
+    const cat = TALENT_CATEGORIES[t.category];
     const el = document.createElement('div');
     el.className = 'talent' + (isMax ? ' maxed' : '') + (rank > 0 ? ' has-rank' : '');
+    if (cat) el.style.borderLeft = `4px solid ${cat.color}`;
     el.innerHTML = `
       <div class="talent-emoji">${t.emoji}</div>
       <div class="talent-info">
-        <div class="talent-name">${t.name}</div>
+        <div class="talent-name">${t.name}${cat ? ` <span class="talent-cat-tag" style="color:${cat.color}">${cat.emoji}</span>` : ''}</div>
         <div class="talent-desc">${t.desc}</div>
         <div class="talent-bar"><div class="talent-bar-fill" style="width:${ratio * 100}%"></div></div>
         <div class="talent-rank">${rank}/${max}${rank > 0 ? ` · effet : ${formatTalentEffect(t, rank)}` : ''}</div>

@@ -1218,6 +1218,31 @@ button, input, select {
   overflow-y: auto;
   padding: 4px;
 }
+.talent-mastery-row {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.talent-mastery-chip {
+  flex: 1;
+  min-width: 120px;
+  background: var(--bg);
+  border: 2px solid;
+  padding: 6px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9px;
+  opacity: 0.6;
+}
+.talent-mastery-chip.active {
+  opacity: 1;
+  box-shadow: 0 0 8px currentColor;
+}
+.talent-mastery-pts { color: var(--text); font-weight: bold; }
+.talent-cat-tag { font-size: 9px; margin-left: 4px; }
 .talent {
   background: var(--bg-panel-light);
   border: 2px solid var(--border);

@@ -113,15 +113,24 @@ export function maxAllowedChestTier(prestigeLevel) {
 // === Talents ===
 // Per-rank passive bonuses. Points earned via ascension (2 per) and dungeon milestones (1 per).
 export const TALENTS = [
-  { id: 'merchant',       emoji: '💰', name: 'Marchand habile',     desc: '+10% prix de vente par rang',           maxRank: 5, perRank: { sellMult: 0.10 } },
-  { id: 'sharpEye',       emoji: '👁',  name: 'Œil aiguisé',         desc: '+5% poids des raretés rare+ par rang',  maxRank: 5, perRank: { rareMult: 0.05 } },
-  { id: 'berserker',      emoji: '⚔',  name: 'Berserker',           desc: '+10% dégâts en donjon par rang',        maxRank: 5, perRank: { dmgMult: 0.10 } },
-  { id: 'tanky',          emoji: '❤',  name: 'Endurci',             desc: '+15% PV max par rang',                  maxRank: 5, perRank: { hpMult: 0.15 } },
-  { id: 'treasureHunter', emoji: '💎', name: 'Chasseur de trésors', desc: '+25% or des monstres par rang',         maxRank: 4, perRank: { monsterGoldMult: 0.25 } },
-  { id: 'orbFinder',      emoji: '🟪', name: 'Trouveur d\'orbes',   desc: '+15% drop d\'orbes par rang',           maxRank: 4, perRank: { orbDropMult: 0.15 } },
-  { id: 'recycler',       emoji: '♻',  name: 'Recycleur',           desc: '+1 cristal par recyclage par rang',     maxRank: 3, perRank: { shardBonus: 1 } },
-  { id: 'pityMaster',     emoji: '✨', name: 'Maître pity',         desc: '-10 au pity timer par rang',            maxRank: 3, perRank: { pityReduction: 10 } },
+  { id: 'merchant',       emoji: '💰', name: 'Marchand habile',     desc: '+10% prix de vente par rang',           maxRank: 5, perRank: { sellMult: 0.10 },         category: 'wealth' },
+  { id: 'sharpEye',       emoji: '👁',  name: 'Œil aiguisé',         desc: '+5% poids des raretés rare+ par rang',  maxRank: 5, perRank: { rareMult: 0.05 },         category: 'wealth' },
+  { id: 'berserker',      emoji: '⚔',  name: 'Berserker',           desc: '+10% dégâts en donjon par rang',        maxRank: 5, perRank: { dmgMult: 0.10 },          category: 'combat' },
+  { id: 'tanky',          emoji: '❤',  name: 'Endurci',             desc: '+15% PV max par rang',                  maxRank: 5, perRank: { hpMult: 0.15 },           category: 'combat' },
+  { id: 'treasureHunter', emoji: '💎', name: 'Chasseur de trésors', desc: '+25% or des monstres par rang',         maxRank: 4, perRank: { monsterGoldMult: 0.25 }, category: 'wealth' },
+  { id: 'orbFinder',      emoji: '🟪', name: 'Trouveur d\'orbes',   desc: '+15% drop d\'orbes par rang',           maxRank: 4, perRank: { orbDropMult: 0.15 },     category: 'utility' },
+  { id: 'recycler',       emoji: '♻',  name: 'Recycleur',           desc: '+1 cristal par recyclage par rang',     maxRank: 3, perRank: { shardBonus: 1 },         category: 'utility' },
+  { id: 'pityMaster',     emoji: '✨', name: 'Maître pity',         desc: '-10 au pity timer par rang',            maxRank: 3, perRank: { pityReduction: 10 },     category: 'utility' },
 ];
+
+// Talent categories — investing 5+ points in one grants a 10% mastery bonus to that category.
+export const TALENT_CATEGORIES = {
+  combat:  { emoji: '⚔', name: 'Combat',     color: '#ff7a1a', desc: '+10% effets combat (dégâts, PV) si ≥ 5 points' },
+  wealth:  { emoji: '💰', name: 'Richesse',   color: '#ffe14a', desc: '+10% effets richesse (or, drops) si ≥ 5 points' },
+  utility: { emoji: '🔮', name: 'Utilitaire', color: '#5a8af0', desc: '+10% effets utilitaires (orbes, cristaux, pity) si ≥ 5 points' },
+};
+export const TALENT_MASTERY_THRESHOLD = 5;
+export const TALENT_MASTERY_BONUS = 0.10;
 
 export const TALENT_BY_ID = Object.fromEntries(TALENTS.map(t => [t.id, t]));
 
