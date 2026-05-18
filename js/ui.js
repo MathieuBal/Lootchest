@@ -436,13 +436,16 @@ function renderAutoSell() {
     const row = document.createElement('div');
     row.className = 'autosell-row';
     const cost = AUTOSELL_UNLOCK_COSTS[r.id];
-    let toggleHTML;
+    let controlsHTML;
     if (slot.unlocked) {
-      toggleHTML = `<button class="autosell-toggle ${slot.on ? 'on' : ''}" data-rarity="${r.id}" data-action="toggle">${slot.on ? 'ON' : 'OFF'}</button>`;
+      const mode = slot.mode || 'sell';
+      const modeBtn = `<button class="autosell-mode" data-rarity="${r.id}" data-action="mode" title="Bascule vente/recyclage">${mode === 'salvage' ? '💎' : '💰'}</button>`;
+      const toggleBtn = `<button class="autosell-toggle ${slot.on ? 'on' : ''}" data-rarity="${r.id}" data-action="toggle">${slot.on ? 'ON' : 'OFF'}</button>`;
+      controlsHTML = `${modeBtn}${toggleBtn}`;
     } else {
-      toggleHTML = `<button class="autosell-toggle locked" data-rarity="${r.id}" data-action="unlock" ${state.gold < cost ? 'disabled' : ''}>${cost.toLocaleString('fr-FR')} 💰</button>`;
+      controlsHTML = `<button class="autosell-toggle locked" data-rarity="${r.id}" data-action="unlock" ${state.gold < cost ? 'disabled' : ''}>${cost.toLocaleString('fr-FR')} 💰</button>`;
     }
-    row.innerHTML = `<span class="rarity-tag rt-${r.cssClass}">${r.name}</span>${toggleHTML}`;
+    row.innerHTML = `<span class="rarity-tag rt-${r.cssClass}">${r.name}</span><div class="autosell-controls">${controlsHTML}</div>`;
     grid.appendChild(row);
   }
 }

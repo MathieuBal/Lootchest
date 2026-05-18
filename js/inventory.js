@@ -118,6 +118,30 @@ export function isAutoSellOn(rarityId) {
   return state.autoSell[rarityId] && state.autoSell[rarityId].on;
 }
 
+// 'sell' | 'salvage' | 'off' — what to do with auto-handled drops of this rarity.
+export function autoActionFor(rarityId) {
+  const slot = state.autoSell[rarityId];
+  if (!slot || !slot.unlocked || !slot.on) return 'off';
+  return slot.mode || 'sell';
+}
+
+export function setAutoMode(rarityId, mode) {
+  const slot = state.autoSell[rarityId];
+  if (!slot || !slot.unlocked) return false;
+  slot.mode = mode === 'salvage' ? 'salvage' : 'sell';
+  notify();
+  return true;
+}
+
+// Salvage a fresh drop directly (without going through the inventory).
+// Used by auto-salvage on a drop.
+export function salvageDrop(item) {
+  const qty = shardYield(item);
+  state.shards[item.rarity] = (state.shards[item.rarity] || 0) + qty;
+  notify();
+  return qty;
+}
+
 // === Salvage / shards ===
 
 export function shardYield(item) {

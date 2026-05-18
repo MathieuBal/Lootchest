@@ -378,6 +378,18 @@ button, input, select {
 .autosell-toggle.locked {
   color: var(--gold);
 }
+.autosell-controls {
+  display: flex;
+  gap: 4px;
+}
+.autosell-mode {
+  cursor: pointer;
+  padding: 4px 8px;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  font-size: 12px;
+}
+.autosell-mode:hover { border-color: var(--accent); }
 
 /* === Dungeon panel === */
 .dungeon-header {

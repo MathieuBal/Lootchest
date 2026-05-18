@@ -10,13 +10,13 @@ export const state = {
   opened: 0,
   inventory: [],          // array of Item
   equipment: {},          // { slotId: Item | null }
-  autoSell: {             // { rarityId: { unlocked: bool, on: bool } }
-    common: { unlocked: true,  on: false },
-    magic:  { unlocked: false, on: false },
-    rare:   { unlocked: false, on: false },
-    epic:   { unlocked: false, on: false },
-    legendary: { unlocked: false, on: false },
-    ancestral: { unlocked: false, on: false },
+  autoSell: {             // { rarityId: { unlocked: bool, on: bool, mode: 'sell'|'salvage' } }
+    common: { unlocked: true,  on: false, mode: 'sell' },
+    magic:  { unlocked: false, on: false, mode: 'sell' },
+    rare:   { unlocked: false, on: false, mode: 'sell' },
+    epic:   { unlocked: false, on: false, mode: 'sell' },
+    legendary: { unlocked: false, on: false, mode: 'sell' },
+    ancestral: { unlocked: false, on: false, mode: 'sell' },
   },
   combat: {
     currentFloor: 1,
@@ -111,8 +111,9 @@ export function replaceState(newState) {
   if (!state.autoSell) state.autoSell = {};
   for (const r of Object.keys(AUTOSELL_UNLOCK_COSTS)) {
     if (!state.autoSell[r]) {
-      state.autoSell[r] = { unlocked: r === 'common', on: false };
+      state.autoSell[r] = { unlocked: r === 'common', on: false, mode: 'sell' };
     }
+    if (!state.autoSell[r].mode) state.autoSell[r].mode = 'sell';
   }
   if (!state.combat) state.combat = { currentFloor: 1, highestUnlocked: 1, kills: 0, deaths: 0, bossKills: 0 };
   if (!state.pity) state.pity = { sinceLegendary: 0 };

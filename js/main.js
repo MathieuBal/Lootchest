@@ -27,6 +27,7 @@ import {
   sellItem, sellAllOfRarities, addToInventory, sellDrop,
   unlockAutoSell, toggleAutoSell, isAutoSellOn,
   salvageItem, salvageAllOfRarities, toggleLockItem,
+  autoActionFor, setAutoMode, salvageDrop,
 } from './inventory.js';
 import {
   renderAll, showDropPopup, hideDropPopup, getCurrentDrop,
@@ -136,10 +137,16 @@ btnOpen.addEventListener('click', () => {
     soundCoin();
   }
 
-  // Auto-sell?
-  if (isAutoSellOn(item.rarity)) {
+  // Auto-action?
+  const action = autoActionFor(item.rarity);
+  if (action === 'sell') {
     sellDrop(item);
     soundCoin();
+    return;
+  }
+  if (action === 'salvage') {
+    salvageDrop(item);
+    soundForge();
     return;
   }
   showDropPopup(item);
@@ -309,9 +316,13 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
   if (droppedItem) {
     appendCombatLog([`🎁 Drop : ${droppedItem.name}`], 'reward');
     soundDrop(droppedItem.rarity);
-    if (isAutoSellOn(droppedItem.rarity)) {
+    const action = autoActionFor(droppedItem.rarity);
+    if (action === 'sell') {
       sellDrop(droppedItem);
       soundCoin();
+    } else if (action === 'salvage') {
+      salvageDrop(droppedItem);
+      soundForge();
     } else {
       showDropPopup(droppedItem);
     }
@@ -336,6 +347,9 @@ document.getElementById('autosell-grid').addEventListener('click', (e) => {
     unlockAutoSell(rarity);
   } else if (btn.dataset.action === 'toggle') {
     toggleAutoSell(rarity);
+  } else if (btn.dataset.action === 'mode') {
+    const cur = state.autoSell[rarity]?.mode || 'sell';
+    setAutoMode(rarity, cur === 'sell' ? 'salvage' : 'sell');
   }
 });
 
