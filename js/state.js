@@ -25,6 +25,7 @@ export const state = {
     kills: 0,
     deaths: 0,
     bossKills: 0,
+    loopMode: false,        // auto re-fight current floor while it's already unlocked
   },
   pity: {
     sinceLegendary: 0,

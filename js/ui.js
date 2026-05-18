@@ -417,6 +417,17 @@ function renderDungeon() {
   document.getElementById('btn-floor-prev').disabled = floor <= 1;
   document.getElementById('btn-floor-next').disabled = floor >= state.combat.highestUnlocked;
 
+  // Loop mode button : enabled only if current floor has been beaten already
+  const loopBtn = document.getElementById('btn-loop');
+  if (loopBtn) {
+    const beaten = floor < state.combat.highestUnlocked;
+    loopBtn.disabled = !beaten;
+    loopBtn.classList.toggle('btn-loop-on', !!state.combat.loopMode && beaten);
+    loopBtn.textContent = state.combat.loopMode && beaten ? '🔁 Boucle ON' : '🔁 Boucle';
+    if (!beaten) loopBtn.title = "Bats l'étage une fois pour débloquer le mode boucle";
+    else loopBtn.title = state.combat.loopMode ? 'Boucle active — combat auto. Clic pour stopper.' : 'Active le combat en boucle sur cet étage';
+  }
+
   const biome = biomeForFloor(floor);
   document.getElementById('dungeon-biome').textContent = `${biome.emoji} ${biome.name}`;
 

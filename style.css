@@ -99,6 +99,26 @@ button, input, select {
   border: 1px solid #ff3050;
 }
 .btn-open-cost { font-size: 9px; color: #ffd060; margin-left: 4px; }
+.fight-row { display: flex; gap: 6px; align-items: stretch; }
+.fight-row .btn-big { flex: 1; }
+.btn-loop {
+  font-size: 10px;
+  padding: 0 12px;
+  background: linear-gradient(180deg, #1f2030 0%, #15161f 100%);
+  border: 2px solid var(--border);
+}
+.btn-loop:not(:disabled):hover { border-color: var(--accent); }
+.btn-loop:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-loop.btn-loop-on {
+  background: linear-gradient(180deg, #2a5a2a 0%, #1a3a1a 100%);
+  border-color: #6acc6a;
+  color: #b6f5b6;
+  animation: loopPulse 1.5s infinite;
+}
+@keyframes loopPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(106,204,106,0); }
+  50%      { box-shadow: 0 0 10px rgba(106,204,106,0.7); }
+}
 
 .hud-actions { display: flex; gap: 6px; }
 

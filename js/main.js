@@ -158,12 +158,23 @@ btnOpen.addEventListener('click', () => {
 
 // === Drop popup actions ===
 
+function resumeLoopIfActive() {
+  if (state.combat.loopMode && state.ui.leftTab === 'dungeon') {
+    setTimeout(() => {
+      if (state.combat.loopMode && !getCurrentDrop()) {
+        document.getElementById('btn-fight').click();
+      }
+    }, 250);
+  }
+}
+
 document.getElementById('btn-equip').addEventListener('click', () => {
   const drop = getCurrentDrop();
   if (!drop) return;
   equipItem(drop);
   soundClick();
   hideDropPopup();
+  resumeLoopIfActive();
 });
 
 document.getElementById('btn-keep').addEventListener('click', () => {
@@ -172,6 +183,7 @@ document.getElementById('btn-keep').addEventListener('click', () => {
   addToInventory(drop);
   soundClick();
   hideDropPopup();
+  resumeLoopIfActive();
 });
 
 document.getElementById('btn-sell').addEventListener('click', () => {
@@ -180,6 +192,7 @@ document.getElementById('btn-sell').addEventListener('click', () => {
   sellDrop(drop);
   soundCoin();
   hideDropPopup();
+  resumeLoopIfActive();
 });
 
 // === Upgrade chest ===
@@ -208,6 +221,27 @@ document.getElementById('btn-floor-next').addEventListener('click', () => {
 });
 
 // === Dungeon: fight ===
+
+document.getElementById('btn-loop').addEventListener('click', () => {
+  const floor = state.combat.currentFloor;
+  const beaten = floor < state.combat.highestUnlocked;
+  if (!beaten) return;
+  state.combat.loopMode = !state.combat.loopMode;
+  notify();
+  // Auto-trigger first fight if turning ON
+  if (state.combat.loopMode) {
+    setActiveTab('dungeon');
+    setTimeout(() => document.getElementById('btn-fight').click(), 200);
+  }
+});
+
+// Stop the loop when changing floor manually
+document.getElementById('btn-floor-prev').addEventListener('click', () => {
+  if (state.combat.loopMode) { state.combat.loopMode = false; notify(); }
+});
+document.getElementById('btn-floor-next').addEventListener('click', () => {
+  if (state.combat.loopMode) { state.combat.loopMode = false; notify(); }
+});
 
 document.getElementById('btn-fight').addEventListener('click', async () => {
   const fightBtn = document.getElementById('btn-fight');
@@ -360,6 +394,24 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
   await sleep(400);
   hideCombatBars();
   fightBtn.disabled = false;
+
+  // Loop mode : re-trigger fight if still in beaten-floor mode and player survived
+  if (state.combat.loopMode) {
+    const floor = state.combat.currentFloor;
+    const beaten = floor < state.combat.highestUnlocked;
+    if (!beaten || !result.won) {
+      // Lost the fight, or progressed onto a new highest floor → stop the loop
+      state.combat.loopMode = false;
+      notify();
+    } else if (state.ui.leftTab === 'dungeon') {
+      // Schedule next fight (let drop popup, if any, block us)
+      setTimeout(() => {
+        if (state.combat.loopMode && !getCurrentDrop()) {
+          document.getElementById('btn-fight').click();
+        }
+      }, 350);
+    }
+  }
 });
 
 function sleep(ms) {
