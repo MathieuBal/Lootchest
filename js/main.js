@@ -32,7 +32,7 @@ import {
 import {
   renderAll, showDropPopup, hideDropPopup, getCurrentDrop,
   flashRarity, startCooldownAnim, setOpenButtonEnabled,
-  showTooltip, moveTooltip, hideTooltip,
+  showTooltip, moveTooltip, hideTooltip, itemDetailsHTML,
   setActiveTab, appendCombatLog,
   showModal, hideModal, isModalOpen, showToast, setForgeSelected, getForgeSelectedId,
   showCombatBars, hideCombatBars, updateMonsterHp, updatePlayerHp,
@@ -93,6 +93,93 @@ function findItem(id) {
       || Object.values(state.equipment).find(i => i && i.id === id)
       || null;
 }
+
+// === Mobile detection ===
+// Coarse pointer = touch device (phone/tablet). Use to branch behavior.
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches;
+
+// === Mobile Action Sheet ===
+// On touch, replaces modifier-key interactions (Shift/Ctrl/Alt+click) with a
+// bottom sheet that surfaces all item actions in large, tappable buttons.
+
+let _sheetItem = null;
+let _sheetSlot = null; // non-null when opened from an equipped slot
+
+function showItemActionSheet(item, fromSlot = null) {
+  _sheetItem = item;
+  _sheetSlot = fromSlot;
+
+  const sheet = document.getElementById('action-sheet');
+  sheet.querySelector('.action-sheet-item-info').innerHTML = itemDetailsHTML(item);
+
+  const equipBtn = document.getElementById('action-equip');
+  equipBtn.textContent = fromSlot ? 'Déséquiper' : 'Équiper';
+
+  const lockBtn = document.getElementById('action-lock');
+  lockBtn.textContent = item.locked ? '🔓 Déverrouiller' : '🔒 Verrouiller';
+
+  const sellBtn    = document.getElementById('action-sell');
+  const salvageBtn = document.getElementById('action-salvage');
+  sellBtn.disabled    = !!item.locked;
+  salvageBtn.disabled = !!item.locked;
+
+  // Hide equip button for accessories that aren't directly equippable via the sheet
+  // (all item types are equippable, so show it always)
+  equipBtn.style.display = '';
+
+  sheet.classList.remove('hidden');
+}
+
+function hideActionSheet() {
+  document.getElementById('action-sheet').classList.add('hidden');
+  _sheetItem = null;
+  _sheetSlot = null;
+}
+
+document.getElementById('action-sheet').querySelector('.action-sheet-backdrop')
+  .addEventListener('click', hideActionSheet);
+
+document.getElementById('action-cancel').addEventListener('click', hideActionSheet);
+
+document.getElementById('action-equip').addEventListener('click', () => {
+  if (!_sheetItem) return;
+  if (_sheetSlot) {
+    unequipSlot(_sheetSlot);
+  } else {
+    equipItem(_sheetItem);
+    soundClick();
+  }
+  hideActionSheet();
+});
+
+document.getElementById('action-sell').addEventListener('click', () => {
+  if (!_sheetItem) return;
+  const earned = sellItem(_sheetItem);
+  if (earned > 0) soundCoin();
+  hideActionSheet();
+});
+
+document.getElementById('action-salvage').addEventListener('click', () => {
+  if (!_sheetItem) return;
+  const qty = salvageItem(_sheetItem);
+  if (qty > 0) soundForge();
+  hideActionSheet();
+});
+
+document.getElementById('action-lock').addEventListener('click', () => {
+  if (!_sheetItem) return;
+  const locked = toggleLockItem(_sheetItem.id);
+  soundClick();
+  document.getElementById('action-lock').textContent = locked ? '🔓 Déverrouiller' : '🔒 Verrouiller';
+  document.getElementById('action-sell').disabled    = locked;
+  document.getElementById('action-salvage').disabled = locked;
+  // Refresh item info display
+  const fresh = findItem(_sheetItem.id);
+  if (fresh) {
+    _sheetItem = fresh;
+    document.querySelector('#action-sheet .action-sheet-item-info').innerHTML = itemDetailsHTML(fresh);
+  }
+});
 
 // === Open chest ===
 
@@ -438,13 +525,23 @@ document.getElementById('autosell-grid').addEventListener('click', (e) => {
   }
 });
 
-// === Inventory: click on item = sell with shift, equip otherwise ===
+// === Inventory: click on item ===
+// Desktop: click=equip, Shift+click=sell, Ctrl+click=salvage, Alt+click=lock
+// Mobile (touch): click opens action sheet with all options
 
 document.getElementById('inventory-grid').addEventListener('click', (e) => {
   const icon = e.target.closest('[data-item-id]');
   if (!icon) return;
   const item = findItem(icon.dataset.itemId);
   if (!item) return;
+
+  // On touch devices, open action sheet for all interactions
+  if (isTouchDevice() && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    showItemActionSheet(item);
+    return;
+  }
+
+  // Desktop modifier-key interactions
   if (e.altKey) {
     const locked = toggleLockItem(item.id);
     soundClick();
@@ -475,14 +572,20 @@ document.getElementById('inventory-grid').addEventListener('click', (e) => {
   }
 });
 
-// === Equipment: click on equipped slot = unequip ===
+// === Equipment: click on equipped slot ===
+// Desktop: click = unequip
+// Mobile: click = action sheet (shows item details + unequip/sell/salvage buttons)
 
 document.getElementById('equipment-grid').addEventListener('click', (e) => {
   const slotEl = e.target.closest('.equipment-slot');
   if (!slotEl) return;
   const slotId = slotEl.dataset.slotId;
   if (!slotId) return;
-  if (state.equipment[slotId]) {
+  const equipped = state.equipment[slotId];
+  if (!equipped) return;
+  if (isTouchDevice()) {
+    showItemActionSheet(equipped, slotId);
+  } else {
     unequipSlot(slotId);
   }
 });
@@ -541,9 +644,11 @@ document.getElementById('btn-salvage-filter').addEventListener('click', () => {
   }
 });
 
-// === Tooltip on hover (delegation) ===
+// === Tooltip on hover (desktop only — mobile uses action sheet) ===
 
 document.body.addEventListener('mousemove', (e) => {
+  // Skip on touch/coarse-pointer devices; action sheet handles item info there
+  if (isTouchDevice()) return;
   const icon = e.target.closest('[data-item-id]');
   if (icon) {
     const item = findItem(icon.dataset.itemId);

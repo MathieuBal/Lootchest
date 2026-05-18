@@ -2,7 +2,9 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>Lootchest</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -395,6 +397,22 @@
 
   <!-- TOOLTIP -->
   <div id="tooltip" class="tooltip hidden"></div>
+
+  <!-- MOBILE ACTION SHEET -->
+  <div id="action-sheet" class="action-sheet hidden" role="dialog" aria-modal="true">
+    <div class="action-sheet-backdrop"></div>
+    <div class="action-sheet-inner">
+      <div class="action-sheet-item-info"></div>
+      <hr class="action-sheet-sep" />
+      <div class="action-sheet-buttons">
+        <button class="btn btn-primary" id="action-equip">Équiper</button>
+        <button class="btn btn-gold" id="action-sell">Vendre</button>
+        <button class="btn" id="action-salvage">💎 Récupérer</button>
+        <button class="btn" id="action-lock">🔒 Verrouiller</button>
+      </div>
+      <button class="btn btn-danger" id="action-cancel" style="width:100%;margin-top:4px">✕ Annuler</button>
+    </div>
+  </div>
 
   <script type="module" src="js/main.js"></script>
 </body>
