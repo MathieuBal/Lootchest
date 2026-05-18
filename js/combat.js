@@ -1,6 +1,6 @@
 // Combat / dungeon logic. Resolution is instant (no per-turn animation in V1).
 import { state, notify } from './state.js';
-import { computeStats } from './character.js';
+import { computeStats, activeSetEffects } from './character.js';
 import { PLAYER_BASE, biomeForFloor } from './data.js';
 import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
@@ -51,6 +51,11 @@ export function resolveFight(monster) {
   // Skill context (active skills + per-fight state)
   const { active: activeSkills, states: skillStates } = buildSkillContext();
 
+  // Active set effects (4-piece bonuses)
+  const setEffectIds = new Set(activeSetEffects().map(e => e.id));
+  let phoenixUsed = false;       // phoenix_rebirth fires only once per combat
+  let shadowDodgeCharge = false; // shadow_strike: next attack after dodge guarantees crit
+
   function runHook(hookName, ctx) {
     const results = [];
     for (const s of activeSkills) {
@@ -95,21 +100,67 @@ export function resolveFight(monster) {
         if (h.result.label) mults.push({ emoji: h.skill.emoji, label: h.result.label });
       }
     }
+    // Set effect: shadow_strike → next attack after dodge is guaranteed crit
+    if (setEffectIds.has('shadow_strike') && shadowDodgeCharge) {
+      forceCrit = true;
+      shadowDodgeCharge = false;
+      mults.push({ emoji: '🌑', label: 'Frappe d\'ombre' });
+    }
+    // Set effect: dragon_breath → 15% chance to double damage (counts as fire)
+    let dragonProc = false;
+    if (setEffectIds.has('dragon_breath') && Math.random() < 0.15) {
+      dragonProc = true;
+      extraMult *= 2;
+      mults.push({ emoji: '🐉', label: 'Souffle dragon' });
+    }
     const isCrit = forceCrit || Math.random() < critChance;
     const hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + fireBonus * Math.random()) * extraMult);
     mHp = Math.max(0, mHp - hit);
     events.push({ type: 'player_hit', dmg: hit, isCrit, forceCrit, monsterHp: mHp, playerHp: pHp, mults });
+
+    // Set effect: lich_drain → heal 10% of damage dealt
+    if (setEffectIds.has('lich_drain') && hit > 0) {
+      const healed = Math.max(1, Math.round(hit * 0.10));
+      const before = pHp;
+      pHp = Math.min(playerMaxHp, pHp + healed);
+      if (pHp > before) {
+        events.push({ type: 'set_drain', amount: pHp - before, emoji: '🧪', playerHp: pHp, monsterHp: mHp });
+      }
+    }
     if (mHp <= 0) break;
+
+    // Set effect: frost_freeze → 20% per hit to skip monster's turn
+    if (setEffectIds.has('frost_freeze') && Math.random() < 0.20) {
+      events.push({ type: 'set_freeze', emoji: '❄', playerHp: pHp, monsterHp: mHp });
+      continue;
+    }
 
     // Monster attack: dodge hook
     const moHooks = runHook('onMonsterAttack', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
-    const dodged = moHooks.some(h => h.result.kind === 'dodge');
+    let dodged = moHooks.some(h => h.result.kind === 'dodge');
+    // Set effect: titan_wall → 15% pure dodge
+    if (!dodged && setEffectIds.has('titan_wall') && Math.random() < 0.15) {
+      dodged = true;
+      events.push({ type: 'set_dodge', emoji: '🛡', playerHp: pHp, monsterHp: mHp });
+    }
     if (dodged) {
-      events.push({ type: 'skill_dodge', playerHp: pHp, monsterHp: mHp });
+      if (setEffectIds.has('shadow_strike')) shadowDodgeCharge = true;
+      // Push the standard dodge event only if no set_dodge already
+      const last = events[events.length - 1];
+      if (!last || last.type !== 'set_dodge') {
+        events.push({ type: 'skill_dodge', playerHp: pHp, monsterHp: mHp });
+      }
       continue;
     }
     pHp = Math.max(0, pHp - monsterDmg);
     events.push({ type: 'monster_hit', dmg: monsterDmg, monsterHp: mHp, playerHp: pHp });
+
+    // Set effect: phoenix_rebirth → on lethal hit, revive once at 30% HP
+    if (setEffectIds.has('phoenix_rebirth') && !phoenixUsed && pHp <= 0) {
+      phoenixUsed = true;
+      pHp = Math.round(playerMaxHp * 0.30);
+      events.push({ type: 'set_rebirth', emoji: '🔥', amount: pHp, playerHp: pHp, monsterHp: mHp });
+    }
 
     // On-take-damage hook: reflect damage
     const takeHooks = runHook('onTakeDamage', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp, dmgTaken: monsterDmg });

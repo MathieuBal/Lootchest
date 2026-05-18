@@ -77,9 +77,17 @@ export function computeSetSummary() {
         activeBonuses.push(...bonuses.map(b => ({ ...b, threshold: parseInt(threshold) })));
       }
     }
-    result.push({ setId, setName: set.name, color: set.color, count, totalPieces, activeBonuses });
+    const effect = (count >= 4 && set.effect) ? set.effect : null;
+    result.push({ setId, setName: set.name, color: set.color, count, totalPieces, activeBonuses, effect });
   }
   return result;
+}
+
+// Returns array of active 4-piece effects { id, name, desc, setId } (set bonus tier 4).
+export function activeSetEffects() {
+  return computeSetSummary()
+    .filter(s => s.effect)
+    .map(s => ({ ...s.effect, setId: s.setId }));
 }
 
 // Just the flat bonus list (for computeStats)

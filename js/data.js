@@ -461,7 +461,9 @@ export const UNIQUE_LEGENDARIES = [
   },
 ];
 
-// === Sets (themed item collections with bonuses at 2/3/4 pieces) ===
+// === Sets (themed item collections with bonuses at 2/3/4 pieces + 4-piece unique effects) ===
+// Stat bonuses are boosted vs v1 (×1.5-2) so sets are competitive with affixes.
+// Each set also gets a unique 4-piece `effect` activated in combat (see combat.js).
 export const SETS = [
   {
     id: 'dragon', name: 'Dragon', color: '#ff5500',
@@ -472,10 +474,12 @@ export const SETS = [
       shield: { baseTypeId: 'tower', emoji: '🛡', name: 'Bouclier Dragonien' },
     },
     bonuses: {
-      2: [{ stat: 'fireDmg', value: 25, percent: true,  label: 'Dégâts feu' }],
-      3: [{ stat: 'damage',  value: 20, percent: false, label: 'Dégâts' }],
-      4: [{ stat: 'crit',    value: 25, percent: true,  label: 'Crit' }],
+      2: [{ stat: 'fireDmg', value: 40, percent: true,  label: 'Dégâts feu' }],
+      3: [{ stat: 'damage',  value: 35, percent: false, label: 'Dégâts' }],
+      4: [{ stat: 'crit',    value: 40, percent: true,  label: 'Crit' }],
     },
+    effect: { id: 'dragon_breath', name: 'Souffle dragon',
+              desc: '15% : ton attaque inflige le double de dégâts (feu)' },
   },
   {
     id: 'shadow', name: 'Ombre', color: '#8855ff',
@@ -486,10 +490,12 @@ export const SETS = [
       amulet: { baseTypeId: 'pendant', emoji: '📿', name: 'Pendentif de l\'Ombre' },
     },
     bonuses: {
-      2: [{ stat: 'speed',  value: 20, percent: true,  label: 'Vitesse' }],
-      3: [{ stat: 'crit',   value: 25, percent: true,  label: 'Crit' }],
-      4: [{ stat: 'damage', value: 30, percent: false, label: 'Dégâts' }],
+      2: [{ stat: 'speed',  value: 30, percent: true,  label: 'Vitesse' }],
+      3: [{ stat: 'crit',   value: 40, percent: true,  label: 'Crit' }],
+      4: [{ stat: 'damage', value: 50, percent: false, label: 'Dégâts' }],
     },
+    effect: { id: 'shadow_strike', name: 'Frappe d\'ombre',
+              desc: 'Après une esquive, la prochaine attaque est garantie crit' },
   },
   {
     id: 'titan', name: 'Titan', color: '#ffaa00',
@@ -500,10 +506,12 @@ export const SETS = [
       ring:   { baseTypeId: 'signet', emoji: '💎', name: 'Anneau Titan' },
     },
     bonuses: {
-      2: [{ stat: 'armor',    value: 25, percent: false, label: 'Armure' }],
-      3: [{ stat: 'vitality', value: 40, percent: false, label: 'Vie' }],
-      4: [{ stat: 'damage',   value: 25, percent: false, label: 'Dégâts' }],
+      2: [{ stat: 'armor',    value: 50, percent: false, label: 'Armure' }],
+      3: [{ stat: 'vitality', value: 80, percent: false, label: 'Vie' }],
+      4: [{ stat: 'damage',   value: 40, percent: false, label: 'Dégâts' }],
     },
+    effect: { id: 'titan_wall', name: 'Mur immuable',
+              desc: '15% : esquive complète de l\'attaque ennemie' },
   },
   {
     id: 'phoenix', name: 'Phénix', color: '#ff3000',
@@ -514,10 +522,12 @@ export const SETS = [
       amulet: { baseTypeId: 'pendant', emoji: '📿', name: 'Pendentif du Phénix' },
     },
     bonuses: {
-      2: [{ stat: 'fireDmg', value: 30, percent: true,  label: 'Dégâts feu' }],
-      3: [{ stat: 'vitality', value: 35, percent: false, label: 'Vie' }],
-      4: [{ stat: 'damage',  value: 25, percent: false, label: 'Dégâts' }],
+      2: [{ stat: 'fireDmg', value: 50, percent: true,  label: 'Dégâts feu' }],
+      3: [{ stat: 'vitality', value: 70, percent: false, label: 'Vie' }],
+      4: [{ stat: 'damage',  value: 40, percent: false, label: 'Dégâts' }],
     },
+    effect: { id: 'phoenix_rebirth', name: 'Renaissance',
+              desc: 'Une fois par combat, revis avec 30% de tes PV max' },
   },
   {
     id: 'frost', name: 'Givre', color: '#5ad8e8',
@@ -528,10 +538,12 @@ export const SETS = [
       amulet: { baseTypeId: 'talisman', emoji: '🧿', name: 'Talisman Glacial' },
     },
     bonuses: {
-      2: [{ stat: 'speed', value: 25, percent: true,  label: 'Vitesse' }],
-      3: [{ stat: 'crit',  value: 20, percent: true,  label: 'Crit' }],
-      4: [{ stat: 'damage', value: 30, percent: false, label: 'Dégâts' }],
+      2: [{ stat: 'speed', value: 40, percent: true,  label: 'Vitesse' }],
+      3: [{ stat: 'crit',  value: 35, percent: true,  label: 'Crit' }],
+      4: [{ stat: 'damage', value: 50, percent: false, label: 'Dégâts' }],
     },
+    effect: { id: 'frost_freeze', name: 'Gel',
+              desc: '20% par hit : le monstre est gelé et saute son tour' },
   },
   {
     id: 'lich', name: 'Liche', color: '#3aaa50',
@@ -542,10 +554,12 @@ export const SETS = [
       ring:   { baseTypeId: 'signet', emoji: '💎', name: 'Sceau de la Liche' },
     },
     bonuses: {
-      2: [{ stat: 'vitality', value: 30, percent: false, label: 'Vie' }],
-      3: [{ stat: 'fireDmg',  value: 25, percent: true,  label: 'Dégâts feu' }],
-      4: [{ stat: 'crit',     value: 30, percent: true,  label: 'Crit' }],
+      2: [{ stat: 'vitality', value: 60, percent: false, label: 'Vie' }],
+      3: [{ stat: 'fireDmg',  value: 40, percent: true,  label: 'Dégâts feu' }],
+      4: [{ stat: 'crit',     value: 50, percent: true,  label: 'Crit' }],
     },
+    effect: { id: 'lich_drain', name: 'Drain de vie',
+              desc: '10% des dégâts infligés te soignent' },
   },
 ];
 

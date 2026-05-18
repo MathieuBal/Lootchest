@@ -249,6 +249,24 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
       floatingDamage(ev.amount, c.x, c.y, 'normal');
       floatingText(`${ev.emoji} Épines`, c.x, c.y - 40, '#5acc6a');
       soundHit();
+    } else if (ev.type === 'set_drain') {
+      updatePlayerHp(ev.playerHp, playerMaxHp);
+      const c = getCharacterAvatarCenter();
+      floatingText(`${ev.emoji} +${ev.amount}`, c.x, c.y - 30, '#5acc6a');
+    } else if (ev.type === 'set_freeze') {
+      const c = getMonsterEmojiCenter();
+      floatingText(`${ev.emoji} GEL`, c.x, c.y, '#5ad8e8');
+      soundClick();
+    } else if (ev.type === 'set_dodge') {
+      const c = getCharacterAvatarCenter();
+      floatingText(`${ev.emoji} BLOC`, c.x, c.y, '#ffaa00');
+      soundClick();
+    } else if (ev.type === 'set_rebirth') {
+      updatePlayerHp(ev.playerHp, playerMaxHp);
+      const c = getCharacterAvatarCenter();
+      floatingText(`${ev.emoji} RENAISSANCE`, c.x, c.y - 40, '#ff3000');
+      spawnParticles('#ff3000', c.x, c.y, 25);
+      soundWin();
     }
   }
 

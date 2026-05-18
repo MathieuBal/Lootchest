@@ -494,6 +494,14 @@ function renderCharacter() {
       ).join('');
       setEl.appendChild(bonusList);
     }
+    if (s.effect) {
+      const eff = document.createElement('div');
+      eff.className = 'set-effect';
+      eff.style.borderColor = s.color;
+      eff.innerHTML = `<div class="set-effect-name" style="color:${s.color}">(4) ✦ ${s.effect.name}</div>
+                       <div class="set-effect-desc">${s.effect.desc}</div>`;
+      setEl.appendChild(eff);
+    }
   }
 
   const stats = computeStats();
