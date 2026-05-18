@@ -403,10 +403,13 @@ function renderDungeon() {
   const monster = generateMonster(floor);
   const card = document.getElementById('monster-card');
   card.classList.toggle('boss', monster.isBoss);
+  card.classList.toggle('elite', !!monster.isElite);
   // Apply biome background to the monster card
   card.style.background = biome.bgGradient;
   document.getElementById('monster-emoji').textContent = monster.emoji;
-  document.getElementById('monster-name').textContent = monster.name;
+  document.getElementById('monster-name').innerHTML = monster.isElite
+    ? `${monster.eliteIcon || '⭐'} <span class="monster-name-elite">${monster.name}</span>`
+    : monster.name;
   document.getElementById('monster-stats').innerHTML =
     `<span>❤️ ${monster.hp}</span><span>⚔️ ${monster.damage}</span><span>🛡 ${monster.armor}</span><span>💰 ${monster.goldReward}</span>`;
   const diff = predictDifficulty(monster);

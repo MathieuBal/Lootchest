@@ -19,6 +19,14 @@ function pickStableMonster(floor) {
   return biome.monsters[floor % biome.monsters.length];
 }
 
+// Elite monster prefixes: each adds a name marker + stat skew. Not used for bosses.
+const ELITE_VARIANTS = [
+  { id: 'savage',     prefix: 'Sauvage',     icon: '⚡', dmgMult: 1.6, hpMult: 1.2 },
+  { id: 'armored',    prefix: 'Cuirassé',    icon: '🛡', armorBonus: 8, hpMult: 1.4 },
+  { id: 'frenzied',   prefix: 'Frénétique',  icon: '💢', dmgMult: 1.3, hpMult: 1.1, goldMult: 1.5 },
+  { id: 'colossal',   prefix: 'Colossal',    icon: '💀', hpMult: 2.0, dmgMult: 1.1 },
+];
+
 export function generateMonster(floor) {
   const boss = isBossFloor(floor);
   const base = pickStableMonster(floor);
@@ -27,15 +35,33 @@ export function generateMonster(floor) {
   const hard = !!state.settings?.hardMode;
   const hardCombat = hard ? 1.5 : 1;
   const hardLoot = hard ? 1.5 : 1;
+
+  // Elite: 8% chance on non-boss floors, scales with floor for extra danger/reward
+  let elite = null;
+  if (!boss && floor >= 3 && Math.random() < 0.08) {
+    elite = ELITE_VARIANTS[Math.floor(Math.random() * ELITE_VARIANTS.length)];
+  }
+  const elDmg = elite?.dmgMult || 1;
+  const elHp  = elite?.hpMult  || 1;
+  const elArm = elite?.armorBonus || 0;
+  const elGold = elite?.goldMult || 1;
+
   return {
-    name: boss ? `${base.name} (BOSS)` : base.name,
+    name: boss
+      ? `${base.name} (BOSS)`
+      : (elite ? `${elite.prefix} ${base.name}` : base.name),
     emoji: base.emoji,
-    hp: Math.round(base.hpBase * scale * bossMult * hardCombat),
-    damage: Math.round(base.dmgBase * scale * bossMult * hardCombat),
-    armor: Math.round((base.armorBase || 0) * scale * bossMult * hardCombat),
-    goldReward: Math.round(base.goldBase * scale * (boss ? 6 : 1) * hardLoot),
-    dropChance: boss ? 1 : Math.min(0.85, (0.05 + floor * 0.015) * hardLoot),
+    eliteIcon: elite?.icon || null,
+    eliteId: elite?.id || null,
+    hp: Math.round(base.hpBase * scale * bossMult * hardCombat * elHp),
+    damage: Math.round(base.dmgBase * scale * bossMult * hardCombat * elDmg),
+    armor: Math.round(((base.armorBase || 0) + elArm) * scale * bossMult * hardCombat),
+    goldReward: Math.round(base.goldBase * scale * (boss ? 6 : (elite ? 2.5 : 1)) * hardLoot * elGold),
+    dropChance: boss
+      ? 1
+      : Math.min(0.95, (0.05 + floor * 0.015) * hardLoot * (elite ? 2.5 : 1)),
     isBoss: boss,
+    isElite: !!elite,
     isHard: hard,
     floor,
   };
@@ -241,9 +267,11 @@ export function attemptCurrentFloor() {
     state.gold += monster.goldReward;
 
     if (Math.random() < monster.dropChance) {
-      const itemTier = Math.min(5, Math.max(1, Math.ceil(floor / 5)));
+      const baseTier = Math.min(5, Math.max(1, Math.ceil(floor / 5)));
+      // Elite/boss drop at one tier higher (capped to 5)
+      const itemTier = Math.min(5, baseTier + (monster.isBoss || monster.isElite ? 1 : 0));
       droppedItem = generateItem(itemTier);
-      if (monster.isBoss && (droppedItem.rarity === 'common' || droppedItem.rarity === 'magic')) {
+      if ((monster.isBoss || monster.isElite) && (droppedItem.rarity === 'common' || droppedItem.rarity === 'magic')) {
         droppedItem = generateItem(itemTier);
       }
     }

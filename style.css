@@ -446,6 +446,11 @@ button, input, select {
   box-shadow: inset 0 0 12px rgba(255,122,26,0.2), 0 0 8px rgba(255,122,26,0.4);
   animation: pulse-leg 1.6s infinite;
 }
+.monster-card.elite {
+  border-color: var(--r-epic);
+  box-shadow: inset 0 0 10px rgba(179,91,214,0.2), 0 0 6px rgba(179,91,214,0.4);
+}
+.monster-name-elite { color: var(--r-epic); text-shadow: 0 0 4px var(--r-epic); }
 .monster-emoji {
   font-size: 56px;
   margin-bottom: 4px;
