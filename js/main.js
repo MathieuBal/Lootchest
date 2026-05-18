@@ -7,6 +7,7 @@ import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
 import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
 import { upgradeTalent } from './talents.js';
+import { refreshBoardIfEmpty, rerollBounty, onBountyComplete } from './bounties.js';
 import { CURRENCY_BY_ID } from './data.js';
 import { canAscend, ascend } from './prestige.js';
 import {
@@ -56,6 +57,19 @@ renderAll();
 setActiveTab(state.ui?.leftTab || 'chest');
 // First check on load (in case of imported save with already-met conditions)
 checkAchievements();
+// Initialise bounty board if empty
+refreshBoardIfEmpty();
+onBountyComplete(b => {
+  const rewardSummary = [`+${b.reward.gold.toLocaleString('fr-FR')} 💰`];
+  for (const [orbId, q] of Object.entries(b.reward.orbs)) {
+    const orb = CURRENCY_BY_ID[orbId];
+    if (orb) rewardSummary.push(`${q} ${orb.emoji}`);
+  }
+  if (b.reward.talents) rewardSummary.push(`${b.reward.talents} 🌳`);
+  showToast(b.emoji, `Contrat complété : ${b.name}`, rewardSummary.join(' · '));
+  soundAchievement();
+  spawnParticles(b.diffColor, window.innerWidth / 2, window.innerHeight / 3, 30);
+});
 
 // Unlock audio on first user interaction (browser autoplay policy)
 document.addEventListener('click', unlockAudio, { once: true });
@@ -429,6 +443,19 @@ document.getElementById('btn-skills').addEventListener('click', () => {
   showModal('skills-modal');
 });
 
+document.getElementById('btn-bounties').addEventListener('click', () => {
+  refreshBoardIfEmpty();
+  showModal('bounties-modal');
+});
+
+document.getElementById('bounties-list').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-bounty-reroll]');
+  if (!btn || btn.disabled) return;
+  if (rerollBounty(btn.dataset.bountyReroll)) {
+    soundClick();
+  }
+});
+
 document.getElementById('talents-grid').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-talent]');
   if (!btn || btn.disabled) return;
@@ -599,6 +626,7 @@ document.addEventListener('keydown', (e) => {
     if (isModalOpen('talents-modal')) { hideModal('talents-modal'); return; }
     if (isModalOpen('codex-modal')) { hideModal('codex-modal'); return; }
     if (isModalOpen('skills-modal')) { hideModal('skills-modal'); return; }
+    if (isModalOpen('bounties-modal')) { hideModal('bounties-modal'); return; }
   } else if (e.key === ' ' || e.code === 'Space') {
     // Spacebar: chest open OR fight depending on current tab
     if (getCurrentDrop()) return;

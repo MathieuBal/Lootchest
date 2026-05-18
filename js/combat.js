@@ -5,6 +5,7 @@ import { PLAYER_BASE, biomeForFloor } from './data.js';
 import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
 import { buildSkillContext } from './skills.js';
+import { trackProgress as bountyTrack, syncAbsoluteProgress as bountySync } from './bounties.js';
 
 export function isBossFloor(floor) {
   return floor > 0 && floor % 5 === 0;
@@ -171,8 +172,10 @@ export function attemptCurrentFloor() {
   let milestone = null;
   if (result.won) {
     state.combat.kills += 1;
+    bountyTrack('kill_monsters', 1);
     if (monster.isBoss) {
       state.combat.bossKills += 1;
+      bountyTrack('kill_bosses', 1);
       // Codex: track boss kills per biome
       const biome = biomeForFloor(floor);
       if (state.codex && biome) {
@@ -193,6 +196,7 @@ export function attemptCurrentFloor() {
     if (floor === state.combat.highestUnlocked) {
       state.combat.highestUnlocked = floor + 1;
       advanced = true;
+      bountySync();
       // Milestone crossed? Only on first-time progression beyond a multiple of 25.
       if (floor > 0 && floor % 25 === 0) {
         const level = floor / 25;

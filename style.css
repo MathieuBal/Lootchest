@@ -1052,6 +1052,75 @@ button, input, select {
 .codex-name { font-size: 10px; margin-bottom: 3px; }
 .codex-flavor { font-size: 8px; color: var(--text-dim); line-height: 1.4; }
 
+/* === Bounties === */
+.bounties-hint {
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+.bounties-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+.bounty {
+  background: var(--bg-panel-light);
+  border: 3px solid var(--border);
+  padding: 12px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  transition: opacity 250ms, transform 250ms;
+}
+.bounty.completed {
+  opacity: 0.4;
+  transform: scale(0.96);
+}
+.bounty-emoji { font-size: 28px; }
+.bounty-info { min-width: 0; }
+.bounty-name {
+  font-size: 11px;
+  margin-bottom: 3px;
+}
+.bounty-difficulty {
+  font-size: 8px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-left: 4px;
+}
+.bounty-desc {
+  font-size: 9px;
+  color: var(--text);
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+.bounty-bar {
+  height: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  margin-bottom: 3px;
+  overflow: hidden;
+}
+.bounty-bar-fill {
+  height: 100%;
+  transition: width 200ms ease-out;
+}
+.bounty-progress {
+  font-size: 8px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.bounty-rewards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 9px;
+}
+.bounty-reward-chip { white-space: nowrap; }
+.bounty-reroll { white-space: nowrap; }
+
 /* === Skills grid === */
 .skills-hint {
   font-size: 9px;

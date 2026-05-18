@@ -261,6 +261,8 @@ export const ACHIEVEMENTS = [
   { id: 'codex_bosses',   emoji: '👑', name: 'Tueur de boss légendaire', desc: 'Tue tous les boss de biome',   check: s => Object.keys(s.codex?.bosses || {}).length >= 5,  reward: { gold: 100000 } },
   { id: 'skills_4',       emoji: '📜', name: 'Tacticien',           desc: 'Débloque 4 compétences de combat', check: s => skillsUnlocked(s) >= 4, reward: { gold: 10000 } },
   { id: 'skills_all',     emoji: '🥇', name: 'Maître tacticien',     desc: 'Débloque toutes les compétences',  check: s => skillsUnlocked(s) >= 8, reward: { gold: 100000 } },
+  { id: 'bounty_10',      emoji: '📋', name: 'Contractuel',          desc: 'Complète 10 contrats',             check: s => (s.bounties?.completed || 0) >= 10,  reward: { gold: 5000 } },
+  { id: 'bounty_100',     emoji: '📜', name: 'Mercenaire d\'élite',   desc: 'Complète 100 contrats',            check: s => (s.bounties?.completed || 0) >= 100, reward: { gold: 50000 } },
 ];
 
 // Helper for skills achievements (avoids circular import; reimplements unlock checks).

@@ -27,6 +27,7 @@
       <button id="btn-achievements" class="btn btn-small" title="Succès">🏆 <span id="ach-count">0</span>/<span id="ach-total">0</span></button>
       <button id="btn-talents" class="btn btn-small" title="Arbre de talents">🌳 <span id="talent-points-badge">0</span></button>
       <button id="btn-skills" class="btn btn-small" title="Compétences de combat">📜 <span id="skills-count-badge">0</span></button>
+      <button id="btn-bounties" class="btn btn-small btn-primary" title="Contrats actifs">📋 <span id="bounties-badge">0</span></button>
       <button id="btn-codex" class="btn btn-small" title="Codex de découvertes">📖</button>
       <button id="btn-forge" class="btn btn-small" title="Forge">⚒ Forge</button>
       <button id="btn-ascend" class="btn btn-small" title="Ascension">🌟 Ascension</button>
@@ -172,6 +173,18 @@
     </div>
   </div>
 
+  <!-- BOUNTIES MODAL -->
+  <div id="bounties-modal" class="modal hidden">
+    <div class="modal-inner modal-wide">
+      <div class="modal-header">
+        <h2>📋 Contrats actifs</h2>
+        <button class="btn btn-small modal-close" data-close="bounties-modal">✕</button>
+      </div>
+      <div class="bounties-hint">3 contrats simultanés. Complets : <span id="bounties-completed">0</span>. Rerouler un contrat coûte <span id="bounty-reroll-cost">5 000</span> 💰.</div>
+      <div class="bounties-list" id="bounties-list"></div>
+    </div>
+  </div>
+
   <!-- SKILLS MODAL -->
   <div id="skills-modal" class="modal hidden">
     <div class="modal-inner modal-wide">
@@ -293,6 +306,9 @@
         <h3>🌟 Ascension &amp; 🌳 Talents</h3>
         <p>À T5 coffre + étage 50, ascensionne : tu repars de zéro mais gagnes un niveau de prestige permanent (+25% drops rares et or par niveau, cumulatif). Chaque ascension débloque un nouveau tier de coffre (T6 Stellaire → T10 Divin) et donne +2 points de talent.</p>
         <p>Chaque palier d'étage du donjon (25/50/75/100…) donne aussi +1 point de talent. Bouton 🌳 dans le HUD pour ouvrir l'arbre.</p>
+
+        <h3>📋 Contrats</h3>
+        <p>3 contrats actifs en permanence avec un objectif précis (tuer X monstres, looter Y légendaires, atteindre l'étage Z, etc.) et des récompenses (or, orbes, points de talent). Tu progresses automatiquement en jouant ; les contrats se renouvellent à la complétion. Reroll : 5 000 💰 par contrat.</p>
 
         <h3>📜 Compétences de combat</h3>
         <p>8 compétences passives qui s'activent automatiquement en combat quand leurs conditions de stats/talents sont remplies. Exemples : Soin Vital (vie ≥ 60), Boule de Feu (dégâts feu ≥ 30%), Esquive (vitesse ≥ 25%), Coup Mortel (dégâts ≥ 80). Bouton 📜 dans le HUD pour voir l'arbre complet.</p>
