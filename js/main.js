@@ -305,6 +305,10 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
       updatePlayerHp(ev.playerHp, playerMaxHp);
       const c = getCharacterAvatarCenter();
       floatingText(`${ev.emoji} +${ev.amount}`, c.x, c.y - 30, '#5acc6a');
+    } else if (ev.type === 'set_heal') {
+      updatePlayerHp(ev.playerHp, playerMaxHp);
+      const c = getCharacterAvatarCenter();
+      floatingText(`${ev.emoji} +${ev.amount}`, c.x, c.y - 30, '#7adc4a');
     } else if (ev.type === 'set_freeze') {
       const c = getMonsterEmojiCenter();
       floatingText(`${ev.emoji} GEL`, c.x, c.y, '#5ad8e8');
