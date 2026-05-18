@@ -16,9 +16,10 @@
     <div class="hud-title">⛓ LOOTCHEST ⛓</div>
     <div class="hud-stats">
       <span class="hud-stat" title="Or"><span class="icon">💰</span><span id="hud-gold">0</span></span>
+      <span class="hud-stat hud-keys" id="hud-keys-stat" title="Clés de coffre — farmées au donjon"><span class="icon">🗝</span><span id="hud-keys">0</span></span>
       <span class="hud-stat" title="Tier du coffre"><span class="icon">📦</span>T<span id="hud-tier">1</span> <span id="hud-tier-name">Bois</span></span>
       <button class="hud-stat hud-stat-btn" id="btn-stats-breakdown" title="Voir détail des stats"><span class="icon">⚡</span><span id="hud-power">0</span></button>
-      <span class="hud-stat" title="Coffres ouverts"><span class="icon">🗝</span><span id="hud-opened">0</span></span>
+      <span class="hud-stat" title="Coffres ouverts"><span class="icon">📦</span><span id="hud-opened">0</span></span>
       <span class="hud-stat hud-prestige" id="hud-prestige" title="Niveau de prestige" style="display:none"><span class="icon">🌟</span>Niv <span id="hud-prestige-level">0</span></span>
       <span class="hud-stat hud-hard" id="hud-hard" title="Mode Cauchemar actif" style="display:none">💀 Cauchemar</span>
       <span class="hud-stat hud-shards" id="hud-shards" title="Cristaux (par rareté)" style="display:none"></span>
@@ -60,7 +61,8 @@
             <div class="pity-bar"><div id="pity-fill" class="pity-fill"></div></div>
           </div>
         </div>
-        <button id="btn-open" class="btn btn-primary btn-big">Ouvrir le coffre</button>
+        <button id="btn-open" class="btn btn-primary btn-big">🗝 Ouvrir le coffre <span class="btn-open-cost">(1)</span></button>
+        <div id="no-keys-hint" class="no-keys-hint hidden">⚠ Pas de clé — combats au donjon pour en farmer</div>
         <div class="chest-cooldown"><div id="cooldown-bar" class="cooldown-bar"></div></div>
 
         <div class="chest-upgrade">
@@ -112,7 +114,10 @@
           <div class="hp-label" id="player-hp-label">0/0</div>
         </div>
 
-        <button id="btn-fight" class="btn btn-primary btn-big">⚔ Combattre</button>
+        <div class="fight-row">
+          <button id="btn-fight" class="btn btn-primary btn-big">⚔ Combattre</button>
+          <button id="btn-loop" class="btn btn-loop" title="Combat en boucle — débloqué une fois l'étage passé une fois">🔁 Boucle</button>
+        </div>
 
         <div class="combat-log" id="combat-log">
           <div class="combat-log-empty">Aucun combat. Affronte le monstre !</div>
@@ -317,8 +322,11 @@
         <h3>📦 Coffre</h3>
         <p>Ouvre des coffres pour looter des objets (rareté aléatoire). Vends-les ou équipe-les. Avec assez d'or, améliore le tier de ton coffre pour de meilleurs drops. Légendaire garanti tous les 50 coffres (jauge sous le coffre).</p>
 
+        <h3>🗝 Clés</h3>
+        <p>Les coffres sont <strong>verrouillés</strong> : ouvrir = 1 clé. Tu farmes les clés au donjon : <strong>~30% par monstre</strong>, <strong>1 garantie sur Elite</strong>, <strong>3 sur boss</strong>. Démarre avec 10 clés.</p>
+
         <h3>⚔️ Donjon</h3>
-        <p>Affronte des monstres pour gagner or et items. Plus l'étage est haut, plus c'est dur — mais les drops valent plus. Tous les 5 étages : <strong>boss</strong> (×2.6 stats, drop garanti). Si tu meurs, aucune pénalité — reviens plus fort.</p>
+        <p>Affronte des monstres pour gagner or, items et clés. Plus l'étage est haut, plus c'est dur — mais les drops valent plus. Tous les 5 étages : <strong>boss</strong> (×2.6 stats, drop garanti, 3 clés). <strong>Elite</strong> (8% sur ≥3, hors boss) : monstre à bordure violette, x2.5 récompenses. Mode <strong>🔁 Boucle</strong> sur tout étage déjà battu = combat auto en continu, s'arrête à la défaite.</p>
         <p>Le donjon traverse 5 <strong>biomes</strong> : 🌲 Forêt (1-10) → 🪨 Cavernes (11-20) → 🏰 Château (21-30) → 🔥 Enfer (31-40) → 🌌 Néant (41+). Chaque biome a ses monstres, son boss, et son ambiance.</p>
 
         <h3>⚒ Forge (style Path of Exile)</h3>

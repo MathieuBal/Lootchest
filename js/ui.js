@@ -134,6 +134,12 @@ function statLabel(key) {
 function renderHUD() {
   const tier = getCurrentTier();
   document.getElementById('hud-gold').textContent = state.gold.toLocaleString('fr-FR');
+  const keysEl = document.getElementById('hud-keys');
+  if (keysEl) {
+    keysEl.textContent = (state.keys || 0).toLocaleString('fr-FR');
+    const statEl = document.getElementById('hud-keys-stat');
+    if (statEl) statEl.classList.toggle('hud-keys-empty', (state.keys || 0) === 0);
+  }
   document.getElementById('hud-tier').textContent = tier.tier;
   document.getElementById('hud-tier-name').textContent = tier.name;
   document.getElementById('hud-opened').textContent = state.opened.toLocaleString('fr-FR');
@@ -386,6 +392,14 @@ function renderChest() {
       ? `Légendaire garanti dans ${remaining} coffre${remaining > 1 ? 's' : ''}`
       : `Légendaire garanti au prochain coffre !`;
   }
+
+  // No-keys hint + button gating (only override if we're not in cooldown)
+  const hint = document.getElementById('no-keys-hint');
+  if (hint) hint.classList.toggle('hidden', (state.keys || 0) > 0);
+  const openBtn = document.getElementById('btn-open');
+  if (openBtn && openBtn.dataset.cooling !== '1') {
+    openBtn.disabled = (state.keys || 0) === 0;
+  }
 }
 
 // === Dungeon panel ===
@@ -402,6 +416,17 @@ function renderDungeon() {
   // Floor selector buttons
   document.getElementById('btn-floor-prev').disabled = floor <= 1;
   document.getElementById('btn-floor-next').disabled = floor >= state.combat.highestUnlocked;
+
+  // Loop mode button : enabled only if current floor has been beaten already
+  const loopBtn = document.getElementById('btn-loop');
+  if (loopBtn) {
+    const beaten = floor < state.combat.highestUnlocked;
+    loopBtn.disabled = !beaten;
+    loopBtn.classList.toggle('btn-loop-on', !!state.combat.loopMode && beaten);
+    loopBtn.textContent = state.combat.loopMode && beaten ? '🔁 Boucle ON' : '🔁 Boucle';
+    if (!beaten) loopBtn.title = "Bats l'étage une fois pour débloquer le mode boucle";
+    else loopBtn.title = state.combat.loopMode ? 'Boucle active — combat auto. Clic pour stopper.' : 'Active le combat en boucle sur cet étage';
+  }
 
   const biome = biomeForFloor(floor);
   document.getElementById('dungeon-biome').textContent = `${biome.emoji} ${biome.name}`;
@@ -738,7 +763,9 @@ export function startCooldownAnim() {
 }
 
 export function setOpenButtonEnabled(enabled) {
-  document.getElementById('btn-open').disabled = !enabled;
+  // Also gate by key availability
+  const hasKeys = (state.keys || 0) >= 1;
+  document.getElementById('btn-open').disabled = !enabled || !hasKeys;
 }
 
 // === Master render ===

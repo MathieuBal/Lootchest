@@ -106,7 +106,11 @@ btnOpen.addEventListener('click', () => {
   flashRarity(item.rarity);
   startCooldownAnim();
   setOpenButtonEnabled(false);
-  setTimeout(() => setOpenButtonEnabled(true), CHEST_OPEN_COOLDOWN_MS);
+  btnOpen.dataset.cooling = '1';
+  setTimeout(() => {
+    btnOpen.dataset.cooling = '0';
+    setOpenButtonEnabled(true);
+  }, CHEST_OPEN_COOLDOWN_MS);
 
   // Drop sound + particle effects per rarity
   soundDrop(item.rarity);
@@ -154,12 +158,23 @@ btnOpen.addEventListener('click', () => {
 
 // === Drop popup actions ===
 
+function resumeLoopIfActive() {
+  if (state.combat.loopMode && state.ui.leftTab === 'dungeon') {
+    setTimeout(() => {
+      if (state.combat.loopMode && !getCurrentDrop()) {
+        document.getElementById('btn-fight').click();
+      }
+    }, 250);
+  }
+}
+
 document.getElementById('btn-equip').addEventListener('click', () => {
   const drop = getCurrentDrop();
   if (!drop) return;
   equipItem(drop);
   soundClick();
   hideDropPopup();
+  resumeLoopIfActive();
 });
 
 document.getElementById('btn-keep').addEventListener('click', () => {
@@ -168,6 +183,7 @@ document.getElementById('btn-keep').addEventListener('click', () => {
   addToInventory(drop);
   soundClick();
   hideDropPopup();
+  resumeLoopIfActive();
 });
 
 document.getElementById('btn-sell').addEventListener('click', () => {
@@ -176,6 +192,7 @@ document.getElementById('btn-sell').addEventListener('click', () => {
   sellDrop(drop);
   soundCoin();
   hideDropPopup();
+  resumeLoopIfActive();
 });
 
 // === Upgrade chest ===
@@ -204,6 +221,27 @@ document.getElementById('btn-floor-next').addEventListener('click', () => {
 });
 
 // === Dungeon: fight ===
+
+document.getElementById('btn-loop').addEventListener('click', () => {
+  const floor = state.combat.currentFloor;
+  const beaten = floor < state.combat.highestUnlocked;
+  if (!beaten) return;
+  state.combat.loopMode = !state.combat.loopMode;
+  notify();
+  // Auto-trigger first fight if turning ON
+  if (state.combat.loopMode) {
+    setActiveTab('dungeon');
+    setTimeout(() => document.getElementById('btn-fight').click(), 200);
+  }
+});
+
+// Stop the loop when changing floor manually
+document.getElementById('btn-floor-prev').addEventListener('click', () => {
+  if (state.combat.loopMode) { state.combat.loopMode = false; notify(); }
+});
+document.getElementById('btn-floor-next').addEventListener('click', () => {
+  if (state.combat.loopMode) { state.combat.loopMode = false; notify(); }
+});
 
 document.getElementById('btn-fight').addEventListener('click', async () => {
   const fightBtn = document.getElementById('btn-fight');
@@ -305,12 +343,20 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
     const c = getMonsterEmojiCenter();
     spawnParticles(monster.isBoss ? '#ff7a1a' : '#ffe14a', c.x, c.y, monster.isBoss ? 40 : 20);
     floatingText(`+${monster.goldReward} 💰`, c.x, c.y - 30, '#f5c842');
+    if (monster.keyDrop) {
+      floatingText(`+${monster.keyDrop} 🗝`, c.x + 40, c.y - 30, '#ffd060');
+      spawnParticles('#ffd060', c.x + 40, c.y, 10);
+      soundCoin();
+    }
     if (monster.isBoss) screenShake(8, 350);
   } else {
     soundLose();
     screenShake(10, 400);
   }
 
+  if (result.won && monster.keyDrop) {
+    appendCombatLog([`🗝 +${monster.keyDrop} clé${monster.keyDrop > 1 ? 's' : ''}`], 'reward');
+  }
   if (advanced) appendCombatLog([`🆙 Nouvel étage débloqué : ${state.combat.highestUnlocked}`], 'reward');
 
   if (milestone) {
@@ -348,6 +394,24 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
   await sleep(400);
   hideCombatBars();
   fightBtn.disabled = false;
+
+  // Loop mode : re-trigger fight if still in beaten-floor mode and player survived
+  if (state.combat.loopMode) {
+    const floor = state.combat.currentFloor;
+    const beaten = floor < state.combat.highestUnlocked;
+    if (!beaten || !result.won) {
+      // Lost the fight, or progressed onto a new highest floor → stop the loop
+      state.combat.loopMode = false;
+      notify();
+    } else if (state.ui.leftTab === 'dungeon') {
+      // Schedule next fight (let drop popup, if any, block us)
+      setTimeout(() => {
+        if (state.combat.loopMode && !getCurrentDrop()) {
+          document.getElementById('btn-fight').click();
+        }
+      }, 350);
+    }
+  }
 });
 
 function sleep(ms) {

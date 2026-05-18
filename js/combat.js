@@ -300,6 +300,16 @@ export function attemptCurrentFloor() {
     monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier());
     state.gold += monster.goldReward;
 
+    // 🗝 Key drops: boss = 3 guaranteed, elite = 1 guaranteed, normal = 30% chance
+    let keyDrop = 0;
+    if (monster.isBoss) keyDrop = 3;
+    else if (monster.isElite) keyDrop = 1;
+    else if (Math.random() < 0.30) keyDrop = 1;
+    if (keyDrop > 0) {
+      state.keys = (state.keys || 0) + keyDrop;
+      monster.keyDrop = keyDrop;
+    }
+
     if (Math.random() < monster.dropChance) {
       const baseTier = Math.min(5, Math.max(1, Math.ceil(floor / 5)));
       // Elite/boss drop at one tier higher (capped to 5)
