@@ -279,8 +279,19 @@ button, input, select {
 .pity-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, var(--r-magic), var(--r-legendary));
-  transition: width 200ms;
+  background: linear-gradient(90deg, var(--r-magic), var(--r-rare));
+  transition: width 200ms, background 200ms;
+}
+.pity-fill.pity-fill-warm {
+  background: linear-gradient(90deg, var(--r-rare), var(--r-epic));
+}
+.pity-fill.pity-fill-hot {
+  background: linear-gradient(90deg, var(--r-epic), var(--r-legendary));
+  animation: pityPulse 1.2s ease-in-out infinite;
+}
+@keyframes pityPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(0,0,0,0); }
+  50%      { box-shadow: 0 0 8px var(--r-legendary); }
 }
 
 @keyframes shake {

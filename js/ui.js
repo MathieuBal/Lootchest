@@ -15,7 +15,7 @@ import { CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID } from './data.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, UNIQUE_LEGENDARIES, BIOMES } from './data.js';
-import { rankOf, canUpgradeTalent } from './talents.js';
+import { rankOf, canUpgradeTalent, pityReduction } from './talents.js';
 import { SKILLS, getActiveSkills } from './skills.js';
 import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG } from './sprites.js';
@@ -331,11 +331,23 @@ function renderChest() {
     document.getElementById('btn-upgrade').style.display = 'none';
   }
 
-  // Pity bar
-  const pityCount = Math.min(PITY_THRESHOLD, state.pity.sinceLegendary);
+  // Pity bar : seuil effectif (réduit par talent pityMaster), couleur progressive
+  const effectivePity = Math.max(5, PITY_THRESHOLD - pityReduction());
+  const pityCount = Math.min(effectivePity, state.pity.sinceLegendary);
+  const pityRatio = pityCount / effectivePity;
   document.getElementById('pity-count').textContent = pityCount;
-  document.getElementById('pity-max').textContent = PITY_THRESHOLD;
-  document.getElementById('pity-fill').style.width = `${(pityCount / PITY_THRESHOLD) * 100}%`;
+  document.getElementById('pity-max').textContent = effectivePity;
+  const pityFill = document.getElementById('pity-fill');
+  pityFill.style.width = `${pityRatio * 100}%`;
+  pityFill.classList.toggle('pity-fill-hot', pityRatio >= 0.8);
+  pityFill.classList.toggle('pity-fill-warm', pityRatio >= 0.5 && pityRatio < 0.8);
+  const wrap = document.querySelector('.pity-bar-wrap');
+  if (wrap) {
+    const remaining = effectivePity - pityCount;
+    wrap.title = remaining > 0
+      ? `Légendaire garanti dans ${remaining} coffre${remaining > 1 ? 's' : ''}`
+      : `Légendaire garanti au prochain coffre !`;
+  }
 }
 
 // === Dungeon panel ===
