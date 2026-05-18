@@ -97,7 +97,7 @@ export function maxSetCount() {
 
 // Compute the contribution of a single item to the player's Power Score
 // (treating it as if equipped in isolation, base + affixes).
-function itemPowerContribution(item) {
+export function itemPowerContribution(item) {
   let p = 0;
   for (const [k, v] of Object.entries(item.baseStats || {})) {
     p += v * (POWER_WEIGHTS[k] || 0);

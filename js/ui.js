@@ -5,7 +5,7 @@ import {
   AUTOSELL_UNLOCK_COSTS, CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, PITY_THRESHOLD,
   ACHIEVEMENTS,
 } from './data.js';
-import { computeStats, computePower, computeSetSummary } from './character.js';
+import { computeStats, computePower, computeSetSummary, itemPowerContribution } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining, nextTierLockedBy } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
 import { biomeForFloor } from './data.js';
@@ -92,6 +92,7 @@ export function itemDetailsHTML(item) {
     }
   }
   const flavor = item.flavor ? `<div class="tt-flavor">"${item.flavor}"</div>` : '';
+  const power = Math.round(itemPowerContribution(item));
   return `
     <div class="tt-name rt-${r.cssClass}">${item.name}${uniqueBadge}</div>
     <div class="tt-slot">T${item.chestTier} · ${slot.name} — <span class="rarity-tag rt-${r.cssClass}">${r.name}</span></div>
@@ -99,6 +100,7 @@ export function itemDetailsHTML(item) {
     ${baseLines}
     ${affixLines}
     ${flavor}
+    <div class="tt-power">⚡ Puissance : ${power.toLocaleString('fr-FR')}</div>
     <div class="tt-value">💰 ${item.goldValue} or · 💎 ${shardYield(item)} ${r.name}</div>
     ${comparisonHTML(item)}
   `;

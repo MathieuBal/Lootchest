@@ -990,7 +990,8 @@ button, input, select {
 .mc-status.ok      { color: #6acc6a; }
 .mc-status.present { color: var(--text-dim); font-style: italic; }
 .mc-status.full    { color: #ff8090; }
-.tooltip .tt-value { color: var(--gold); margin-top: 6px; border-top: 1px solid var(--border); padding-top: 4px; }
+.tooltip .tt-power { color: #d4a3ff; margin-top: 6px; padding-top: 4px; border-top: 1px solid var(--border); font-weight: bold; }
+.tooltip .tt-value { color: var(--gold); margin-top: 4px; }
 
 /* === Modal === */
 .modal {
