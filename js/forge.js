@@ -1,7 +1,7 @@
 // PoE-style forge: each action consumes a specific orb (currency).
 // Reroll+ keeps using crystals (shards) for guaranteed high-roll affixes.
 import { state, notify } from './state.js';
-import { RARITIES, RARITY_BY_ID, AFFIXES, AFFIXES_BY_ID, AFFIX_LIMITS } from './data.js';
+import { RARITIES, RARITY_BY_ID, AFFIXES, AFFIXES_BY_ID, AFFIX_LIMITS, maxAllowedChestTier } from './data.js';
 import {
   rebuildItemAffixesOnly, rebuildItemAffixesPlus, rebuildItemAffixesAndStats,
 } from './loot.js';
@@ -252,10 +252,10 @@ export function applyMasterCraft(item, affixId) {
   return true;
 }
 
-// 🪨 Pierre de Forge: increase item chestTier by +1 (max T5), re-scales stats.
+// 🪨 Pierre de Forge: increase item chestTier by +1 (cap = max coffre débloqué), re-scales stats.
 export function canPierre(item) {
   if (!item) return false;
-  if (item.chestTier >= 5) return false;
+  if (item.chestTier >= maxAllowedChestTier(state.prestige?.level || 0)) return false;
   return (state.orbs.pierre || 0) >= 1;
 }
 export function applyPierre(item) {
