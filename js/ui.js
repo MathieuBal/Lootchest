@@ -5,7 +5,7 @@ import {
   AUTOSELL_UNLOCK_COSTS, CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, PITY_THRESHOLD,
   ACHIEVEMENTS,
 } from './data.js';
-import { computeStats, computePower, computeSetSummary, itemPowerContribution } from './character.js';
+import { computeStats, computePower, computeSetSummary, itemPowerContribution, computeStatsBreakdown } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining, nextTierLockedBy } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
 import { biomeForFloor } from './data.js';
@@ -766,6 +766,51 @@ export function renderAchievementsModal() {
   }
 }
 
+// === Stats Breakdown Modal ===
+
+const STAT_ORDER = ['vitality', 'damage', 'armor', 'crit', 'fireDmg', 'speed', 'goldFind'];
+const STAT_PERCENT = { crit: true, fireDmg: true, speed: true, goldFind: true };
+
+export function renderStatsBreakdownModal() {
+  const stats = computeStats();
+  document.getElementById('breakdown-power').textContent = computePower(stats).toLocaleString('fr-FR');
+  const body = document.getElementById('breakdown-body');
+  const breakdown = computeStatsBreakdown();
+  const parts = [];
+  for (const k of STAT_ORDER) {
+    const sources = breakdown[k];
+    const total = stats[k] || 0;
+    if (!sources || sources.length === 0) {
+      parts.push(`
+        <div class="breakdown-stat breakdown-empty">
+          <div class="breakdown-stat-header">
+            <span class="breakdown-stat-name">${statLabel(k)}</span>
+            <span class="breakdown-stat-total">${total}${STAT_PERCENT[k] ? '%' : ''}</span>
+          </div>
+          <div class="breakdown-stat-empty">Aucune source</div>
+        </div>
+      `);
+      continue;
+    }
+    const rows = sources
+      .sort((a, b) => b.value - a.value)
+      .map(s => `<div class="breakdown-row">
+          <span class="breakdown-row-src">${s.source}</span>
+          <span class="breakdown-row-val">+${s.value}${STAT_PERCENT[k] ? '%' : ''}</span>
+        </div>`).join('');
+    parts.push(`
+      <div class="breakdown-stat">
+        <div class="breakdown-stat-header">
+          <span class="breakdown-stat-name">${statLabel(k)}</span>
+          <span class="breakdown-stat-total">${total}${STAT_PERCENT[k] ? '%' : ''}</span>
+        </div>
+        ${rows}
+      </div>
+    `);
+  }
+  body.innerHTML = parts.join('');
+}
+
 // === Toasts ===
 
 export function showToast(emoji, title, subtitle) {
@@ -939,6 +984,7 @@ export function showModal(id) {
   if (id === 'codex-modal') renderCodexModal();
   if (id === 'skills-modal') renderSkillsModal();
   if (id === 'bounties-modal') renderBountiesModal();
+  if (id === 'stats-breakdown-modal') renderStatsBreakdownModal();
 }
 
 export function renderCodexModal() {
@@ -1049,4 +1095,5 @@ export function renderAll() {
   if (isModalOpen('codex-modal')) renderCodexModal();
   if (isModalOpen('skills-modal')) renderSkillsModal();
   if (isModalOpen('bounties-modal')) renderBountiesModal();
+  if (isModalOpen('stats-breakdown-modal')) renderStatsBreakdownModal();
 }

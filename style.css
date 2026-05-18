@@ -81,6 +81,8 @@ button, input, select {
 }
 
 .hud-stat .icon { font-size: 14px; }
+.hud-stat-btn { font-family: inherit; font-size: inherit; color: var(--text); cursor: pointer; }
+.hud-stat-btn:hover { background: var(--bg-panel); border-color: var(--accent); }
 
 .hud-actions { display: flex; gap: 6px; }
 
@@ -1463,6 +1465,42 @@ button, input, select {
   .drop-item .item-icon-big { width: 60px; height: 60px; font-size: 42px; }
   .toast-container { right: 6px; top: 60px; max-width: 70vw; }
 }
+/* === Stats Breakdown modal === */
+.breakdown-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.breakdown-stat {
+  background: var(--bg-panel-light);
+  border: 2px solid var(--border);
+  padding: 8px 10px;
+}
+.breakdown-stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+.breakdown-stat-name { font-weight: bold; color: var(--accent); font-size: 10px; }
+.breakdown-stat-total { color: var(--gold); font-weight: bold; font-size: 11px; }
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 8px;
+  color: var(--text-dim);
+  padding: 2px 0;
+}
+.breakdown-row-src { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.breakdown-row-val { color: var(--text); font-weight: bold; flex-shrink: 0; }
+.breakdown-stat-empty { font-size: 8px; color: var(--text-dim); font-style: italic; }
+.breakdown-empty { opacity: 0.4; }
+
 @media (max-width: 480px) {
   .hud-title { font-size: 9px; letter-spacing: 1px; }
   .tab { padding: 6px 8px; font-size: 9px; }

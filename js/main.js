@@ -431,6 +431,10 @@ document.getElementById('btn-achievements').addEventListener('click', () => {
   showModal('achievements-modal');
 });
 
+document.getElementById('btn-stats-breakdown').addEventListener('click', () => {
+  showModal('stats-breakdown-modal');
+});
+
 document.getElementById('btn-talents').addEventListener('click', () => {
   showModal('talents-modal');
 });

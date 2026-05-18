@@ -145,3 +145,30 @@ export function computePower(stats) {
   }
   return Math.round(p);
 }
+
+// Returns { statKey: [{ source: string, value: number }, ...], ... }
+// Used by the stats breakdown modal to show where each stat comes from.
+export function computeStatsBreakdown() {
+  const breakdown = {};
+  const add = (stat, source, value) => {
+    if (!value) return;
+    if (!breakdown[stat]) breakdown[stat] = [];
+    breakdown[stat].push({ source, value });
+  };
+  for (const slot of SLOTS) {
+    const item = state.equipment[slot.id];
+    if (!item) continue;
+    for (const [k, v] of Object.entries(item.baseStats || {})) {
+      add(k, `${slot.emoji} ${item.name} (base)`, v);
+    }
+    for (const aff of item.affixes || []) {
+      add(aff.stat, `${slot.emoji} ${item.name} · ${aff.label}`, aff.value);
+    }
+  }
+  for (const s of computeSetSummary()) {
+    for (const b of s.activeBonuses) {
+      add(b.stat, `🎭 Set ${s.setName} (${b.threshold} pièces)`, b.value);
+    }
+  }
+  return breakdown;
+}
