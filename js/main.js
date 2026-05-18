@@ -687,6 +687,9 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 // === Close popup with ESC ===
 
 document.addEventListener('keydown', (e) => {
+  // Ignore when typing in an input
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
   if (e.key === 'Escape') {
     const drop = getCurrentDrop();
     if (drop) {
@@ -694,23 +697,39 @@ document.addEventListener('keydown', (e) => {
       hideDropPopup();
       return;
     }
-    if (isModalOpen('forge-modal')) { hideModal('forge-modal'); return; }
-    if (isModalOpen('achievements-modal')) { hideModal('achievements-modal'); return; }
-    if (isModalOpen('help-modal')) { hideModal('help-modal'); return; }
-    if (isModalOpen('talents-modal')) { hideModal('talents-modal'); return; }
-    if (isModalOpen('codex-modal')) { hideModal('codex-modal'); return; }
-    if (isModalOpen('skills-modal')) { hideModal('skills-modal'); return; }
-    if (isModalOpen('bounties-modal')) { hideModal('bounties-modal'); return; }
-  } else if (e.key === ' ' || e.code === 'Space') {
-    // Spacebar: chest open OR fight depending on current tab
+    const modals = ['forge-modal','achievements-modal','help-modal','talents-modal','codex-modal','skills-modal','bounties-modal','settings-modal','stats-breakdown-modal'];
+    for (const id of modals) {
+      if (isModalOpen(id)) { hideModal(id); return; }
+    }
+    return;
+  }
+
+  // Block all other shortcuts when a modal is open
+  const anyModal = ['forge-modal','achievements-modal','help-modal','talents-modal','codex-modal','skills-modal','bounties-modal','settings-modal','stats-breakdown-modal']
+    .some(id => isModalOpen(id));
+  if (anyModal) return;
+
+  if (e.key === ' ' || e.code === 'Space') {
     if (getCurrentDrop()) return;
-    // Ignore if focus on input (file/select)
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
     e.preventDefault();
     if (state.ui.leftTab === 'dungeon') {
       document.getElementById('btn-fight').click();
     } else if (canOpen()) {
       btnOpen.click();
     }
+    return;
   }
+  // Tab switch
+  if (e.key === '1') { setActiveTab('chest'); return; }
+  if (e.key === '2') { setActiveTab('dungeon'); return; }
+  // Modal shortcuts (no Ctrl/Alt to avoid clashing with browser)
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  const lower = e.key.toLowerCase();
+  if (lower === 'i') { showModal('forge-modal'); return; }   // (I)nventaire de forge
+  if (lower === 't') { showModal('talents-modal'); return; } // (T)alents
+  if (lower === 'a') { showModal('achievements-modal'); return; } // (A)chievements
+  if (lower === 'b') { showModal('bounties-modal'); return; } // (B)ounties
+  if (lower === 'c') { showModal('codex-modal'); return; }   // (C)odex
+  if (lower === 'k') { showModal('skills-modal'); return; }  // s(K)ills
+  if (lower === 's') { showModal('stats-breakdown-modal'); return; } // (S)tats
 });
