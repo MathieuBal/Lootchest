@@ -1,15 +1,11 @@
 // Inventory + selling + auto-sell unlock logic.
 import { state, notify } from './state.js';
-import { AUTOSELL_UNLOCK_COSTS, PRESTIGE_BONUS_PER_LEVEL } from './data.js';
+import { AUTOSELL_UNLOCK_COSTS, prestigeGoldMult } from './data.js';
 import { sellMultiplier, shardBonus } from './talents.js';
 import { trackProgress as bountyTrack } from './bounties.js';
 
-function prestigeGoldMult() {
-  return Math.pow(PRESTIGE_BONUS_PER_LEVEL.goldMult, state.prestige?.level || 0);
-}
-
 function sellPrice(item, goldFindBonus) {
-  return Math.round(item.goldValue * (1 + goldFindBonus / 100) * prestigeGoldMult() * sellMultiplier());
+  return Math.round(item.goldValue * (1 + goldFindBonus / 100) * prestigeGoldMult(state.prestige?.level) * sellMultiplier());
 }
 
 export function addToInventory(item) {

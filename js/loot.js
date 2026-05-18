@@ -3,7 +3,7 @@ import {
   RARITIES, RARITY_BY_ID, SLOTS, BASE_TYPES, AFFIXES,
   NAME_PREFIXES, NAME_SUFFIXES, CHEST_TIERS, PITY_THRESHOLD,
   UNIQUE_LEGENDARIES, UNIQUE_DROP_CHANCE,
-  SETS, SET_DROP_CHANCE, PRESTIGE_BONUS_PER_LEVEL,
+  SETS, SET_DROP_CHANCE, prestigeRareMult,
 } from './data.js';
 import { state } from './state.js';
 import { rollWeaponParts, hasCompositionFor } from './parts.js';
@@ -35,7 +35,7 @@ function pickRandom(arr) {
 export function rollRarity(chestTier) {
   const tier = CHEST_TIERS.find(t => t.tier === chestTier);
   const prestigeLevel = state.prestige?.level || 0;
-  const rareMult = Math.pow(PRESTIGE_BONUS_PER_LEVEL.rareDropWeightMult, prestigeLevel) * rareDropMultiplier();
+  const rareMult = prestigeRareMult(prestigeLevel) * rareDropMultiplier();
   const rarePlusSet = new Set(['rare', 'epic', 'legendary', 'ancestral']);
   const entries = Object.entries(tier.weights)
     .filter(([_, w]) => w > 0)

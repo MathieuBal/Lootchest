@@ -560,10 +560,15 @@ export const PRESTIGE_REQUIREMENTS = {
   minFloor: 50,
 };
 
+// Bonus per prestige level. Switched from exponential (1.25^L) to linear (1 + 0.15*L)
+// to keep endgame challenging — exponential made prestige 5 trivialize content.
 export const PRESTIGE_BONUS_PER_LEVEL = {
-  rareDropWeightMult: 1.25,
-  goldMult: 1.25,
+  rareDropWeightMult: 0.15, // additive per level
+  goldMult: 0.15,           // additive per level
 };
+
+export function prestigeGoldMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.goldMult * (level || 0); }
+export function prestigeRareMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.rareDropWeightMult * (level || 0); }
 
 
 // Auto-sell unlock costs (per rarity). Common is free from start.
