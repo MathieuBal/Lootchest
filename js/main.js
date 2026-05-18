@@ -26,7 +26,7 @@ import {
 import {
   sellItem, sellAllOfRarities, addToInventory, sellDrop,
   unlockAutoSell, toggleAutoSell, isAutoSellOn,
-  salvageItem, salvageAllOfRarities,
+  salvageItem, salvageAllOfRarities, toggleLockItem,
 } from './inventory.js';
 import {
   renderAll, showDropPopup, hideDropPopup, getCurrentDrop,
@@ -344,16 +344,30 @@ document.getElementById('inventory-grid').addEventListener('click', (e) => {
   if (!icon) return;
   const item = findItem(icon.dataset.itemId);
   if (!item) return;
+  if (e.altKey) {
+    const locked = toggleLockItem(item.id);
+    soundClick();
+    const r = icon.getBoundingClientRect();
+    floatingText(locked ? '🔒 Verrouillé' : '🔓 Déverrouillé', r.left + r.width / 2, r.top, '#ffe14a');
+    return;
+  }
   if (e.ctrlKey || e.metaKey) {
     const qty = salvageItem(item);
     if (qty > 0) {
       soundForge();
       const r = icon.getBoundingClientRect();
       floatingText(`+${qty} 💎`, r.left + r.width / 2, r.top, '#a0e0ff');
+    } else if (item.locked) {
+      const r = icon.getBoundingClientRect();
+      floatingText('🔒 Verrouillé', r.left + r.width / 2, r.top, '#ff7a1a');
     }
   } else if (e.shiftKey) {
-    sellItem(item);
-    soundCoin();
+    const earned = sellItem(item);
+    if (earned > 0) soundCoin();
+    else if (item.locked) {
+      const r = icon.getBoundingClientRect();
+      floatingText('🔒 Verrouillé', r.left + r.width / 2, r.top, '#ff7a1a');
+    }
   } else {
     equipItem(item);
     soundClick();

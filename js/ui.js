@@ -28,8 +28,9 @@ export function itemIconHTML(item, { big = false } = {}) {
   const inner = itemVisualHTML(item, big);
   const setBadge = item.setId ? setBadgeHTML(item, big) : '';
   const uniqueBadge = item.uniqueId && !item.setId ? '<div class="item-unique-chip" title="Unique">✨</div>' : '';
+  const lockBadge = item.locked ? '<div class="item-lock-chip" title="Verrouillé (Alt+clic pour déverrouiller)">🔒</div>' : '';
   const setStyle = item.setId && SETS_BY_ID[item.setId] ? ` style="--set-color: ${SETS_BY_ID[item.setId].color}"` : '';
-  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}${item.setId ? ' item-icon-set' : ''}"${setStyle} data-item-id="${item.id}">${inner}${setBadge}${uniqueBadge}</div>`;
+  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}${item.setId ? ' item-icon-set' : ''}${item.locked ? ' item-icon-locked' : ''}"${setStyle} data-item-id="${item.id}">${inner}${setBadge}${uniqueBadge}${lockBadge}</div>`;
 }
 
 function setBadgeHTML(item, big) {

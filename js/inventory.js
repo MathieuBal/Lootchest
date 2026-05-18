@@ -24,6 +24,8 @@ export function removeFromInventory(itemId) {
 }
 
 export function sellItem(item) {
+  // Refuse to sell locked items.
+  if (item.locked) return 0;
   // Find the item in inventory or equipment, remove it, give gold.
   let removed = removeFromInventory(item.id);
   if (!removed) {
@@ -66,7 +68,7 @@ export function sellAllOfRarities(raritySet) {
   const goldFindBonus = computeGoldFindBonus();
   const remaining = [];
   for (const item of state.inventory) {
-    if (raritySet.has(item.rarity)) {
+    if (raritySet.has(item.rarity) && !item.locked) {
       totalEarned += sellPrice(item, goldFindBonus);
       sold += 1;
     } else {
@@ -82,6 +84,14 @@ export function sellAllOfRarities(raritySet) {
   if (sold > 0) bountyTrack('sell_items', sold);
   notify();
   return totalEarned;
+}
+
+export function toggleLockItem(itemId) {
+  const it = state.inventory.find(i => i.id === itemId);
+  if (!it) return null;
+  it.locked = !it.locked;
+  notify();
+  return it.locked;
 }
 
 export function unlockAutoSell(rarityId) {
@@ -116,6 +126,7 @@ export function shardYield(item) {
 }
 
 export function salvageItem(item) {
+  if (item.locked) return 0;
   let removed = removeFromInventory(item.id);
   if (!removed) {
     for (const [slotId, it] of Object.entries(state.equipment)) {
@@ -138,7 +149,7 @@ export function salvageAllOfRarities(raritySet) {
   const yields = {};
   const remaining = [];
   for (const item of state.inventory) {
-    if (raritySet.has(item.rarity)) {
+    if (raritySet.has(item.rarity) && !item.locked) {
       const q = shardYield(item);
       yields[item.rarity] = (yields[item.rarity] || 0) + q;
       totalShards += q;

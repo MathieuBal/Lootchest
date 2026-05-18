@@ -840,6 +840,16 @@ button, input, select {
 }
 .item-icon-big .item-set-chip { width: 20px; height: 20px; font-size: 12px; bottom: 4px; right: 4px; }
 .item-icon-big .item-unique-chip { font-size: 16px; top: 4px; right: 4px; }
+.item-lock-chip {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 11px;
+  pointer-events: none;
+  text-shadow: 0 0 4px #000;
+}
+.item-icon-big .item-lock-chip { font-size: 16px; top: 4px; left: 4px; }
+.item-icon-locked { box-shadow: 0 0 0 2px #ffe14a, inset 0 0 8px rgba(255,225,74,0.3); }
 .slot-visual { display: flex; align-items: center; justify-content: center; flex: 1; min-height: 0; }
 .slot-visual svg { display: block; max-width: 80%; max-height: 80%; }
 .equipment-slot { font-size: 24px; padding: 4px; }
