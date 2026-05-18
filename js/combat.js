@@ -63,6 +63,7 @@ export function generateMonster(floor) {
     isBoss: boss,
     isElite: !!elite,
     isHard: hard,
+    mechanic: boss ? (base.mechanic || null) : null,
     floor,
   };
 }
@@ -103,8 +104,32 @@ export function resolveFight(monster) {
   let turns = 0;
   const maxTurns = 200;
   const events = [];
+  const mechanic = monster.mechanic;
   while (turns < maxTurns) {
     turns++;
+
+    // Boss mechanic: triggers at turn start (regen / burn / shield / enrage / phaseShift)
+    let monsterDmgMod = 1;
+    let monsterShielded = false;
+    if (mechanic) {
+      if (mechanic.type === 'regen' && mHp > 0 && mHp < monsterMaxHp) {
+        const heal = Math.max(1, Math.round(monsterMaxHp * (mechanic.percentPerTurn || 0.05)));
+        mHp = Math.min(monsterMaxHp, mHp + heal);
+        events.push({ type: 'boss_regen', amount: heal, monsterHp: mHp, playerHp: pHp });
+      } else if (mechanic.type === 'burn') {
+        const burn = mechanic.dmgPerTurn || 5;
+        pHp = Math.max(0, pHp - burn);
+        events.push({ type: 'boss_burn', amount: burn, playerHp: pHp, monsterHp: mHp });
+        if (pHp <= 0) break;
+      } else if (mechanic.type === 'shieldCycle') {
+        monsterShielded = (turns % (mechanic.everyTurns || 3)) === 0;
+        if (monsterShielded) events.push({ type: 'boss_shield', monsterHp: mHp, playerHp: pHp });
+      } else if (mechanic.type === 'enrage') {
+        if (mHp / monsterMaxHp <= (mechanic.triggerHpPct || 0.3)) monsterDmgMod = mechanic.dmgMult || 2;
+      } else if (mechanic.type === 'phaseShift') {
+        if ((turns % (mechanic.everyTurns || 4)) === 0) monsterDmgMod = mechanic.dmgMult || 1.5;
+      }
+    }
 
     // Turn start: heal, etc.
     const startHooks = runHook('onTurnStart', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
@@ -144,9 +169,10 @@ export function resolveFight(monster) {
       mults.push({ emoji: '🐉', label: 'Souffle dragon' });
     }
     const isCrit = forceCrit || Math.random() < critChance;
-    const hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + fireBonus * Math.random()) * extraMult);
+    let hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + fireBonus * Math.random()) * extraMult);
+    if (monsterShielded) hit = 0;
     mHp = Math.max(0, mHp - hit);
-    events.push({ type: 'player_hit', dmg: hit, isCrit, forceCrit, monsterHp: mHp, playerHp: pHp, mults });
+    events.push({ type: 'player_hit', dmg: hit, isCrit, forceCrit, monsterHp: mHp, playerHp: pHp, mults, blocked: monsterShielded });
 
     // Set effect: lich_drain → heal 10% of damage dealt
     if (setEffectIds.has('lich_drain') && hit > 0) {
@@ -182,8 +208,9 @@ export function resolveFight(monster) {
       }
       continue;
     }
-    pHp = Math.max(0, pHp - monsterDmg);
-    events.push({ type: 'monster_hit', dmg: monsterDmg, monsterHp: mHp, playerHp: pHp });
+    const monsterFinalDmg = Math.max(1, Math.round(monsterDmg * monsterDmgMod));
+    pHp = Math.max(0, pHp - monsterFinalDmg);
+    events.push({ type: 'monster_hit', dmg: monsterFinalDmg, monsterHp: mHp, playerHp: pHp, enraged: monsterDmgMod > 1 });
 
     // Set effect: phoenix_rebirth → on lethal hit, revive once at 30% HP
     if (setEffectIds.has('phoenix_rebirth') && !phoenixUsed && pHp <= 0) {

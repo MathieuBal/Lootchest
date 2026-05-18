@@ -418,6 +418,15 @@ function renderDungeon() {
     : monster.name;
   document.getElementById('monster-stats').innerHTML =
     `<span>❤️ ${monster.hp}</span><span>⚔️ ${monster.damage}</span><span>🛡 ${monster.armor}</span><span>💰 ${monster.goldReward}</span>`;
+  const mechEl = document.getElementById('monster-mechanic');
+  if (mechEl) {
+    if (monster.mechanic) {
+      mechEl.textContent = `✦ ${monster.mechanic.desc}`;
+      mechEl.style.display = '';
+    } else {
+      mechEl.style.display = 'none';
+    }
+  }
   const diff = predictDifficulty(monster);
   const diffEl = document.getElementById('monster-difficulty');
   diffEl.textContent = diff.label;

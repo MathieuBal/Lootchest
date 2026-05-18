@@ -151,7 +151,8 @@ export const BIOMES = [
       { name: 'Ours',           emoji: '🐻', hpBase: 55, dmgBase: 5, armorBase: 2, goldBase: 12 },
       { name: 'Plante carnivore', emoji: '🌵', hpBase: 40, dmgBase: 4, armorBase: 1, goldBase: 10 },
     ],
-    boss: { name: 'Roi Sylvain',  emoji: '🌳', hpBase: 140, dmgBase: 11, armorBase: 4, goldBase: 100 },
+    boss: { name: 'Roi Sylvain',  emoji: '🌳', hpBase: 140, dmgBase: 11, armorBase: 4, goldBase: 100,
+            mechanic: { type: 'regen', percentPerTurn: 0.05, desc: 'Régénère 5% PV par tour' } },
   },
   {
     id: 'cave', name: 'Cavernes', emoji: '🪨', floors: [11, 20],
@@ -163,7 +164,8 @@ export const BIOMES = [
       { name: 'Troll',          emoji: '👹', hpBase: 55, dmgBase: 8, armorBase: 3, goldBase: 14 },
       { name: 'Golem de pierre',emoji: '🗿', hpBase: 70, dmgBase: 6, armorBase: 5, goldBase: 15 },
     ],
-    boss: { name: 'Hydre des Profondeurs', emoji: '🐲', hpBase: 160, dmgBase: 13, armorBase: 5, goldBase: 130 },
+    boss: { name: 'Hydre des Profondeurs', emoji: '🐲', hpBase: 160, dmgBase: 13, armorBase: 5, goldBase: 130,
+            mechanic: { type: 'enrage', triggerHpPct: 0.30, dmgMult: 2.0, desc: 'En rage sous 30% PV : ×2 dégâts' } },
   },
   {
     id: 'castle', name: 'Château', emoji: '🏰', floors: [21, 30],
@@ -175,7 +177,8 @@ export const BIOMES = [
       { name: 'Garde Maudit',   emoji: '⚔',  hpBase: 45, dmgBase: 8, armorBase: 3, goldBase: 16 },
       { name: 'Sorcier',        emoji: '🧙', hpBase: 32, dmgBase: 11, armorBase: 0, goldBase: 18 },
     ],
-    boss: { name: 'Roi Mort',   emoji: '☠', hpBase: 130, dmgBase: 16, armorBase: 4, goldBase: 160 },
+    boss: { name: 'Roi Mort',   emoji: '☠', hpBase: 130, dmgBase: 16, armorBase: 4, goldBase: 160,
+            mechanic: { type: 'shieldCycle', everyTurns: 3, desc: 'Immunise 1 tour sur 3' } },
   },
   {
     id: 'hell', name: 'Enfer', emoji: '🔥', floors: [31, 40],
@@ -187,7 +190,8 @@ export const BIOMES = [
       { name: 'Incube',         emoji: '😺', hpBase: 30, dmgBase: 14, armorBase: 0, goldBase: 20 },
       { name: 'Démon de Lave',  emoji: '🌋', hpBase: 70, dmgBase: 10, armorBase: 4, goldBase: 22 },
     ],
-    boss: { name: 'Seigneur Démon', emoji: '😈', hpBase: 150, dmgBase: 20, armorBase: 4, goldBase: 220 },
+    boss: { name: 'Seigneur Démon', emoji: '😈', hpBase: 150, dmgBase: 20, armorBase: 4, goldBase: 220,
+            mechanic: { type: 'burn', dmgPerTurn: 8, desc: 'Brûlure : 8 dmg/tour passifs' } },
   },
   {
     id: 'void', name: 'Néant', emoji: '🌌', floors: [41, 9999],
@@ -199,7 +203,8 @@ export const BIOMES = [
       { name: 'Tentacule',      emoji: '🐙', hpBase: 75, dmgBase: 12, armorBase: 5, goldBase: 27 },
       { name: 'Vide-marcheur',  emoji: '👽', hpBase: 60, dmgBase: 15, armorBase: 3, goldBase: 28 },
     ],
-    boss: { name: 'Maître du Néant', emoji: '🌀', hpBase: 200, dmgBase: 22, armorBase: 6, goldBase: 320 },
+    boss: { name: 'Maître du Néant', emoji: '🌀', hpBase: 200, dmgBase: 22, armorBase: 6, goldBase: 320,
+            mechanic: { type: 'phaseShift', everyTurns: 4, dmgMult: 1.5, desc: 'Phase 1/4 tours : ×1.5 dmg' } },
   },
 ];
 

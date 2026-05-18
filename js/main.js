@@ -228,9 +228,14 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
     if (ev.type === 'player_hit') {
       updateMonsterHp(ev.monsterHp, monsterMaxHp);
       const c = getMonsterEmojiCenter();
-      floatingDamage(ev.dmg, c.x, c.y, ev.isCrit ? 'crit' : 'normal');
-      ev.isCrit ? soundCrit() : soundHit();
-      if (ev.isCrit) screenShake(3, 120);
+      if (ev.blocked) {
+        floatingText('🛡 BLOQUÉ', c.x, c.y, '#5a8af0');
+        soundClick();
+      } else {
+        floatingDamage(ev.dmg, c.x, c.y, ev.isCrit ? 'crit' : 'normal');
+        ev.isCrit ? soundCrit() : soundHit();
+        if (ev.isCrit) screenShake(3, 120);
+      }
       // Show skill multiplier icons next to the damage number
       if (ev.mults && ev.mults.length > 0) {
         const txt = ev.mults.map(m => m.emoji).join(' ');
@@ -276,6 +281,18 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
       floatingText(`${ev.emoji} RENAISSANCE`, c.x, c.y - 40, '#ff3000');
       spawnParticles('#ff3000', c.x, c.y, 25);
       soundWin();
+    } else if (ev.type === 'boss_regen') {
+      updateMonsterHp(ev.monsterHp, monsterMaxHp);
+      const c = getMonsterEmojiCenter();
+      floatingText(`🌿 +${ev.amount}`, c.x, c.y - 30, '#6acc6a');
+    } else if (ev.type === 'boss_burn') {
+      updatePlayerHp(ev.playerHp, playerMaxHp);
+      const c = getCharacterAvatarCenter();
+      floatingDamage(ev.amount, c.x, c.y, 'player-took');
+      floatingText('🔥 Brûlure', c.x, c.y - 40, '#ff7a1a');
+    } else if (ev.type === 'boss_shield') {
+      const c = getMonsterEmojiCenter();
+      floatingText('🛡 BOUCLIER', c.x, c.y, '#5a8af0');
     }
   }
 
