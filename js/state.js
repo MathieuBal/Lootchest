@@ -4,8 +4,9 @@ import { SLOTS, AUTOSELL_UNLOCK_COSTS } from './data.js';
 const listeners = new Set();
 
 export const state = {
-  version: 2,
+  version: 3,
   gold: 0,
+  keys: 10,               // 🗝 chest opening currency — farmed in dungeon
   chestTier: 1,
   opened: 0,
   inventory: [],          // array of Item
@@ -148,11 +149,13 @@ export function replaceState(newState) {
   if (!state.codex.bosses) state.codex.bosses = {};
   if (!state.bounties) state.bounties = { active: [], completed: 0 };
   if (!Array.isArray(state.bounties.active)) state.bounties.active = [];
+  if (state.keys === undefined) state.keys = 10;
   notify();
 }
 
 export function resetState() {
   state.gold = 0;
+  state.keys = 10;
   state.chestTier = 1;
   state.opened = 0;
   state.inventory = [];

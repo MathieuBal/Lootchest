@@ -83,6 +83,22 @@ button, input, select {
 .hud-stat .icon { font-size: 14px; }
 .hud-stat-btn { font-family: inherit; font-size: inherit; color: var(--text); cursor: pointer; }
 .hud-stat-btn:hover { background: var(--bg-panel); border-color: var(--accent); }
+.hud-keys { border-color: #ffd060 !important; background: linear-gradient(135deg, #3a2e10, var(--bg-panel-light)) !important; color: #ffd060; }
+.hud-keys.hud-keys-empty { opacity: 0.6; animation: keysEmpty 1.6s infinite; }
+@keyframes keysEmpty {
+  0%, 100% { box-shadow: 0 0 0 rgba(255,80,80,0); }
+  50%      { box-shadow: 0 0 8px rgba(255,80,80,0.7); }
+}
+.no-keys-hint {
+  font-size: 9px;
+  color: #ff8090;
+  text-align: center;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: rgba(255,48,80,0.1);
+  border: 1px solid #ff3050;
+}
+.btn-open-cost { font-size: 9px; color: #ffd060; margin-left: 4px; }
 
 .hud-actions { display: flex; gap: 6px; }
 

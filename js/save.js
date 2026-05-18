@@ -2,7 +2,7 @@
 import { state, replaceState, subscribe } from './state.js';
 
 const KEY = 'lootchest.save.v1';
-export const CURRENT_SAVE_VERSION = 2;
+export const CURRENT_SAVE_VERSION = 3;
 
 // Migrations are run sequentially: from version N → N+1.
 // Each function receives `data` and mutates it in place (or returns a new object).
@@ -22,6 +22,15 @@ const MIGRATIONS = {
       };
     }
     data.version = 2;
+    return data;
+  },
+  // 2 → 3 : keys system. Existing saves get a generous starting stash so the
+  //         change isn't punitive : 1 key per chest opened so far, capped at 50.
+  2: (data) => {
+    if (data.keys === undefined) {
+      data.keys = Math.min(50, Math.max(10, data.opened || 10));
+    }
+    data.version = 3;
     return data;
   },
 };

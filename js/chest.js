@@ -23,16 +23,23 @@ export function rollOrbDrops(chestTier) {
 let lastOpenAt = 0;
 
 export function canOpen() {
-  return Date.now() - lastOpenAt >= CHEST_OPEN_COOLDOWN_MS;
+  if (Date.now() - lastOpenAt < CHEST_OPEN_COOLDOWN_MS) return false;
+  if ((state.keys || 0) < 1) return false;
+  return true;
 }
 
 export function cooldownRemaining() {
   return Math.max(0, CHEST_OPEN_COOLDOWN_MS - (Date.now() - lastOpenAt));
 }
 
+export function hasKey() {
+  return (state.keys || 0) >= 1;
+}
+
 export function openChest() {
   if (!canOpen()) return null;
   lastOpenAt = Date.now();
+  state.keys = (state.keys || 0) - 1;
   state.opened += 1;
   const item = generateItemFromChest(state.chestTier);
   const orbs = rollOrbDrops(state.chestTier);

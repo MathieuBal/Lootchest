@@ -106,7 +106,11 @@ btnOpen.addEventListener('click', () => {
   flashRarity(item.rarity);
   startCooldownAnim();
   setOpenButtonEnabled(false);
-  setTimeout(() => setOpenButtonEnabled(true), CHEST_OPEN_COOLDOWN_MS);
+  btnOpen.dataset.cooling = '1';
+  setTimeout(() => {
+    btnOpen.dataset.cooling = '0';
+    setOpenButtonEnabled(true);
+  }, CHEST_OPEN_COOLDOWN_MS);
 
   // Drop sound + particle effects per rarity
   soundDrop(item.rarity);
@@ -305,12 +309,20 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
     const c = getMonsterEmojiCenter();
     spawnParticles(monster.isBoss ? '#ff7a1a' : '#ffe14a', c.x, c.y, monster.isBoss ? 40 : 20);
     floatingText(`+${monster.goldReward} 💰`, c.x, c.y - 30, '#f5c842');
+    if (monster.keyDrop) {
+      floatingText(`+${monster.keyDrop} 🗝`, c.x + 40, c.y - 30, '#ffd060');
+      spawnParticles('#ffd060', c.x + 40, c.y, 10);
+      soundCoin();
+    }
     if (monster.isBoss) screenShake(8, 350);
   } else {
     soundLose();
     screenShake(10, 400);
   }
 
+  if (result.won && monster.keyDrop) {
+    appendCombatLog([`🗝 +${monster.keyDrop} clé${monster.keyDrop > 1 ? 's' : ''}`], 'reward');
+  }
   if (advanced) appendCombatLog([`🆙 Nouvel étage débloqué : ${state.combat.highestUnlocked}`], 'reward');
 
   if (milestone) {

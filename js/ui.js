@@ -134,6 +134,12 @@ function statLabel(key) {
 function renderHUD() {
   const tier = getCurrentTier();
   document.getElementById('hud-gold').textContent = state.gold.toLocaleString('fr-FR');
+  const keysEl = document.getElementById('hud-keys');
+  if (keysEl) {
+    keysEl.textContent = (state.keys || 0).toLocaleString('fr-FR');
+    const statEl = document.getElementById('hud-keys-stat');
+    if (statEl) statEl.classList.toggle('hud-keys-empty', (state.keys || 0) === 0);
+  }
   document.getElementById('hud-tier').textContent = tier.tier;
   document.getElementById('hud-tier-name').textContent = tier.name;
   document.getElementById('hud-opened').textContent = state.opened.toLocaleString('fr-FR');
@@ -385,6 +391,14 @@ function renderChest() {
     wrap.title = remaining > 0
       ? `Légendaire garanti dans ${remaining} coffre${remaining > 1 ? 's' : ''}`
       : `Légendaire garanti au prochain coffre !`;
+  }
+
+  // No-keys hint + button gating (only override if we're not in cooldown)
+  const hint = document.getElementById('no-keys-hint');
+  if (hint) hint.classList.toggle('hidden', (state.keys || 0) > 0);
+  const openBtn = document.getElementById('btn-open');
+  if (openBtn && openBtn.dataset.cooling !== '1') {
+    openBtn.disabled = (state.keys || 0) === 0;
   }
 }
 
@@ -738,7 +752,9 @@ export function startCooldownAnim() {
 }
 
 export function setOpenButtonEnabled(enabled) {
-  document.getElementById('btn-open').disabled = !enabled;
+  // Also gate by key availability
+  const hasKeys = (state.keys || 0) >= 1;
+  document.getElementById('btn-open').disabled = !enabled || !hasKeys;
 }
 
 // === Master render ===
