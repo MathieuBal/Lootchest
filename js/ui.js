@@ -16,6 +16,7 @@ import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, UNIQUE_LEGENDARIES, BIOMES } from './data.js';
 import { rankOf, canUpgradeTalent } from './talents.js';
+import { SKILLS, getActiveSkills } from './skills.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG } from './sprites.js';
 import { getCompositionLayers } from './parts.js';
 
@@ -152,6 +153,35 @@ function renderHUD() {
   if (badge) {
     badge.textContent = pts;
     badge.style.color = pts > 0 ? '#6acc6a' : '';
+  }
+
+  // Skills count badge
+  const skillsBadge = document.getElementById('skills-count-badge');
+  if (skillsBadge) {
+    const unlocked = getActiveSkills().length;
+    skillsBadge.textContent = `${unlocked}/${SKILLS.length}`;
+  }
+}
+
+export function renderSkillsModal() {
+  const active = new Set(getActiveSkills().map(s => s.id));
+  document.getElementById('skills-unlocked-count').textContent = active.size;
+  document.getElementById('skills-total-count').textContent = SKILLS.length;
+  const grid = document.getElementById('skills-grid');
+  grid.innerHTML = '';
+  for (const s of SKILLS) {
+    const unlocked = active.has(s.id);
+    const el = document.createElement('div');
+    el.className = 'skill' + (unlocked ? ' unlocked' : ' locked');
+    el.innerHTML = `
+      <div class="skill-emoji">${s.emoji}</div>
+      <div class="skill-info">
+        <div class="skill-name">${s.name}</div>
+        <div class="skill-desc">${s.desc}</div>
+        <div class="skill-unlock">${unlocked ? '✓ Active' : '🔒 ' + s.unlockText}</div>
+      </div>
+    `;
+    grid.appendChild(el);
   }
 }
 
@@ -841,6 +871,7 @@ export function showModal(id) {
   if (id === 'forge-modal') renderForgeModal();
   if (id === 'talents-modal') renderTalentsModal();
   if (id === 'codex-modal') renderCodexModal();
+  if (id === 'skills-modal') renderSkillsModal();
 }
 
 export function renderCodexModal() {
@@ -949,4 +980,5 @@ export function renderAll() {
   if (isModalOpen('achievements-modal')) renderAchievementsModal();
   if (isModalOpen('talents-modal')) renderTalentsModal();
   if (isModalOpen('codex-modal')) renderCodexModal();
+  if (isModalOpen('skills-modal')) renderSkillsModal();
 }

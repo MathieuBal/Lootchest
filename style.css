@@ -1052,6 +1052,39 @@ button, input, select {
 .codex-name { font-size: 10px; margin-bottom: 3px; }
 .codex-flavor { font-size: 8px; color: var(--text-dim); line-height: 1.4; }
 
+/* === Skills grid === */
+.skills-hint {
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.skill {
+  background: var(--bg-panel-light);
+  border: 2px solid var(--border);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  transition: opacity 200ms;
+}
+.skill.unlocked { border-color: var(--accent); box-shadow: inset 0 0 12px rgba(179,91,214,0.15); }
+.skill.locked { opacity: 0.55; }
+.skill-emoji { font-size: 26px; }
+.skill-info { min-width: 0; }
+.skill-name { font-size: 11px; color: var(--text); margin-bottom: 4px; }
+.skill.unlocked .skill-name { color: var(--accent); }
+.skill-desc { font-size: 8px; color: var(--text-dim); line-height: 1.6; margin-bottom: 4px; }
+.skill-unlock { font-size: 8px; color: var(--text-dim); }
+.skill.unlocked .skill-unlock { color: #6acc6a; }
+
 /* === Talents grid === */
 .talents-hint {
   font-size: 9px;
