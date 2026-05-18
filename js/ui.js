@@ -150,6 +150,9 @@ function renderHUD() {
   } else {
     prestigeEl.style.display = 'none';
   }
+  // Hard mode badge
+  const hardEl = document.getElementById('hud-hard');
+  if (hardEl) hardEl.style.display = state.settings?.hardMode ? '' : 'none';
   // Ascend button enable/disable
   const reqs = ascensionRequirements();
   const ascendBtn = document.getElementById('btn-ascend');
@@ -813,6 +816,7 @@ export function renderSettingsModal() {
   document.getElementById('setting-reduced-particles').checked = !!s.reducedParticles;
   document.getElementById('setting-confirm-ascend').checked = !!s.confirmAscend;
   document.getElementById('setting-confirm-sell').checked = !!s.confirmDestructiveSell;
+  document.getElementById('setting-hard-mode').checked = !!s.hardMode;
 }
 
 // === Stats Breakdown Modal ===

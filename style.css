@@ -1589,6 +1589,8 @@ button, input, select {
 }
 .settings-row:hover { border-color: var(--accent); }
 .settings-row input[type="checkbox"] { transform: scale(1.4); cursor: pointer; }
+.settings-row-hard { border-color: #ff3050 !important; background: linear-gradient(135deg, #3a1010, var(--bg-panel-light)); }
+.hud-hard { border-color: #ff3050 !important; background: linear-gradient(135deg, #3a1010, var(--bg-panel-light)) !important; color: #ff8090; }
 
 /* === Stats Breakdown modal === */
 .breakdown-body {

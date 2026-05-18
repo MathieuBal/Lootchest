@@ -24,15 +24,19 @@ export function generateMonster(floor) {
   const base = pickStableMonster(floor);
   const scale = 1 + (floor - 1) * 0.28;
   const bossMult = boss ? 2.6 : 1;
+  const hard = !!state.settings?.hardMode;
+  const hardCombat = hard ? 1.5 : 1;
+  const hardLoot = hard ? 1.5 : 1;
   return {
     name: boss ? `${base.name} (BOSS)` : base.name,
     emoji: base.emoji,
-    hp: Math.round(base.hpBase * scale * bossMult),
-    damage: Math.round(base.dmgBase * scale * bossMult),
-    armor: Math.round((base.armorBase || 0) * scale * bossMult),
-    goldReward: Math.round(base.goldBase * scale * (boss ? 6 : 1)),
-    dropChance: boss ? 1 : Math.min(0.6, 0.05 + floor * 0.015),
+    hp: Math.round(base.hpBase * scale * bossMult * hardCombat),
+    damage: Math.round(base.dmgBase * scale * bossMult * hardCombat),
+    armor: Math.round((base.armorBase || 0) * scale * bossMult * hardCombat),
+    goldReward: Math.round(base.goldBase * scale * (boss ? 6 : 1) * hardLoot),
+    dropChance: boss ? 1 : Math.min(0.85, (0.05 + floor * 0.015) * hardLoot),
     isBoss: boss,
+    isHard: hard,
     floor,
   };
 }

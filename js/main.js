@@ -628,6 +628,10 @@ document.getElementById('setting-confirm-sell').addEventListener('change', (e) =
   state.settings.confirmDestructiveSell = e.target.checked;
   notify();
 });
+document.getElementById('setting-hard-mode').addEventListener('change', (e) => {
+  state.settings.hardMode = e.target.checked;
+  notify();
+});
 
 // Inventory sort + search + auto-equip
 document.getElementById('inv-sort').addEventListener('change', (e) => {

@@ -20,6 +20,7 @@
       <button class="hud-stat hud-stat-btn" id="btn-stats-breakdown" title="Voir détail des stats"><span class="icon">⚡</span><span id="hud-power">0</span></button>
       <span class="hud-stat" title="Coffres ouverts"><span class="icon">🗝</span><span id="hud-opened">0</span></span>
       <span class="hud-stat hud-prestige" id="hud-prestige" title="Niveau de prestige" style="display:none"><span class="icon">🌟</span>Niv <span id="hud-prestige-level">0</span></span>
+      <span class="hud-stat hud-hard" id="hud-hard" title="Mode Cauchemar actif" style="display:none">💀 Cauchemar</span>
       <span class="hud-stat hud-shards" id="hud-shards" title="Cristaux (par rareté)" style="display:none"></span>
       <span class="hud-stat hud-orbs" id="hud-orbs" title="Orbes de forge" style="display:none"></span>
     </div>
@@ -255,6 +256,10 @@
         <label class="settings-row">
           <input type="checkbox" id="setting-confirm-sell" />
           <span>🛡 Confirmation avant "Vendre tout" épique+</span>
+        </label>
+        <label class="settings-row settings-row-hard">
+          <input type="checkbox" id="setting-hard-mode" />
+          <span>💀 Mode Cauchemar — monstres +50% HP/dmg, drops +50%</span>
         </label>
       </div>
     </div>
