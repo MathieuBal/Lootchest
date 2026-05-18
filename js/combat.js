@@ -147,6 +147,13 @@ export function resolveFight(monster) {
     const atkHooks = runHook('onPlayerAttack', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
     for (const h of atkHooks) {
       if (h.result.kind === 'forceCrit') forceCrit = true;
+      if (h.result.kind === 'heal') {
+        const before = pHp;
+        pHp = Math.min(playerMaxHp, pHp + h.result.amount);
+        if (pHp > before) {
+          events.push({ type: 'skill_heal', amount: pHp - before, skill: h.skill.id, emoji: h.skill.emoji, playerHp: pHp });
+        }
+      }
     }
     const dmgHooks = runHook('onDamageCalc', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
     for (const h of dmgHooks) {
