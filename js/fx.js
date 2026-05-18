@@ -1,7 +1,9 @@
 // Visual effects: particles, screen shake, floating damage numbers.
+import { state } from './state.js';
 
 export function spawnParticles(color, x, y, count = 18, options = {}) {
   const { minSpeed = 80, maxSpeed = 220, size = 8, gravity = 200 } = options;
+  if (state.settings?.reducedParticles) count = Math.max(2, Math.floor(count / 3));
   for (let i = 0; i < count; i++) {
     const p = document.createElement('div');
     p.className = 'particle';

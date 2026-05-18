@@ -32,6 +32,12 @@ export const state = {
     leftTab: 'chest',     // 'chest' | 'dungeon'
     muted: false,
   },
+  settings: {
+    fastCombat: false,    // skip animations during fights
+    reducedParticles: false,
+    confirmAscend: true,
+    confirmDestructiveSell: true, // confirm "sell all" of epic+ rarities
+  },
   achievements: {
     unlocked: {},         // { [id]: true }
   },
@@ -112,6 +118,11 @@ export function replaceState(newState) {
   if (!state.pity) state.pity = { sinceLegendary: 0 };
   if (!state.ui) state.ui = { leftTab: 'chest', muted: false };
   if (state.ui.muted === undefined) state.ui.muted = false;
+  if (!state.settings) state.settings = {};
+  const defaultSettings = { fastCombat: false, reducedParticles: false, confirmAscend: true, confirmDestructiveSell: true };
+  for (const [k, v] of Object.entries(defaultSettings)) {
+    if (state.settings[k] === undefined) state.settings[k] = v;
+  }
   if (!state.achievements) state.achievements = { unlocked: {} };
   if (!state.stats) state.stats = {};
   for (const k of ['legendaryDropped','ancestralDropped','uniquesDropped','itemsSold','totalGoldEarned','forgesPerformed','maxSetEquipped']) {

@@ -801,6 +801,17 @@ export function renderAchievementsModal() {
   }
 }
 
+// === Settings Modal ===
+
+export function renderSettingsModal() {
+  const s = state.settings || {};
+  document.getElementById('setting-mute').checked = !!state.ui?.muted;
+  document.getElementById('setting-fast-combat').checked = !!s.fastCombat;
+  document.getElementById('setting-reduced-particles').checked = !!s.reducedParticles;
+  document.getElementById('setting-confirm-ascend').checked = !!s.confirmAscend;
+  document.getElementById('setting-confirm-sell').checked = !!s.confirmDestructiveSell;
+}
+
 // === Stats Breakdown Modal ===
 
 const STAT_ORDER = ['vitality', 'damage', 'armor', 'crit', 'fireDmg', 'speed', 'goldFind'];
@@ -1037,6 +1048,7 @@ export function showModal(id) {
   if (id === 'skills-modal') renderSkillsModal();
   if (id === 'bounties-modal') renderBountiesModal();
   if (id === 'stats-breakdown-modal') renderStatsBreakdownModal();
+  if (id === 'settings-modal') renderSettingsModal();
 }
 
 export function renderCodexModal() {

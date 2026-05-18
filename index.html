@@ -32,6 +32,7 @@
       <button id="btn-forge" class="btn btn-small" title="Forge">⚒ Forge</button>
       <button id="btn-ascend" class="btn btn-small" title="Ascension">🌟 Ascension</button>
       <button id="btn-mute" class="btn btn-small" title="Couper le son">🔊</button>
+      <button id="btn-settings" class="btn btn-small" title="Paramètres">⚙</button>
       <button id="btn-help" class="btn btn-small" title="Aide / Tutoriel">❓</button>
       <button id="btn-export" class="btn btn-small">Exporter</button>
       <button id="btn-import" class="btn btn-small">Importer</button>
@@ -224,6 +225,38 @@
       </div>
       <div class="talents-hint">Gagne 1 point par palier d'étage (25, 50, 75...) et 2 points par ascension.</div>
       <div class="talents-grid" id="talents-grid"></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2>⚙ Paramètres</h2>
+        <button class="btn btn-small modal-close" data-close="settings-modal">✕</button>
+      </div>
+      <div class="settings-body">
+        <label class="settings-row">
+          <input type="checkbox" id="setting-mute" />
+          <span>🔇 Muet — désactive tous les sons</span>
+        </label>
+        <label class="settings-row">
+          <input type="checkbox" id="setting-fast-combat" />
+          <span>⚡ Combat rapide — saute les animations</span>
+        </label>
+        <label class="settings-row">
+          <input type="checkbox" id="setting-reduced-particles" />
+          <span>🎇 Particules réduites — meilleures perfs</span>
+        </label>
+        <label class="settings-row">
+          <input type="checkbox" id="setting-confirm-ascend" />
+          <span>🌟 Confirmation avant Ascension</span>
+        </label>
+        <label class="settings-row">
+          <input type="checkbox" id="setting-confirm-sell" />
+          <span>🛡 Confirmation avant "Vendre tout" épique+</span>
+        </label>
+      </div>
     </div>
   </div>
 

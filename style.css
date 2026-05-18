@@ -1558,6 +1558,26 @@ button, input, select {
   .drop-item .item-icon-big { width: 60px; height: 60px; font-size: 42px; }
   .toast-container { right: 6px; top: 60px; max-width: 70vw; }
 }
+/* === Settings modal === */
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 4px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg-panel-light);
+  border: 2px solid var(--border);
+  cursor: pointer;
+  font-size: 9px;
+}
+.settings-row:hover { border-color: var(--accent); }
+.settings-row input[type="checkbox"] { transform: scale(1.4); cursor: pointer; }
+
 /* === Stats Breakdown modal === */
 .breakdown-body {
   display: grid;

@@ -1,5 +1,5 @@
 // Bootstrap, event wiring, top-level orchestration.
-import { state, subscribe, resetState } from './state.js';
+import { state, subscribe, resetState, notify } from './state.js';
 import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
 import { openChest, upgradeChest, canOpen } from './chest.js';
@@ -210,9 +210,11 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
   const monsterMaxHp = monster.hp;
   showCombatBars(playerMaxHp, monsterMaxHp);
 
-  // Tween events at variable speed; cap total animation around 1.5s
+  // Tween events at variable speed; cap total animation around 1.5s.
+  // Fast combat setting: short delay, no slow-down.
   const events = result.events || [];
-  const perEvent = Math.max(50, Math.min(160, 1400 / Math.max(1, events.length)));
+  const fast = !!state.settings?.fastCombat;
+  const perEvent = fast ? 12 : Math.max(50, Math.min(160, 1400 / Math.max(1, events.length)));
 
   for (const ev of events) {
     await sleep(perEvent);
@@ -402,6 +404,11 @@ document.getElementById('btn-sell-filter').addEventListener('click', () => {
   if (filterValue !== 'ancestral' && filterValue !== 'all') {
     raritySet.delete('ancestral');
   }
+  // Confirm before selling epic+
+  if (state.settings?.confirmDestructiveSell && (raritySet.has('epic') || raritySet.has('legendary') || raritySet.has('ancestral'))) {
+    const ok = confirm('Vendre en masse des objets épiques+ ? (verrouille les pépites précieuses avec Alt+clic d\'abord)');
+    if (!ok) return;
+  }
   const earned = sellAllOfRarities(raritySet);
   if (earned > 0) {
     soundCoin();
@@ -581,6 +588,33 @@ document.getElementById('btn-help').addEventListener('click', () => {
   showModal('help-modal');
 });
 
+// Settings modal
+document.getElementById('btn-settings').addEventListener('click', () => {
+  showModal('settings-modal');
+});
+document.getElementById('setting-mute').addEventListener('change', (e) => {
+  setMuted(e.target.checked);
+  state.ui.muted = e.target.checked;
+  updateMuteButton();
+  notify();
+});
+document.getElementById('setting-fast-combat').addEventListener('change', (e) => {
+  state.settings.fastCombat = e.target.checked;
+  notify();
+});
+document.getElementById('setting-reduced-particles').addEventListener('change', (e) => {
+  state.settings.reducedParticles = e.target.checked;
+  notify();
+});
+document.getElementById('setting-confirm-ascend').addEventListener('change', (e) => {
+  state.settings.confirmAscend = e.target.checked;
+  notify();
+});
+document.getElementById('setting-confirm-sell').addEventListener('change', (e) => {
+  state.settings.confirmDestructiveSell = e.target.checked;
+  notify();
+});
+
 // Inventory sort + search + auto-equip
 document.getElementById('inv-sort').addEventListener('change', (e) => {
   setInvSortMode(e.target.value);
@@ -603,16 +637,20 @@ document.getElementById('btn-auto-equip').addEventListener('click', () => {
 document.getElementById('btn-ascend').addEventListener('click', () => {
   if (!canAscend()) return;
   const newLevel = (state.prestige?.level || 0) + 1;
-  const msg = `🌟 Ascension Niv ${newLevel} ?\n\n`
-    + `Tu repars de zéro (or, items, coffre T1, étage 1).\n`
-    + `Tu gardes : succès, prestige, statistiques.\n\n`
-    + `Bonus permanent : +${Math.round((Math.pow(1.25, newLevel) - 1) * 100)}% drops raretés et or de vente.\n\n`
-    + `Confirmer ?`;
-  if (confirm(msg)) {
+  const bonusPct = 15 * newLevel;
+  let confirmed = true;
+  if (state.settings?.confirmAscend !== false) {
+    const msg = `🌟 Ascension Niv ${newLevel} ?\n\n`
+      + `Tu repars de zéro (or, items, coffre T1, étage 1).\n`
+      + `Tu gardes : succès, prestige, statistiques.\n\n`
+      + `Bonus permanent : +${bonusPct}% drops raretés et or de vente.\n\n`
+      + `Confirmer ?`;
+    confirmed = confirm(msg);
+  }
+  if (confirmed) {
     if (ascend()) {
       soundAscension();
       screenShake(8, 600);
-      // Burst of golden particles from center of screen
       spawnParticles('#f5c842', window.innerWidth / 2, window.innerHeight / 2, 80, { minSpeed: 200, maxSpeed: 500, size: 10 });
     }
   }
