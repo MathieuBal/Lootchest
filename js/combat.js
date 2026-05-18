@@ -1,6 +1,6 @@
 // Combat / dungeon logic. Resolution is instant (no per-turn animation in V1).
 import { state, notify } from './state.js';
-import { computeStats } from './character.js';
+import { computeStats, activeSetEffects } from './character.js';
 import { PLAYER_BASE, biomeForFloor } from './data.js';
 import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
@@ -19,20 +19,51 @@ function pickStableMonster(floor) {
   return biome.monsters[floor % biome.monsters.length];
 }
 
+// Elite monster prefixes: each adds a name marker + stat skew. Not used for bosses.
+const ELITE_VARIANTS = [
+  { id: 'savage',     prefix: 'Sauvage',     icon: '⚡', dmgMult: 1.6, hpMult: 1.2 },
+  { id: 'armored',    prefix: 'Cuirassé',    icon: '🛡', armorBonus: 8, hpMult: 1.4 },
+  { id: 'frenzied',   prefix: 'Frénétique',  icon: '💢', dmgMult: 1.3, hpMult: 1.1, goldMult: 1.5 },
+  { id: 'colossal',   prefix: 'Colossal',    icon: '💀', hpMult: 2.0, dmgMult: 1.1 },
+];
+
 export function generateMonster(floor) {
   const boss = isBossFloor(floor);
   const base = pickStableMonster(floor);
   const scale = 1 + (floor - 1) * 0.28;
   const bossMult = boss ? 2.6 : 1;
+  const hard = !!state.settings?.hardMode;
+  const hardCombat = hard ? 1.5 : 1;
+  const hardLoot = hard ? 1.5 : 1;
+
+  // Elite: 8% chance on non-boss floors, scales with floor for extra danger/reward
+  let elite = null;
+  if (!boss && floor >= 3 && Math.random() < 0.08) {
+    elite = ELITE_VARIANTS[Math.floor(Math.random() * ELITE_VARIANTS.length)];
+  }
+  const elDmg = elite?.dmgMult || 1;
+  const elHp  = elite?.hpMult  || 1;
+  const elArm = elite?.armorBonus || 0;
+  const elGold = elite?.goldMult || 1;
+
   return {
-    name: boss ? `${base.name} (BOSS)` : base.name,
+    name: boss
+      ? `${base.name} (BOSS)`
+      : (elite ? `${elite.prefix} ${base.name}` : base.name),
     emoji: base.emoji,
-    hp: Math.round(base.hpBase * scale * bossMult),
-    damage: Math.round(base.dmgBase * scale * bossMult),
-    armor: Math.round((base.armorBase || 0) * scale * bossMult),
-    goldReward: Math.round(base.goldBase * scale * (boss ? 6 : 1)),
-    dropChance: boss ? 1 : Math.min(0.6, 0.05 + floor * 0.015),
+    eliteIcon: elite?.icon || null,
+    eliteId: elite?.id || null,
+    hp: Math.round(base.hpBase * scale * bossMult * hardCombat * elHp),
+    damage: Math.round(base.dmgBase * scale * bossMult * hardCombat * elDmg),
+    armor: Math.round(((base.armorBase || 0) + elArm) * scale * bossMult * hardCombat),
+    goldReward: Math.round(base.goldBase * scale * (boss ? 6 : (elite ? 2.5 : 1)) * hardLoot * elGold),
+    dropChance: boss
+      ? 1
+      : Math.min(0.95, (0.05 + floor * 0.015) * hardLoot * (elite ? 2.5 : 1)),
     isBoss: boss,
+    isElite: !!elite,
+    isHard: hard,
+    mechanic: boss ? (base.mechanic || null) : null,
     floor,
   };
 }
@@ -51,6 +82,11 @@ export function resolveFight(monster) {
   // Skill context (active skills + per-fight state)
   const { active: activeSkills, states: skillStates } = buildSkillContext();
 
+  // Active set effects (4-piece bonuses)
+  const setEffectIds = new Set(activeSetEffects().map(e => e.id));
+  let phoenixUsed = false;       // phoenix_rebirth fires only once per combat
+  let shadowDodgeCharge = false; // shadow_strike: next attack after dodge guarantees crit
+
   function runHook(hookName, ctx) {
     const results = [];
     for (const s of activeSkills) {
@@ -68,8 +104,32 @@ export function resolveFight(monster) {
   let turns = 0;
   const maxTurns = 200;
   const events = [];
+  const mechanic = monster.mechanic;
   while (turns < maxTurns) {
     turns++;
+
+    // Boss mechanic: triggers at turn start (regen / burn / shield / enrage / phaseShift)
+    let monsterDmgMod = 1;
+    let monsterShielded = false;
+    if (mechanic) {
+      if (mechanic.type === 'regen' && mHp > 0 && mHp < monsterMaxHp) {
+        const heal = Math.max(1, Math.round(monsterMaxHp * (mechanic.percentPerTurn || 0.05)));
+        mHp = Math.min(monsterMaxHp, mHp + heal);
+        events.push({ type: 'boss_regen', amount: heal, monsterHp: mHp, playerHp: pHp });
+      } else if (mechanic.type === 'burn') {
+        const burn = mechanic.dmgPerTurn || 5;
+        pHp = Math.max(0, pHp - burn);
+        events.push({ type: 'boss_burn', amount: burn, playerHp: pHp, monsterHp: mHp });
+        if (pHp <= 0) break;
+      } else if (mechanic.type === 'shieldCycle') {
+        monsterShielded = (turns % (mechanic.everyTurns || 3)) === 0;
+        if (monsterShielded) events.push({ type: 'boss_shield', monsterHp: mHp, playerHp: pHp });
+      } else if (mechanic.type === 'enrage') {
+        if (mHp / monsterMaxHp <= (mechanic.triggerHpPct || 0.3)) monsterDmgMod = mechanic.dmgMult || 2;
+      } else if (mechanic.type === 'phaseShift') {
+        if ((turns % (mechanic.everyTurns || 4)) === 0) monsterDmgMod = mechanic.dmgMult || 1.5;
+      }
+    }
 
     // Turn start: heal, etc.
     const startHooks = runHook('onTurnStart', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
@@ -87,6 +147,13 @@ export function resolveFight(monster) {
     const atkHooks = runHook('onPlayerAttack', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
     for (const h of atkHooks) {
       if (h.result.kind === 'forceCrit') forceCrit = true;
+      if (h.result.kind === 'heal') {
+        const before = pHp;
+        pHp = Math.min(playerMaxHp, pHp + h.result.amount);
+        if (pHp > before) {
+          events.push({ type: 'skill_heal', amount: pHp - before, skill: h.skill.id, emoji: h.skill.emoji, playerHp: pHp });
+        }
+      }
     }
     const dmgHooks = runHook('onDamageCalc', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
     for (const h of dmgHooks) {
@@ -95,21 +162,69 @@ export function resolveFight(monster) {
         if (h.result.label) mults.push({ emoji: h.skill.emoji, label: h.result.label });
       }
     }
+    // Set effect: shadow_strike → next attack after dodge is guaranteed crit
+    if (setEffectIds.has('shadow_strike') && shadowDodgeCharge) {
+      forceCrit = true;
+      shadowDodgeCharge = false;
+      mults.push({ emoji: '🌑', label: 'Frappe d\'ombre' });
+    }
+    // Set effect: dragon_breath → 15% chance to double damage (counts as fire)
+    let dragonProc = false;
+    if (setEffectIds.has('dragon_breath') && Math.random() < 0.15) {
+      dragonProc = true;
+      extraMult *= 2;
+      mults.push({ emoji: '🐉', label: 'Souffle dragon' });
+    }
     const isCrit = forceCrit || Math.random() < critChance;
-    const hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + fireBonus * Math.random()) * extraMult);
+    let hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + fireBonus * Math.random()) * extraMult);
+    if (monsterShielded) hit = 0;
     mHp = Math.max(0, mHp - hit);
-    events.push({ type: 'player_hit', dmg: hit, isCrit, forceCrit, monsterHp: mHp, playerHp: pHp, mults });
+    events.push({ type: 'player_hit', dmg: hit, isCrit, forceCrit, monsterHp: mHp, playerHp: pHp, mults, blocked: monsterShielded });
+
+    // Set effect: lich_drain → heal 10% of damage dealt
+    if (setEffectIds.has('lich_drain') && hit > 0) {
+      const healed = Math.max(1, Math.round(hit * 0.10));
+      const before = pHp;
+      pHp = Math.min(playerMaxHp, pHp + healed);
+      if (pHp > before) {
+        events.push({ type: 'set_drain', amount: pHp - before, emoji: '🧪', playerHp: pHp, monsterHp: mHp });
+      }
+    }
     if (mHp <= 0) break;
+
+    // Set effect: frost_freeze → 20% per hit to skip monster's turn
+    if (setEffectIds.has('frost_freeze') && Math.random() < 0.20) {
+      events.push({ type: 'set_freeze', emoji: '❄', playerHp: pHp, monsterHp: mHp });
+      continue;
+    }
 
     // Monster attack: dodge hook
     const moHooks = runHook('onMonsterAttack', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
-    const dodged = moHooks.some(h => h.result.kind === 'dodge');
+    let dodged = moHooks.some(h => h.result.kind === 'dodge');
+    // Set effect: titan_wall → 15% pure dodge
+    if (!dodged && setEffectIds.has('titan_wall') && Math.random() < 0.15) {
+      dodged = true;
+      events.push({ type: 'set_dodge', emoji: '🛡', playerHp: pHp, monsterHp: mHp });
+    }
     if (dodged) {
-      events.push({ type: 'skill_dodge', playerHp: pHp, monsterHp: mHp });
+      if (setEffectIds.has('shadow_strike')) shadowDodgeCharge = true;
+      // Push the standard dodge event only if no set_dodge already
+      const last = events[events.length - 1];
+      if (!last || last.type !== 'set_dodge') {
+        events.push({ type: 'skill_dodge', playerHp: pHp, monsterHp: mHp });
+      }
       continue;
     }
-    pHp = Math.max(0, pHp - monsterDmg);
-    events.push({ type: 'monster_hit', dmg: monsterDmg, monsterHp: mHp, playerHp: pHp });
+    const monsterFinalDmg = Math.max(1, Math.round(monsterDmg * monsterDmgMod));
+    pHp = Math.max(0, pHp - monsterFinalDmg);
+    events.push({ type: 'monster_hit', dmg: monsterFinalDmg, monsterHp: mHp, playerHp: pHp, enraged: monsterDmgMod > 1 });
+
+    // Set effect: phoenix_rebirth → on lethal hit, revive once at 30% HP
+    if (setEffectIds.has('phoenix_rebirth') && !phoenixUsed && pHp <= 0) {
+      phoenixUsed = true;
+      pHp = Math.round(playerMaxHp * 0.30);
+      events.push({ type: 'set_rebirth', emoji: '🔥', amount: pHp, playerHp: pHp, monsterHp: mHp });
+    }
 
     // On-take-damage hook: reflect damage
     const takeHooks = runHook('onTakeDamage', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp, dmgTaken: monsterDmg });
@@ -186,9 +301,11 @@ export function attemptCurrentFloor() {
     state.gold += monster.goldReward;
 
     if (Math.random() < monster.dropChance) {
-      const itemTier = Math.min(5, Math.max(1, Math.ceil(floor / 5)));
+      const baseTier = Math.min(5, Math.max(1, Math.ceil(floor / 5)));
+      // Elite/boss drop at one tier higher (capped to 5)
+      const itemTier = Math.min(5, baseTier + (monster.isBoss || monster.isElite ? 1 : 0));
       droppedItem = generateItem(itemTier);
-      if (monster.isBoss && (droppedItem.rarity === 'common' || droppedItem.rarity === 'magic')) {
+      if ((monster.isBoss || monster.isElite) && (droppedItem.rarity === 'common' || droppedItem.rarity === 'magic')) {
         droppedItem = generateItem(itemTier);
       }
     }

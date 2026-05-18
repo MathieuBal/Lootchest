@@ -1,15 +1,11 @@
 // Inventory + selling + auto-sell unlock logic.
 import { state, notify } from './state.js';
-import { AUTOSELL_UNLOCK_COSTS, PRESTIGE_BONUS_PER_LEVEL } from './data.js';
+import { AUTOSELL_UNLOCK_COSTS, prestigeGoldMult } from './data.js';
 import { sellMultiplier, shardBonus } from './talents.js';
 import { trackProgress as bountyTrack } from './bounties.js';
 
-function prestigeGoldMult() {
-  return Math.pow(PRESTIGE_BONUS_PER_LEVEL.goldMult, state.prestige?.level || 0);
-}
-
 function sellPrice(item, goldFindBonus) {
-  return Math.round(item.goldValue * (1 + goldFindBonus / 100) * prestigeGoldMult() * sellMultiplier());
+  return Math.round(item.goldValue * (1 + goldFindBonus / 100) * prestigeGoldMult(state.prestige?.level) * sellMultiplier());
 }
 
 export function addToInventory(item) {
@@ -28,6 +24,8 @@ export function removeFromInventory(itemId) {
 }
 
 export function sellItem(item) {
+  // Refuse to sell locked items.
+  if (item.locked) return 0;
   // Find the item in inventory or equipment, remove it, give gold.
   let removed = removeFromInventory(item.id);
   if (!removed) {
@@ -70,7 +68,7 @@ export function sellAllOfRarities(raritySet) {
   const goldFindBonus = computeGoldFindBonus();
   const remaining = [];
   for (const item of state.inventory) {
-    if (raritySet.has(item.rarity)) {
+    if (raritySet.has(item.rarity) && !item.locked) {
       totalEarned += sellPrice(item, goldFindBonus);
       sold += 1;
     } else {
@@ -86,6 +84,14 @@ export function sellAllOfRarities(raritySet) {
   if (sold > 0) bountyTrack('sell_items', sold);
   notify();
   return totalEarned;
+}
+
+export function toggleLockItem(itemId) {
+  const it = state.inventory.find(i => i.id === itemId);
+  if (!it) return null;
+  it.locked = !it.locked;
+  notify();
+  return it.locked;
 }
 
 export function unlockAutoSell(rarityId) {
@@ -112,6 +118,30 @@ export function isAutoSellOn(rarityId) {
   return state.autoSell[rarityId] && state.autoSell[rarityId].on;
 }
 
+// 'sell' | 'salvage' | 'off' — what to do with auto-handled drops of this rarity.
+export function autoActionFor(rarityId) {
+  const slot = state.autoSell[rarityId];
+  if (!slot || !slot.unlocked || !slot.on) return 'off';
+  return slot.mode || 'sell';
+}
+
+export function setAutoMode(rarityId, mode) {
+  const slot = state.autoSell[rarityId];
+  if (!slot || !slot.unlocked) return false;
+  slot.mode = mode === 'salvage' ? 'salvage' : 'sell';
+  notify();
+  return true;
+}
+
+// Salvage a fresh drop directly (without going through the inventory).
+// Used by auto-salvage on a drop.
+export function salvageDrop(item) {
+  const qty = shardYield(item);
+  state.shards[item.rarity] = (state.shards[item.rarity] || 0) + qty;
+  notify();
+  return qty;
+}
+
 // === Salvage / shards ===
 
 export function shardYield(item) {
@@ -120,6 +150,7 @@ export function shardYield(item) {
 }
 
 export function salvageItem(item) {
+  if (item.locked) return 0;
   let removed = removeFromInventory(item.id);
   if (!removed) {
     for (const [slotId, it] of Object.entries(state.equipment)) {
@@ -142,7 +173,7 @@ export function salvageAllOfRarities(raritySet) {
   const yields = {};
   const remaining = [];
   for (const item of state.inventory) {
-    if (raritySet.has(item.rarity)) {
+    if (raritySet.has(item.rarity) && !item.locked) {
       const q = shardYield(item);
       yields[item.rarity] = (yields[item.rarity] || 0) + q;
       totalShards += q;

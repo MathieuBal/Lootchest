@@ -17,9 +17,10 @@
     <div class="hud-stats">
       <span class="hud-stat" title="Or"><span class="icon">💰</span><span id="hud-gold">0</span></span>
       <span class="hud-stat" title="Tier du coffre"><span class="icon">📦</span>T<span id="hud-tier">1</span> <span id="hud-tier-name">Bois</span></span>
-      <span class="hud-stat" title="Power Score du perso"><span class="icon">⚡</span><span id="hud-power">0</span></span>
+      <button class="hud-stat hud-stat-btn" id="btn-stats-breakdown" title="Voir détail des stats"><span class="icon">⚡</span><span id="hud-power">0</span></button>
       <span class="hud-stat" title="Coffres ouverts"><span class="icon">🗝</span><span id="hud-opened">0</span></span>
       <span class="hud-stat hud-prestige" id="hud-prestige" title="Niveau de prestige" style="display:none"><span class="icon">🌟</span>Niv <span id="hud-prestige-level">0</span></span>
+      <span class="hud-stat hud-hard" id="hud-hard" title="Mode Cauchemar actif" style="display:none">💀 Cauchemar</span>
       <span class="hud-stat hud-shards" id="hud-shards" title="Cristaux (par rareté)" style="display:none"></span>
       <span class="hud-stat hud-orbs" id="hud-orbs" title="Orbes de forge" style="display:none"></span>
     </div>
@@ -32,6 +33,7 @@
       <button id="btn-forge" class="btn btn-small" title="Forge">⚒ Forge</button>
       <button id="btn-ascend" class="btn btn-small" title="Ascension">🌟 Ascension</button>
       <button id="btn-mute" class="btn btn-small" title="Couper le son">🔊</button>
+      <button id="btn-settings" class="btn btn-small" title="Paramètres">⚙</button>
       <button id="btn-help" class="btn btn-small" title="Aide / Tutoriel">❓</button>
       <button id="btn-export" class="btn btn-small">Exporter</button>
       <button id="btn-import" class="btn btn-small">Importer</button>
@@ -96,6 +98,7 @@
           <div class="monster-emoji" id="monster-emoji">👺</div>
           <div class="monster-name" id="monster-name">Gobelin</div>
           <div class="monster-stats" id="monster-stats"></div>
+          <div class="monster-mechanic" id="monster-mechanic" style="display:none"></div>
           <div class="monster-difficulty" id="monster-difficulty">Facile</div>
           <div class="hp-bar-wrap monster-hp hidden" id="monster-hp-wrap">
             <div class="hp-bar"><div class="hp-fill" id="monster-hp-fill"></div></div>
@@ -227,6 +230,53 @@
     </div>
   </div>
 
+  <!-- SETTINGS MODAL -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2>⚙ Paramètres</h2>
+        <button class="btn btn-small modal-close" data-close="settings-modal">✕</button>
+      </div>
+      <div class="settings-body">
+        <label class="settings-row">
+          <input type="checkbox" id="setting-mute" />
+          <span>🔇 Muet — désactive tous les sons</span>
+        </label>
+        <label class="settings-row">
+          <input type="checkbox" id="setting-fast-combat" />
+          <span>⚡ Combat rapide — saute les animations</span>
+        </label>
+        <label class="settings-row">
+          <input type="checkbox" id="setting-reduced-particles" />
+          <span>🎇 Particules réduites — meilleures perfs</span>
+        </label>
+        <label class="settings-row">
+          <input type="checkbox" id="setting-confirm-ascend" />
+          <span>🌟 Confirmation avant Ascension</span>
+        </label>
+        <label class="settings-row">
+          <input type="checkbox" id="setting-confirm-sell" />
+          <span>🛡 Confirmation avant "Vendre tout" épique+</span>
+        </label>
+        <label class="settings-row settings-row-hard">
+          <input type="checkbox" id="setting-hard-mode" />
+          <span>💀 Mode Cauchemar — monstres +50% HP/dmg, drops +50%</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS BREAKDOWN MODAL -->
+  <div id="stats-breakdown-modal" class="modal hidden">
+    <div class="modal-inner modal-wide">
+      <div class="modal-header">
+        <h2>⚡ Détail des stats — Puissance <span id="breakdown-power">0</span></h2>
+        <button class="btn btn-small modal-close" data-close="stats-breakdown-modal">✕</button>
+      </div>
+      <div class="breakdown-body" id="breakdown-body"></div>
+    </div>
+  </div>
+
   <!-- ACHIEVEMENTS MODAL -->
   <div id="achievements-modal" class="modal hidden">
     <div class="modal-inner modal-wide">
@@ -320,9 +370,12 @@
         <ul>
           <li><kbd>Espace</kbd> : ouvre le coffre ou combat (selon l'onglet)</li>
           <li><kbd>Échap</kbd> : ferme popup/modal</li>
+          <li><kbd>1</kbd>/<kbd>2</kbd> : onglet Coffre / Donjon</li>
+          <li><kbd>S</kbd> : détail des stats · <kbd>T</kbd> : talents · <kbd>A</kbd> : succès · <kbd>B</kbd> : contrats · <kbd>C</kbd> : codex · <kbd>K</kbd> : compétences · <kbd>I</kbd> : forge</li>
           <li><kbd>Clic</kbd> sur item d'inventaire : équiper</li>
           <li><kbd>Shift+Clic</kbd> sur item d'inventaire : vendre</li>
           <li><kbd>Ctrl+Clic</kbd> sur item d'inventaire : recycler (💎)</li>
+          <li><kbd>Alt+Clic</kbd> sur item d'inventaire : verrouiller/déverrouiller 🔒</li>
           <li><kbd>Clic</kbd> sur slot équipé : déséquiper</li>
         </ul>
       </div>

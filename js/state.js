@@ -4,19 +4,19 @@ import { SLOTS, AUTOSELL_UNLOCK_COSTS } from './data.js';
 const listeners = new Set();
 
 export const state = {
-  version: 1,
+  version: 2,
   gold: 0,
   chestTier: 1,
   opened: 0,
   inventory: [],          // array of Item
   equipment: {},          // { slotId: Item | null }
-  autoSell: {             // { rarityId: { unlocked: bool, on: bool } }
-    common: { unlocked: true,  on: false },
-    magic:  { unlocked: false, on: false },
-    rare:   { unlocked: false, on: false },
-    epic:   { unlocked: false, on: false },
-    legendary: { unlocked: false, on: false },
-    ancestral: { unlocked: false, on: false },
+  autoSell: {             // { rarityId: { unlocked: bool, on: bool, mode: 'sell'|'salvage' } }
+    common: { unlocked: true,  on: false, mode: 'sell' },
+    magic:  { unlocked: false, on: false, mode: 'sell' },
+    rare:   { unlocked: false, on: false, mode: 'sell' },
+    epic:   { unlocked: false, on: false, mode: 'sell' },
+    legendary: { unlocked: false, on: false, mode: 'sell' },
+    ancestral: { unlocked: false, on: false, mode: 'sell' },
   },
   combat: {
     currentFloor: 1,
@@ -31,6 +31,13 @@ export const state = {
   ui: {
     leftTab: 'chest',     // 'chest' | 'dungeon'
     muted: false,
+  },
+  settings: {
+    fastCombat: false,    // skip animations during fights
+    reducedParticles: false,
+    confirmAscend: true,
+    confirmDestructiveSell: true, // confirm "sell all" of epic+ rarities
+    hardMode: false,      // monsters tougher (+50% HP/dmg) but drops +50%
   },
   achievements: {
     unlocked: {},         // { [id]: true }
@@ -105,13 +112,19 @@ export function replaceState(newState) {
   if (!state.autoSell) state.autoSell = {};
   for (const r of Object.keys(AUTOSELL_UNLOCK_COSTS)) {
     if (!state.autoSell[r]) {
-      state.autoSell[r] = { unlocked: r === 'common', on: false };
+      state.autoSell[r] = { unlocked: r === 'common', on: false, mode: 'sell' };
     }
+    if (!state.autoSell[r].mode) state.autoSell[r].mode = 'sell';
   }
   if (!state.combat) state.combat = { currentFloor: 1, highestUnlocked: 1, kills: 0, deaths: 0, bossKills: 0 };
   if (!state.pity) state.pity = { sinceLegendary: 0 };
   if (!state.ui) state.ui = { leftTab: 'chest', muted: false };
   if (state.ui.muted === undefined) state.ui.muted = false;
+  if (!state.settings) state.settings = {};
+  const defaultSettings = { fastCombat: false, reducedParticles: false, confirmAscend: true, confirmDestructiveSell: true, hardMode: false };
+  for (const [k, v] of Object.entries(defaultSettings)) {
+    if (state.settings[k] === undefined) state.settings[k] = v;
+  }
   if (!state.achievements) state.achievements = { unlocked: {} };
   if (!state.stats) state.stats = {};
   for (const k of ['legendaryDropped','ancestralDropped','uniquesDropped','itemsSold','totalGoldEarned','forgesPerformed','maxSetEquipped']) {

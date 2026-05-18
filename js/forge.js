@@ -1,7 +1,7 @@
 // PoE-style forge: each action consumes a specific orb (currency).
 // Reroll+ keeps using crystals (shards) for guaranteed high-roll affixes.
 import { state, notify } from './state.js';
-import { RARITIES, RARITY_BY_ID, AFFIXES, AFFIXES_BY_ID, AFFIX_LIMITS } from './data.js';
+import { RARITIES, RARITY_BY_ID, AFFIXES, AFFIXES_BY_ID, AFFIX_LIMITS, maxAllowedChestTier } from './data.js';
 import {
   rebuildItemAffixesOnly, rebuildItemAffixesPlus, rebuildItemAffixesAndStats,
 } from './loot.js';
@@ -252,10 +252,10 @@ export function applyMasterCraft(item, affixId) {
   return true;
 }
 
-// 🪨 Pierre de Forge: increase item chestTier by +1 (max T5), re-scales stats.
+// 🪨 Pierre de Forge: increase item chestTier by +1 (cap = max coffre débloqué), re-scales stats.
 export function canPierre(item) {
   if (!item) return false;
-  if (item.chestTier >= 5) return false;
+  if (item.chestTier >= maxAllowedChestTier(state.prestige?.level || 0)) return false;
   return (state.orbs.pierre || 0) >= 1;
 }
 export function applyPierre(item) {
@@ -273,22 +273,22 @@ export function applyPierre(item) {
 export const FORGE_ACTIONS = [
   { id: 'transmutation', label: 'Transmuter',   orb: 'transmu', can: canTransmutation, apply: applyTransmutation,
     desc: 'commun → magique', group: 'Rareté' },
+  { id: 'regal',         label: 'Régal',        orb: 'regal',   can: canRegal,         apply: applyRegal,
+    desc: 'magique → rare', group: 'Rareté' },
   { id: 'augmentation',  label: 'Augmenter',    orb: 'augm',    can: canAugmentation,  apply: applyAugmentation,
     desc: '+1 affixe (magique)', group: 'Affixes' },
   { id: 'alteration',    label: 'Altérer',      orb: 'alte',    can: canAlteration,    apply: applyAlteration,
     desc: 'reroll magique', group: 'Affixes' },
-  { id: 'regal',         label: 'Régal',        orb: 'regal',   can: canRegal,         apply: applyRegal,
-    desc: 'magique → rare', group: 'Rareté' },
   { id: 'chaos',         label: 'Chaos',        orb: 'chaos',   can: canChaos,         apply: applyChaos,
     desc: 'reroll rare+', group: 'Affixes' },
   { id: 'divine',        label: 'Divin',        orb: 'divin',   can: canDivine,        apply: applyDivine,
     desc: 'reroll valeurs', group: 'Affixes' },
   { id: 'exil',          label: 'Exil',         orb: 'exil',    can: canExil,          apply: applyExil,
     desc: '+1 affixe (rare+)', group: 'Affixes' },
-  { id: 'pierre',        label: 'Pierre',       orb: 'pierre',  can: canPierre,        apply: applyPierre,
-    desc: 'tier d\'objet +1', group: 'Tier' },
-  { id: 'maitre',        label: 'Maître Forgeron', orb: 'maitre', can: canMasterCraft,   apply: null /* opens sub-mode */,
-    desc: 'choisis l\'affixe', group: 'Affixes', interactive: true },
   { id: 'rerollplus',    label: 'Reroll+',      orb: null,      can: canRerollPlus,    apply: rerollPlus,
     desc: 'reroll hauts rolls (3 💎)', group: 'Affixes', shards: REROLL_PLUS_SHARD_COST },
+  { id: 'maitre',        label: 'Maître Forgeron', orb: 'maitre', can: canMasterCraft,   apply: null /* opens sub-mode */,
+    desc: 'choisis l\'affixe', group: 'Spécial', interactive: true },
+  { id: 'pierre',        label: 'Pierre',       orb: 'pierre',  can: canPierre,        apply: applyPierre,
+    desc: 'tier d\'objet +1', group: 'Spécial' },
 ];

@@ -77,9 +77,17 @@ export function computeSetSummary() {
         activeBonuses.push(...bonuses.map(b => ({ ...b, threshold: parseInt(threshold) })));
       }
     }
-    result.push({ setId, setName: set.name, color: set.color, count, totalPieces, activeBonuses });
+    const effect = (count >= 4 && set.effect) ? set.effect : null;
+    result.push({ setId, setName: set.name, color: set.color, count, totalPieces, activeBonuses, effect });
   }
   return result;
+}
+
+// Returns array of active 4-piece effects { id, name, desc, setId } (set bonus tier 4).
+export function activeSetEffects() {
+  return computeSetSummary()
+    .filter(s => s.effect)
+    .map(s => ({ ...s.effect, setId: s.setId }));
 }
 
 // Just the flat bonus list (for computeStats)
@@ -97,7 +105,7 @@ export function maxSetCount() {
 
 // Compute the contribution of a single item to the player's Power Score
 // (treating it as if equipped in isolation, base + affixes).
-function itemPowerContribution(item) {
+export function itemPowerContribution(item) {
   let p = 0;
   for (const [k, v] of Object.entries(item.baseStats || {})) {
     p += v * (POWER_WEIGHTS[k] || 0);
@@ -144,4 +152,31 @@ export function computePower(stats) {
     p += (stats[k] || 0) * w;
   }
   return Math.round(p);
+}
+
+// Returns { statKey: [{ source: string, value: number }, ...], ... }
+// Used by the stats breakdown modal to show where each stat comes from.
+export function computeStatsBreakdown() {
+  const breakdown = {};
+  const add = (stat, source, value) => {
+    if (!value) return;
+    if (!breakdown[stat]) breakdown[stat] = [];
+    breakdown[stat].push({ source, value });
+  };
+  for (const slot of SLOTS) {
+    const item = state.equipment[slot.id];
+    if (!item) continue;
+    for (const [k, v] of Object.entries(item.baseStats || {})) {
+      add(k, `${slot.emoji} ${item.name} (base)`, v);
+    }
+    for (const aff of item.affixes || []) {
+      add(aff.stat, `${slot.emoji} ${item.name} · ${aff.label}`, aff.value);
+    }
+  }
+  for (const s of computeSetSummary()) {
+    for (const b of s.activeBonuses) {
+      add(b.stat, `🎭 Set ${s.setName} (${b.threshold} pièces)`, b.value);
+    }
+  }
+  return breakdown;
 }

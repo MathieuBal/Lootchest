@@ -5,7 +5,7 @@ import {
   AUTOSELL_UNLOCK_COSTS, CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, PITY_THRESHOLD,
   ACHIEVEMENTS,
 } from './data.js';
-import { computeStats, computePower, computeSetSummary } from './character.js';
+import { computeStats, computePower, computeSetSummary, itemPowerContribution, computeStatsBreakdown } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, cooldownRemaining, nextTierLockedBy } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
 import { biomeForFloor } from './data.js';
@@ -14,8 +14,8 @@ import { shardYield } from './inventory.js';
 import { CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID } from './data.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
-import { SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, UNIQUE_LEGENDARIES, BIOMES } from './data.js';
-import { rankOf, canUpgradeTalent } from './talents.js';
+import { SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, TALENT_CATEGORIES, TALENT_MASTERY_THRESHOLD, UNIQUE_LEGENDARIES, BIOMES } from './data.js';
+import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talents.js';
 import { SKILLS, getActiveSkills } from './skills.js';
 import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG } from './sprites.js';
@@ -26,7 +26,18 @@ import { getCompositionLayers } from './parts.js';
 export function itemIconHTML(item, { big = false } = {}) {
   const r = RARITY_BY_ID[item.rarity];
   const inner = itemVisualHTML(item, big);
-  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}" data-item-id="${item.id}">${inner}</div>`;
+  const setBadge = item.setId ? setBadgeHTML(item, big) : '';
+  const uniqueBadge = item.uniqueId && !item.setId ? '<div class="item-unique-chip" title="Unique">✨</div>' : '';
+  const lockBadge = item.locked ? '<div class="item-lock-chip" title="Verrouillé (Alt+clic pour déverrouiller)">🔒</div>' : '';
+  const setStyle = item.setId && SETS_BY_ID[item.setId] ? ` style="--set-color: ${SETS_BY_ID[item.setId].color}"` : '';
+  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}${item.setId ? ' item-icon-set' : ''}${item.locked ? ' item-icon-locked' : ''}"${setStyle} data-item-id="${item.id}">${inner}${setBadge}${uniqueBadge}${lockBadge}</div>`;
+}
+
+function setBadgeHTML(item, big) {
+  const set = SETS_BY_ID[item.setId];
+  if (!set) return '';
+  const initial = set.name.charAt(0).toUpperCase();
+  return `<div class="item-set-chip" title="Set : ${set.name}" style="background:${set.color}">${initial}</div>`;
 }
 
 function itemVisualHTML(item, big = false) {
@@ -92,6 +103,7 @@ export function itemDetailsHTML(item) {
     }
   }
   const flavor = item.flavor ? `<div class="tt-flavor">"${item.flavor}"</div>` : '';
+  const power = Math.round(itemPowerContribution(item));
   return `
     <div class="tt-name rt-${r.cssClass}">${item.name}${uniqueBadge}</div>
     <div class="tt-slot">T${item.chestTier} · ${slot.name} — <span class="rarity-tag rt-${r.cssClass}">${r.name}</span></div>
@@ -99,6 +111,7 @@ export function itemDetailsHTML(item) {
     ${baseLines}
     ${affixLines}
     ${flavor}
+    <div class="tt-power">⚡ Puissance : ${power.toLocaleString('fr-FR')}</div>
     <div class="tt-value">💰 ${item.goldValue} or · 💎 ${shardYield(item)} ${r.name}</div>
     ${comparisonHTML(item)}
   `;
@@ -137,6 +150,9 @@ function renderHUD() {
   } else {
     prestigeEl.style.display = 'none';
   }
+  // Hard mode badge
+  const hardEl = document.getElementById('hud-hard');
+  if (hardEl) hardEl.style.display = state.settings?.hardMode ? '' : 'none';
   // Ascend button enable/disable
   const reqs = ascensionRequirements();
   const ascendBtn = document.getElementById('btn-ascend');
@@ -184,6 +200,12 @@ export function renderBountiesModal() {
 
   const list = document.getElementById('bounties-list');
   list.innerHTML = '';
+  if (bounties.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.innerHTML = '<div class="empty-icon">📋</div><div class="empty-title">Aucun contrat actif</div><div class="empty-desc">Les contrats apparaissent automatiquement à l\'ouverture du tableau.</div>';
+    list.appendChild(empty);
+  }
   for (const b of bounties) {
     const pct = b.target > 0 ? Math.min(100, (b.progress / b.target) * 100) : 0;
     const rewardChips = [];
@@ -241,18 +263,34 @@ export function renderTalentsModal() {
   document.getElementById('talent-points-display').textContent = state.talentPoints || 0;
   const grid = document.getElementById('talents-grid');
   grid.innerHTML = '';
+
+  // Category mastery summary bar
+  const mastery = document.createElement('div');
+  mastery.className = 'talent-mastery-row';
+  mastery.innerHTML = Object.entries(TALENT_CATEGORIES).map(([key, cat]) => {
+    const pts = categoryPoints(key);
+    const active = pts >= TALENT_MASTERY_THRESHOLD;
+    return `<div class="talent-mastery-chip ${active ? 'active' : ''}" style="border-color:${cat.color}" title="${cat.desc}">
+      <span style="color:${cat.color}">${cat.emoji} ${cat.name}</span>
+      <span class="talent-mastery-pts">${pts}/${TALENT_MASTERY_THRESHOLD}${active ? ' ✓' : ''}</span>
+    </div>`;
+  }).join('');
+  grid.appendChild(mastery);
+
   for (const t of TALENTS) {
     const rank = rankOf(t.id);
     const max = t.maxRank;
     const ratio = rank / max;
     const canBuy = canUpgradeTalent(t.id);
     const isMax = rank >= max;
+    const cat = TALENT_CATEGORIES[t.category];
     const el = document.createElement('div');
     el.className = 'talent' + (isMax ? ' maxed' : '') + (rank > 0 ? ' has-rank' : '');
+    if (cat) el.style.borderLeft = `4px solid ${cat.color}`;
     el.innerHTML = `
       <div class="talent-emoji">${t.emoji}</div>
       <div class="talent-info">
-        <div class="talent-name">${t.name}</div>
+        <div class="talent-name">${t.name}${cat ? ` <span class="talent-cat-tag" style="color:${cat.color}">${cat.emoji}</span>` : ''}</div>
         <div class="talent-desc">${t.desc}</div>
         <div class="talent-bar"><div class="talent-bar-fill" style="width:${ratio * 100}%"></div></div>
         <div class="talent-rank">${rank}/${max}${rank > 0 ? ` · effet : ${formatTalentEffect(t, rank)}` : ''}</div>
@@ -331,11 +369,23 @@ function renderChest() {
     document.getElementById('btn-upgrade').style.display = 'none';
   }
 
-  // Pity bar
-  const pityCount = Math.min(PITY_THRESHOLD, state.pity.sinceLegendary);
+  // Pity bar : seuil effectif (réduit par talent pityMaster), couleur progressive
+  const effectivePity = Math.max(5, PITY_THRESHOLD - pityReduction());
+  const pityCount = Math.min(effectivePity, state.pity.sinceLegendary);
+  const pityRatio = pityCount / effectivePity;
   document.getElementById('pity-count').textContent = pityCount;
-  document.getElementById('pity-max').textContent = PITY_THRESHOLD;
-  document.getElementById('pity-fill').style.width = `${(pityCount / PITY_THRESHOLD) * 100}%`;
+  document.getElementById('pity-max').textContent = effectivePity;
+  const pityFill = document.getElementById('pity-fill');
+  pityFill.style.width = `${pityRatio * 100}%`;
+  pityFill.classList.toggle('pity-fill-hot', pityRatio >= 0.8);
+  pityFill.classList.toggle('pity-fill-warm', pityRatio >= 0.5 && pityRatio < 0.8);
+  const wrap = document.querySelector('.pity-bar-wrap');
+  if (wrap) {
+    const remaining = effectivePity - pityCount;
+    wrap.title = remaining > 0
+      ? `Légendaire garanti dans ${remaining} coffre${remaining > 1 ? 's' : ''}`
+      : `Légendaire garanti au prochain coffre !`;
+  }
 }
 
 // === Dungeon panel ===
@@ -359,12 +409,24 @@ function renderDungeon() {
   const monster = generateMonster(floor);
   const card = document.getElementById('monster-card');
   card.classList.toggle('boss', monster.isBoss);
+  card.classList.toggle('elite', !!monster.isElite);
   // Apply biome background to the monster card
   card.style.background = biome.bgGradient;
   document.getElementById('monster-emoji').textContent = monster.emoji;
-  document.getElementById('monster-name').textContent = monster.name;
+  document.getElementById('monster-name').innerHTML = monster.isElite
+    ? `${monster.eliteIcon || '⭐'} <span class="monster-name-elite">${monster.name}</span>`
+    : monster.name;
   document.getElementById('monster-stats').innerHTML =
     `<span>❤️ ${monster.hp}</span><span>⚔️ ${monster.damage}</span><span>🛡 ${monster.armor}</span><span>💰 ${monster.goldReward}</span>`;
+  const mechEl = document.getElementById('monster-mechanic');
+  if (mechEl) {
+    if (monster.mechanic) {
+      mechEl.textContent = `✦ ${monster.mechanic.desc}`;
+      mechEl.style.display = '';
+    } else {
+      mechEl.style.display = 'none';
+    }
+  }
   const diff = predictDifficulty(monster);
   const diffEl = document.getElementById('monster-difficulty');
   diffEl.textContent = diff.label;
@@ -395,13 +457,16 @@ function renderAutoSell() {
     const row = document.createElement('div');
     row.className = 'autosell-row';
     const cost = AUTOSELL_UNLOCK_COSTS[r.id];
-    let toggleHTML;
+    let controlsHTML;
     if (slot.unlocked) {
-      toggleHTML = `<button class="autosell-toggle ${slot.on ? 'on' : ''}" data-rarity="${r.id}" data-action="toggle">${slot.on ? 'ON' : 'OFF'}</button>`;
+      const mode = slot.mode || 'sell';
+      const modeBtn = `<button class="autosell-mode" data-rarity="${r.id}" data-action="mode" title="Bascule vente/recyclage">${mode === 'salvage' ? '💎' : '💰'}</button>`;
+      const toggleBtn = `<button class="autosell-toggle ${slot.on ? 'on' : ''}" data-rarity="${r.id}" data-action="toggle">${slot.on ? 'ON' : 'OFF'}</button>`;
+      controlsHTML = `${modeBtn}${toggleBtn}`;
     } else {
-      toggleHTML = `<button class="autosell-toggle locked" data-rarity="${r.id}" data-action="unlock" ${state.gold < cost ? 'disabled' : ''}>${cost.toLocaleString('fr-FR')} 💰</button>`;
+      controlsHTML = `<button class="autosell-toggle locked" data-rarity="${r.id}" data-action="unlock" ${state.gold < cost ? 'disabled' : ''}>${cost.toLocaleString('fr-FR')} 💰</button>`;
     }
-    row.innerHTML = `<span class="rarity-tag rt-${r.cssClass}">${r.name}</span>${toggleHTML}`;
+    row.innerHTML = `<span class="rarity-tag rt-${r.cssClass}">${r.name}</span><div class="autosell-controls">${controlsHTML}</div>`;
     grid.appendChild(row);
   }
 }
@@ -469,6 +534,14 @@ function renderCharacter() {
         `<div class="active">(${b.threshold}) +${b.value}${b.percent ? '%' : ''} ${b.label}</div>`
       ).join('');
       setEl.appendChild(bonusList);
+    }
+    if (s.effect) {
+      const eff = document.createElement('div');
+      eff.className = 'set-effect';
+      eff.style.borderColor = s.color;
+      eff.innerHTML = `<div class="set-effect-name" style="color:${s.color}">(4) ✦ ${s.effect.name}</div>
+                       <div class="set-effect-desc">${s.effect.desc}</div>`;
+      setEl.appendChild(eff);
     }
   }
 
@@ -542,6 +615,18 @@ function renderInventory() {
     );
   }
   const sorted = sortInventory(items, invSortMode);
+
+  if (sorted.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    if (state.inventory.length === 0) {
+      empty.innerHTML = '<div class="empty-icon">📭</div><div class="empty-title">Inventaire vide</div><div class="empty-desc">Ouvre des coffres ou combats des monstres pour looter du matos.</div>';
+    } else {
+      empty.innerHTML = `<div class="empty-icon">🔍</div><div class="empty-title">Aucun résultat</div><div class="empty-desc">Aucun item ne correspond à "${invSearchText}".</div>`;
+    }
+    grid.appendChild(empty);
+    return;
+  }
 
   for (const item of sorted) {
     const el = document.createElement('div');
@@ -752,6 +837,63 @@ export function renderAchievementsModal() {
   }
 }
 
+// === Settings Modal ===
+
+export function renderSettingsModal() {
+  const s = state.settings || {};
+  document.getElementById('setting-mute').checked = !!state.ui?.muted;
+  document.getElementById('setting-fast-combat').checked = !!s.fastCombat;
+  document.getElementById('setting-reduced-particles').checked = !!s.reducedParticles;
+  document.getElementById('setting-confirm-ascend').checked = !!s.confirmAscend;
+  document.getElementById('setting-confirm-sell').checked = !!s.confirmDestructiveSell;
+  document.getElementById('setting-hard-mode').checked = !!s.hardMode;
+}
+
+// === Stats Breakdown Modal ===
+
+const STAT_ORDER = ['vitality', 'damage', 'armor', 'crit', 'fireDmg', 'speed', 'goldFind'];
+const STAT_PERCENT = { crit: true, fireDmg: true, speed: true, goldFind: true };
+
+export function renderStatsBreakdownModal() {
+  const stats = computeStats();
+  document.getElementById('breakdown-power').textContent = computePower(stats).toLocaleString('fr-FR');
+  const body = document.getElementById('breakdown-body');
+  const breakdown = computeStatsBreakdown();
+  const parts = [];
+  for (const k of STAT_ORDER) {
+    const sources = breakdown[k];
+    const total = stats[k] || 0;
+    if (!sources || sources.length === 0) {
+      parts.push(`
+        <div class="breakdown-stat breakdown-empty">
+          <div class="breakdown-stat-header">
+            <span class="breakdown-stat-name">${statLabel(k)}</span>
+            <span class="breakdown-stat-total">${total}${STAT_PERCENT[k] ? '%' : ''}</span>
+          </div>
+          <div class="breakdown-stat-empty">Aucune source</div>
+        </div>
+      `);
+      continue;
+    }
+    const rows = sources
+      .sort((a, b) => b.value - a.value)
+      .map(s => `<div class="breakdown-row">
+          <span class="breakdown-row-src">${s.source}</span>
+          <span class="breakdown-row-val">+${s.value}${STAT_PERCENT[k] ? '%' : ''}</span>
+        </div>`).join('');
+    parts.push(`
+      <div class="breakdown-stat">
+        <div class="breakdown-stat-header">
+          <span class="breakdown-stat-name">${statLabel(k)}</span>
+          <span class="breakdown-stat-total">${total}${STAT_PERCENT[k] ? '%' : ''}</span>
+        </div>
+        ${rows}
+      </div>
+    `);
+  }
+  body.innerHTML = parts.join('');
+}
+
 // === Toasts ===
 
 export function showToast(emoji, title, subtitle) {
@@ -846,31 +988,48 @@ export function renderForgeModal() {
 
 function renderForgeActionsPanel(actionsEl, selected) {
   actionsEl.innerHTML = '';
+  // Group actions by their declared category (.group), fallback 'Autre'.
+  const groups = {};
+  const groupOrder = [];
   for (const action of FORGE_ACTIONS) {
-    const enabled = action.can(selected);
-    let costHTML;
-    if (action.orb) {
-      const orbDef = CURRENCY_BY_ID[action.orb];
-      const have = state.orbs[action.orb] || 0;
-      const haveColor = have >= 1 ? orbDef.color : '#666';
-      costHTML = `<div class="forge-cost" style="color:${haveColor}">${orbDef.emoji} ${have}</div>`;
-    } else if (action.shards) {
-      const have = state.shards[selected.rarity] || 0;
-      const haveColor = have >= action.shards ? '#a0e0ff' : '#666';
-      costHTML = `<div class="forge-cost" style="color:${haveColor}">${have}/${action.shards} 💎</div>`;
-    } else {
-      costHTML = '';
+    const g = action.group || 'Autre';
+    if (!groups[g]) { groups[g] = []; groupOrder.push(g); }
+    groups[g].push(action);
+  }
+  for (const g of groupOrder) {
+    const section = document.createElement('div');
+    section.className = 'forge-group';
+    section.innerHTML = `<div class="forge-group-title">${g}</div>`;
+    const grid = document.createElement('div');
+    grid.className = 'forge-group-grid';
+    for (const action of groups[g]) {
+      const enabled = action.can(selected);
+      let costHTML;
+      if (action.orb) {
+        const orbDef = CURRENCY_BY_ID[action.orb];
+        const have = state.orbs[action.orb] || 0;
+        const haveColor = have >= 1 ? orbDef.color : '#666';
+        costHTML = `<div class="forge-cost" style="color:${haveColor}">${orbDef.emoji} ${have}</div>`;
+      } else if (action.shards) {
+        const have = state.shards[selected.rarity] || 0;
+        const haveColor = have >= action.shards ? '#a0e0ff' : '#666';
+        costHTML = `<div class="forge-cost" style="color:${haveColor}">${have}/${action.shards} 💎</div>`;
+      } else {
+        costHTML = '';
+      }
+      const btn = document.createElement('button');
+      btn.className = 'btn forge-btn';
+      btn.dataset.forgeAction = action.id;
+      btn.disabled = !enabled;
+      btn.innerHTML = `
+        <div class="forge-btn-label">${action.label}</div>
+        <div class="forge-btn-desc">${action.desc}</div>
+        ${costHTML}
+      `;
+      grid.appendChild(btn);
     }
-    const btn = document.createElement('button');
-    btn.className = 'btn forge-btn';
-    btn.dataset.forgeAction = action.id;
-    btn.disabled = !enabled;
-    btn.innerHTML = `
-      <div class="forge-btn-label">${action.label}</div>
-      <div class="forge-btn-desc">${action.desc}</div>
-      ${costHTML}
-    `;
-    actionsEl.appendChild(btn);
+    section.appendChild(grid);
+    actionsEl.appendChild(section);
   }
 }
 
@@ -925,6 +1084,8 @@ export function showModal(id) {
   if (id === 'codex-modal') renderCodexModal();
   if (id === 'skills-modal') renderSkillsModal();
   if (id === 'bounties-modal') renderBountiesModal();
+  if (id === 'stats-breakdown-modal') renderStatsBreakdownModal();
+  if (id === 'settings-modal') renderSettingsModal();
 }
 
 export function renderCodexModal() {
@@ -1035,4 +1196,5 @@ export function renderAll() {
   if (isModalOpen('codex-modal')) renderCodexModal();
   if (isModalOpen('skills-modal')) renderSkillsModal();
   if (isModalOpen('bounties-modal')) renderBountiesModal();
+  if (isModalOpen('stats-breakdown-modal')) renderStatsBreakdownModal();
 }

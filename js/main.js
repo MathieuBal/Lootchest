@@ -1,5 +1,5 @@
 // Bootstrap, event wiring, top-level orchestration.
-import { state, subscribe, resetState } from './state.js';
+import { state, subscribe, resetState, notify } from './state.js';
 import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
 import { openChest, upgradeChest, canOpen } from './chest.js';
@@ -26,7 +26,8 @@ import {
 import {
   sellItem, sellAllOfRarities, addToInventory, sellDrop,
   unlockAutoSell, toggleAutoSell, isAutoSellOn,
-  salvageItem, salvageAllOfRarities,
+  salvageItem, salvageAllOfRarities, toggleLockItem,
+  autoActionFor, setAutoMode, salvageDrop,
 } from './inventory.js';
 import {
   renderAll, showDropPopup, hideDropPopup, getCurrentDrop,
@@ -136,10 +137,16 @@ btnOpen.addEventListener('click', () => {
     soundCoin();
   }
 
-  // Auto-sell?
-  if (isAutoSellOn(item.rarity)) {
+  // Auto-action?
+  const action = autoActionFor(item.rarity);
+  if (action === 'sell') {
     sellDrop(item);
     soundCoin();
+    return;
+  }
+  if (action === 'salvage') {
+    salvageDrop(item);
+    soundForge();
     return;
   }
   showDropPopup(item);
@@ -210,18 +217,25 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
   const monsterMaxHp = monster.hp;
   showCombatBars(playerMaxHp, monsterMaxHp);
 
-  // Tween events at variable speed; cap total animation around 1.5s
+  // Tween events at variable speed; cap total animation around 1.5s.
+  // Fast combat setting: short delay, no slow-down.
   const events = result.events || [];
-  const perEvent = Math.max(50, Math.min(160, 1400 / Math.max(1, events.length)));
+  const fast = !!state.settings?.fastCombat;
+  const perEvent = fast ? 12 : Math.max(50, Math.min(160, 1400 / Math.max(1, events.length)));
 
   for (const ev of events) {
     await sleep(perEvent);
     if (ev.type === 'player_hit') {
       updateMonsterHp(ev.monsterHp, monsterMaxHp);
       const c = getMonsterEmojiCenter();
-      floatingDamage(ev.dmg, c.x, c.y, ev.isCrit ? 'crit' : 'normal');
-      ev.isCrit ? soundCrit() : soundHit();
-      if (ev.isCrit) screenShake(3, 120);
+      if (ev.blocked) {
+        floatingText('🛡 BLOQUÉ', c.x, c.y, '#5a8af0');
+        soundClick();
+      } else {
+        floatingDamage(ev.dmg, c.x, c.y, ev.isCrit ? 'crit' : 'normal');
+        ev.isCrit ? soundCrit() : soundHit();
+        if (ev.isCrit) screenShake(3, 120);
+      }
       // Show skill multiplier icons next to the damage number
       if (ev.mults && ev.mults.length > 0) {
         const txt = ev.mults.map(m => m.emoji).join(' ');
@@ -249,6 +263,36 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
       floatingDamage(ev.amount, c.x, c.y, 'normal');
       floatingText(`${ev.emoji} Épines`, c.x, c.y - 40, '#5acc6a');
       soundHit();
+    } else if (ev.type === 'set_drain') {
+      updatePlayerHp(ev.playerHp, playerMaxHp);
+      const c = getCharacterAvatarCenter();
+      floatingText(`${ev.emoji} +${ev.amount}`, c.x, c.y - 30, '#5acc6a');
+    } else if (ev.type === 'set_freeze') {
+      const c = getMonsterEmojiCenter();
+      floatingText(`${ev.emoji} GEL`, c.x, c.y, '#5ad8e8');
+      soundClick();
+    } else if (ev.type === 'set_dodge') {
+      const c = getCharacterAvatarCenter();
+      floatingText(`${ev.emoji} BLOC`, c.x, c.y, '#ffaa00');
+      soundClick();
+    } else if (ev.type === 'set_rebirth') {
+      updatePlayerHp(ev.playerHp, playerMaxHp);
+      const c = getCharacterAvatarCenter();
+      floatingText(`${ev.emoji} RENAISSANCE`, c.x, c.y - 40, '#ff3000');
+      spawnParticles('#ff3000', c.x, c.y, 25);
+      soundWin();
+    } else if (ev.type === 'boss_regen') {
+      updateMonsterHp(ev.monsterHp, monsterMaxHp);
+      const c = getMonsterEmojiCenter();
+      floatingText(`🌿 +${ev.amount}`, c.x, c.y - 30, '#6acc6a');
+    } else if (ev.type === 'boss_burn') {
+      updatePlayerHp(ev.playerHp, playerMaxHp);
+      const c = getCharacterAvatarCenter();
+      floatingDamage(ev.amount, c.x, c.y, 'player-took');
+      floatingText('🔥 Brûlure', c.x, c.y - 40, '#ff7a1a');
+    } else if (ev.type === 'boss_shield') {
+      const c = getMonsterEmojiCenter();
+      floatingText('🛡 BOUCLIER', c.x, c.y, '#5a8af0');
     }
   }
 
@@ -289,9 +333,13 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
   if (droppedItem) {
     appendCombatLog([`🎁 Drop : ${droppedItem.name}`], 'reward');
     soundDrop(droppedItem.rarity);
-    if (isAutoSellOn(droppedItem.rarity)) {
+    const action = autoActionFor(droppedItem.rarity);
+    if (action === 'sell') {
       sellDrop(droppedItem);
       soundCoin();
+    } else if (action === 'salvage') {
+      salvageDrop(droppedItem);
+      soundForge();
     } else {
       showDropPopup(droppedItem);
     }
@@ -316,6 +364,9 @@ document.getElementById('autosell-grid').addEventListener('click', (e) => {
     unlockAutoSell(rarity);
   } else if (btn.dataset.action === 'toggle') {
     toggleAutoSell(rarity);
+  } else if (btn.dataset.action === 'mode') {
+    const cur = state.autoSell[rarity]?.mode || 'sell';
+    setAutoMode(rarity, cur === 'sell' ? 'salvage' : 'sell');
   }
 });
 
@@ -326,16 +377,30 @@ document.getElementById('inventory-grid').addEventListener('click', (e) => {
   if (!icon) return;
   const item = findItem(icon.dataset.itemId);
   if (!item) return;
+  if (e.altKey) {
+    const locked = toggleLockItem(item.id);
+    soundClick();
+    const r = icon.getBoundingClientRect();
+    floatingText(locked ? '🔒 Verrouillé' : '🔓 Déverrouillé', r.left + r.width / 2, r.top, '#ffe14a');
+    return;
+  }
   if (e.ctrlKey || e.metaKey) {
     const qty = salvageItem(item);
     if (qty > 0) {
       soundForge();
       const r = icon.getBoundingClientRect();
       floatingText(`+${qty} 💎`, r.left + r.width / 2, r.top, '#a0e0ff');
+    } else if (item.locked) {
+      const r = icon.getBoundingClientRect();
+      floatingText('🔒 Verrouillé', r.left + r.width / 2, r.top, '#ff7a1a');
     }
   } else if (e.shiftKey) {
-    sellItem(item);
-    soundCoin();
+    const earned = sellItem(item);
+    if (earned > 0) soundCoin();
+    else if (item.locked) {
+      const r = icon.getBoundingClientRect();
+      floatingText('🔒 Verrouillé', r.left + r.width / 2, r.top, '#ff7a1a');
+    }
   } else {
     equipItem(item);
     soundClick();
@@ -369,6 +434,11 @@ document.getElementById('btn-sell-filter').addEventListener('click', () => {
   // Don't bulk-sell ancestrals by accident
   if (filterValue !== 'ancestral' && filterValue !== 'all') {
     raritySet.delete('ancestral');
+  }
+  // Confirm before selling epic+
+  if (state.settings?.confirmDestructiveSell && (raritySet.has('epic') || raritySet.has('legendary') || raritySet.has('ancestral'))) {
+    const ok = confirm('Vendre en masse des objets épiques+ ? (verrouille les pépites précieuses avec Alt+clic d\'abord)');
+    if (!ok) return;
   }
   const earned = sellAllOfRarities(raritySet);
   if (earned > 0) {
@@ -429,6 +499,10 @@ document.body.addEventListener('mouseleave', hideTooltip);
 
 document.getElementById('btn-achievements').addEventListener('click', () => {
   showModal('achievements-modal');
+});
+
+document.getElementById('btn-stats-breakdown').addEventListener('click', () => {
+  showModal('stats-breakdown-modal');
 });
 
 document.getElementById('btn-talents').addEventListener('click', () => {
@@ -545,6 +619,37 @@ document.getElementById('btn-help').addEventListener('click', () => {
   showModal('help-modal');
 });
 
+// Settings modal
+document.getElementById('btn-settings').addEventListener('click', () => {
+  showModal('settings-modal');
+});
+document.getElementById('setting-mute').addEventListener('change', (e) => {
+  setMuted(e.target.checked);
+  state.ui.muted = e.target.checked;
+  updateMuteButton();
+  notify();
+});
+document.getElementById('setting-fast-combat').addEventListener('change', (e) => {
+  state.settings.fastCombat = e.target.checked;
+  notify();
+});
+document.getElementById('setting-reduced-particles').addEventListener('change', (e) => {
+  state.settings.reducedParticles = e.target.checked;
+  notify();
+});
+document.getElementById('setting-confirm-ascend').addEventListener('change', (e) => {
+  state.settings.confirmAscend = e.target.checked;
+  notify();
+});
+document.getElementById('setting-confirm-sell').addEventListener('change', (e) => {
+  state.settings.confirmDestructiveSell = e.target.checked;
+  notify();
+});
+document.getElementById('setting-hard-mode').addEventListener('change', (e) => {
+  state.settings.hardMode = e.target.checked;
+  notify();
+});
+
 // Inventory sort + search + auto-equip
 document.getElementById('inv-sort').addEventListener('change', (e) => {
   setInvSortMode(e.target.value);
@@ -567,16 +672,20 @@ document.getElementById('btn-auto-equip').addEventListener('click', () => {
 document.getElementById('btn-ascend').addEventListener('click', () => {
   if (!canAscend()) return;
   const newLevel = (state.prestige?.level || 0) + 1;
-  const msg = `🌟 Ascension Niv ${newLevel} ?\n\n`
-    + `Tu repars de zéro (or, items, coffre T1, étage 1).\n`
-    + `Tu gardes : succès, prestige, statistiques.\n\n`
-    + `Bonus permanent : +${Math.round((Math.pow(1.25, newLevel) - 1) * 100)}% drops raretés et or de vente.\n\n`
-    + `Confirmer ?`;
-  if (confirm(msg)) {
+  const bonusPct = 15 * newLevel;
+  let confirmed = true;
+  if (state.settings?.confirmAscend !== false) {
+    const msg = `🌟 Ascension Niv ${newLevel} ?\n\n`
+      + `Tu repars de zéro (or, items, coffre T1, étage 1).\n`
+      + `Tu gardes : succès, prestige, statistiques.\n\n`
+      + `Bonus permanent : +${bonusPct}% drops raretés et or de vente.\n\n`
+      + `Confirmer ?`;
+    confirmed = confirm(msg);
+  }
+  if (confirmed) {
     if (ascend()) {
       soundAscension();
       screenShake(8, 600);
-      // Burst of golden particles from center of screen
       spawnParticles('#f5c842', window.innerWidth / 2, window.innerHeight / 2, 80, { minSpeed: 200, maxSpeed: 500, size: 10 });
     }
   }
@@ -613,6 +722,9 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 // === Close popup with ESC ===
 
 document.addEventListener('keydown', (e) => {
+  // Ignore when typing in an input
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
   if (e.key === 'Escape') {
     const drop = getCurrentDrop();
     if (drop) {
@@ -620,23 +732,39 @@ document.addEventListener('keydown', (e) => {
       hideDropPopup();
       return;
     }
-    if (isModalOpen('forge-modal')) { hideModal('forge-modal'); return; }
-    if (isModalOpen('achievements-modal')) { hideModal('achievements-modal'); return; }
-    if (isModalOpen('help-modal')) { hideModal('help-modal'); return; }
-    if (isModalOpen('talents-modal')) { hideModal('talents-modal'); return; }
-    if (isModalOpen('codex-modal')) { hideModal('codex-modal'); return; }
-    if (isModalOpen('skills-modal')) { hideModal('skills-modal'); return; }
-    if (isModalOpen('bounties-modal')) { hideModal('bounties-modal'); return; }
-  } else if (e.key === ' ' || e.code === 'Space') {
-    // Spacebar: chest open OR fight depending on current tab
+    const modals = ['forge-modal','achievements-modal','help-modal','talents-modal','codex-modal','skills-modal','bounties-modal','settings-modal','stats-breakdown-modal'];
+    for (const id of modals) {
+      if (isModalOpen(id)) { hideModal(id); return; }
+    }
+    return;
+  }
+
+  // Block all other shortcuts when a modal is open
+  const anyModal = ['forge-modal','achievements-modal','help-modal','talents-modal','codex-modal','skills-modal','bounties-modal','settings-modal','stats-breakdown-modal']
+    .some(id => isModalOpen(id));
+  if (anyModal) return;
+
+  if (e.key === ' ' || e.code === 'Space') {
     if (getCurrentDrop()) return;
-    // Ignore if focus on input (file/select)
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
     e.preventDefault();
     if (state.ui.leftTab === 'dungeon') {
       document.getElementById('btn-fight').click();
     } else if (canOpen()) {
       btnOpen.click();
     }
+    return;
   }
+  // Tab switch
+  if (e.key === '1') { setActiveTab('chest'); return; }
+  if (e.key === '2') { setActiveTab('dungeon'); return; }
+  // Modal shortcuts (no Ctrl/Alt to avoid clashing with browser)
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  const lower = e.key.toLowerCase();
+  if (lower === 'i') { showModal('forge-modal'); return; }   // (I)nventaire de forge
+  if (lower === 't') { showModal('talents-modal'); return; } // (T)alents
+  if (lower === 'a') { showModal('achievements-modal'); return; } // (A)chievements
+  if (lower === 'b') { showModal('bounties-modal'); return; } // (B)ounties
+  if (lower === 'c') { showModal('codex-modal'); return; }   // (C)odex
+  if (lower === 'k') { showModal('skills-modal'); return; }  // s(K)ills
+  if (lower === 's') { showModal('stats-breakdown-modal'); return; } // (S)tats
 });

@@ -114,6 +114,58 @@ export const SKILLS = [
       return null;
     },
   },
+  {
+    id: 'tempest',
+    emoji: '🌪',
+    name: 'Tempête',
+    desc: '15% par coup : ton attaque inflige les dégâts deux fois.',
+    unlockText: 'Vitesse ≥ 40%',
+    isUnlocked: (stats) => (stats.speed || 0) >= 40,
+    onDamageCalc: () => {
+      if (Math.random() < 0.15) return { kind: 'mult', mult: 2.0, label: '🌪' };
+      return null;
+    },
+  },
+  {
+    id: 'vampirism',
+    emoji: '🩸',
+    name: 'Vampirisme',
+    desc: 'Soigne 5% de tes PV max à chaque coup porté.',
+    unlockText: 'Vie totale ≥ 100',
+    isUnlocked: (stats) => (stats.vitality || 0) >= 100,
+    onPlayerAttack: (ctx) => {
+      const heal = Math.max(1, Math.round(ctx.playerMaxHp * 0.05));
+      return { kind: 'heal', amount: heal };
+    },
+  },
+  {
+    id: 'adrenaline',
+    emoji: '💉',
+    name: 'Adrénaline',
+    desc: 'Tous les 3 tours, ta prochaine attaque inflige +75% dégâts.',
+    unlockText: 'Dégâts ≥ 50',
+    isUnlocked: (stats) => (stats.damage || 0) >= 50,
+    initState: () => ({ turns: 0 }),
+    onDamageCalc: (ctx) => {
+      ctx.skillState.turns += 1;
+      if (ctx.skillState.turns % 3 === 0) return { kind: 'mult', mult: 1.75, label: '💉' };
+      return null;
+    },
+  },
+  {
+    id: 'last_stand',
+    emoji: '🦴',
+    name: 'Ultime résistance',
+    desc: 'Sous 25% PV, +60% chance d\'esquive.',
+    unlockText: 'PV total ≥ 80 OU Endurci rang 3+',
+    isUnlocked: (stats, talents) => (stats.vitality || 0) >= 80 || (talents.tanky || 0) >= 3,
+    onMonsterAttack: (ctx) => {
+      if (ctx.playerHp / ctx.playerMaxHp < 0.25 && Math.random() < 0.60) {
+        return { kind: 'dodge' };
+      }
+      return null;
+    },
+  },
 ];
 
 export const SKILLS_BY_ID = Object.fromEntries(SKILLS.map(s => [s.id, s]));

@@ -113,15 +113,24 @@ export function maxAllowedChestTier(prestigeLevel) {
 // === Talents ===
 // Per-rank passive bonuses. Points earned via ascension (2 per) and dungeon milestones (1 per).
 export const TALENTS = [
-  { id: 'merchant',       emoji: '💰', name: 'Marchand habile',     desc: '+10% prix de vente par rang',           maxRank: 5, perRank: { sellMult: 0.10 } },
-  { id: 'sharpEye',       emoji: '👁',  name: 'Œil aiguisé',         desc: '+5% poids des raretés rare+ par rang',  maxRank: 5, perRank: { rareMult: 0.05 } },
-  { id: 'berserker',      emoji: '⚔',  name: 'Berserker',           desc: '+10% dégâts en donjon par rang',        maxRank: 5, perRank: { dmgMult: 0.10 } },
-  { id: 'tanky',          emoji: '❤',  name: 'Endurci',             desc: '+15% PV max par rang',                  maxRank: 5, perRank: { hpMult: 0.15 } },
-  { id: 'treasureHunter', emoji: '💎', name: 'Chasseur de trésors', desc: '+25% or des monstres par rang',         maxRank: 4, perRank: { monsterGoldMult: 0.25 } },
-  { id: 'orbFinder',      emoji: '🟪', name: 'Trouveur d\'orbes',   desc: '+15% drop d\'orbes par rang',           maxRank: 4, perRank: { orbDropMult: 0.15 } },
-  { id: 'recycler',       emoji: '♻',  name: 'Recycleur',           desc: '+1 cristal par recyclage par rang',     maxRank: 3, perRank: { shardBonus: 1 } },
-  { id: 'pityMaster',     emoji: '✨', name: 'Maître pity',         desc: '-10 au pity timer par rang',            maxRank: 3, perRank: { pityReduction: 10 } },
+  { id: 'merchant',       emoji: '💰', name: 'Marchand habile',     desc: '+10% prix de vente par rang',           maxRank: 5, perRank: { sellMult: 0.10 },         category: 'wealth' },
+  { id: 'sharpEye',       emoji: '👁',  name: 'Œil aiguisé',         desc: '+5% poids des raretés rare+ par rang',  maxRank: 5, perRank: { rareMult: 0.05 },         category: 'wealth' },
+  { id: 'berserker',      emoji: '⚔',  name: 'Berserker',           desc: '+10% dégâts en donjon par rang',        maxRank: 5, perRank: { dmgMult: 0.10 },          category: 'combat' },
+  { id: 'tanky',          emoji: '❤',  name: 'Endurci',             desc: '+15% PV max par rang',                  maxRank: 5, perRank: { hpMult: 0.15 },           category: 'combat' },
+  { id: 'treasureHunter', emoji: '💎', name: 'Chasseur de trésors', desc: '+25% or des monstres par rang',         maxRank: 4, perRank: { monsterGoldMult: 0.25 }, category: 'wealth' },
+  { id: 'orbFinder',      emoji: '🟪', name: 'Trouveur d\'orbes',   desc: '+15% drop d\'orbes par rang',           maxRank: 4, perRank: { orbDropMult: 0.15 },     category: 'utility' },
+  { id: 'recycler',       emoji: '♻',  name: 'Recycleur',           desc: '+1 cristal par recyclage par rang',     maxRank: 3, perRank: { shardBonus: 1 },         category: 'utility' },
+  { id: 'pityMaster',     emoji: '✨', name: 'Maître pity',         desc: '-10 au pity timer par rang',            maxRank: 3, perRank: { pityReduction: 10 },     category: 'utility' },
 ];
+
+// Talent categories — investing 5+ points in one grants a 10% mastery bonus to that category.
+export const TALENT_CATEGORIES = {
+  combat:  { emoji: '⚔', name: 'Combat',     color: '#ff7a1a', desc: '+10% effets combat (dégâts, PV) si ≥ 5 points' },
+  wealth:  { emoji: '💰', name: 'Richesse',   color: '#ffe14a', desc: '+10% effets richesse (or, drops) si ≥ 5 points' },
+  utility: { emoji: '🔮', name: 'Utilitaire', color: '#5a8af0', desc: '+10% effets utilitaires (orbes, cristaux, pity) si ≥ 5 points' },
+};
+export const TALENT_MASTERY_THRESHOLD = 5;
+export const TALENT_MASTERY_BONUS = 0.10;
 
 export const TALENT_BY_ID = Object.fromEntries(TALENTS.map(t => [t.id, t]));
 
@@ -142,7 +151,8 @@ export const BIOMES = [
       { name: 'Ours',           emoji: '🐻', hpBase: 55, dmgBase: 5, armorBase: 2, goldBase: 12 },
       { name: 'Plante carnivore', emoji: '🌵', hpBase: 40, dmgBase: 4, armorBase: 1, goldBase: 10 },
     ],
-    boss: { name: 'Roi Sylvain',  emoji: '🌳', hpBase: 140, dmgBase: 11, armorBase: 4, goldBase: 100 },
+    boss: { name: 'Roi Sylvain',  emoji: '🌳', hpBase: 140, dmgBase: 11, armorBase: 4, goldBase: 100,
+            mechanic: { type: 'regen', percentPerTurn: 0.05, desc: 'Régénère 5% PV par tour' } },
   },
   {
     id: 'cave', name: 'Cavernes', emoji: '🪨', floors: [11, 20],
@@ -154,7 +164,8 @@ export const BIOMES = [
       { name: 'Troll',          emoji: '👹', hpBase: 55, dmgBase: 8, armorBase: 3, goldBase: 14 },
       { name: 'Golem de pierre',emoji: '🗿', hpBase: 70, dmgBase: 6, armorBase: 5, goldBase: 15 },
     ],
-    boss: { name: 'Hydre des Profondeurs', emoji: '🐲', hpBase: 160, dmgBase: 13, armorBase: 5, goldBase: 130 },
+    boss: { name: 'Hydre des Profondeurs', emoji: '🐲', hpBase: 160, dmgBase: 13, armorBase: 5, goldBase: 130,
+            mechanic: { type: 'enrage', triggerHpPct: 0.30, dmgMult: 2.0, desc: 'En rage sous 30% PV : ×2 dégâts' } },
   },
   {
     id: 'castle', name: 'Château', emoji: '🏰', floors: [21, 30],
@@ -166,7 +177,8 @@ export const BIOMES = [
       { name: 'Garde Maudit',   emoji: '⚔',  hpBase: 45, dmgBase: 8, armorBase: 3, goldBase: 16 },
       { name: 'Sorcier',        emoji: '🧙', hpBase: 32, dmgBase: 11, armorBase: 0, goldBase: 18 },
     ],
-    boss: { name: 'Roi Mort',   emoji: '☠', hpBase: 130, dmgBase: 16, armorBase: 4, goldBase: 160 },
+    boss: { name: 'Roi Mort',   emoji: '☠', hpBase: 130, dmgBase: 16, armorBase: 4, goldBase: 160,
+            mechanic: { type: 'shieldCycle', everyTurns: 3, desc: 'Immunise 1 tour sur 3' } },
   },
   {
     id: 'hell', name: 'Enfer', emoji: '🔥', floors: [31, 40],
@@ -178,7 +190,8 @@ export const BIOMES = [
       { name: 'Incube',         emoji: '😺', hpBase: 30, dmgBase: 14, armorBase: 0, goldBase: 20 },
       { name: 'Démon de Lave',  emoji: '🌋', hpBase: 70, dmgBase: 10, armorBase: 4, goldBase: 22 },
     ],
-    boss: { name: 'Seigneur Démon', emoji: '😈', hpBase: 150, dmgBase: 20, armorBase: 4, goldBase: 220 },
+    boss: { name: 'Seigneur Démon', emoji: '😈', hpBase: 150, dmgBase: 20, armorBase: 4, goldBase: 220,
+            mechanic: { type: 'burn', dmgPerTurn: 8, desc: 'Brûlure : 8 dmg/tour passifs' } },
   },
   {
     id: 'void', name: 'Néant', emoji: '🌌', floors: [41, 9999],
@@ -190,7 +203,8 @@ export const BIOMES = [
       { name: 'Tentacule',      emoji: '🐙', hpBase: 75, dmgBase: 12, armorBase: 5, goldBase: 27 },
       { name: 'Vide-marcheur',  emoji: '👽', hpBase: 60, dmgBase: 15, armorBase: 3, goldBase: 28 },
     ],
-    boss: { name: 'Maître du Néant', emoji: '🌀', hpBase: 200, dmgBase: 22, armorBase: 6, goldBase: 320 },
+    boss: { name: 'Maître du Néant', emoji: '🌀', hpBase: 200, dmgBase: 22, armorBase: 6, goldBase: 320,
+            mechanic: { type: 'phaseShift', everyTurns: 4, dmgMult: 1.5, desc: 'Phase 1/4 tours : ×1.5 dmg' } },
   },
 ];
 
@@ -461,7 +475,9 @@ export const UNIQUE_LEGENDARIES = [
   },
 ];
 
-// === Sets (themed item collections with bonuses at 2/3/4 pieces) ===
+// === Sets (themed item collections with bonuses at 2/3/4 pieces + 4-piece unique effects) ===
+// Stat bonuses are boosted vs v1 (×1.5-2) so sets are competitive with affixes.
+// Each set also gets a unique 4-piece `effect` activated in combat (see combat.js).
 export const SETS = [
   {
     id: 'dragon', name: 'Dragon', color: '#ff5500',
@@ -472,10 +488,12 @@ export const SETS = [
       shield: { baseTypeId: 'tower', emoji: '🛡', name: 'Bouclier Dragonien' },
     },
     bonuses: {
-      2: [{ stat: 'fireDmg', value: 25, percent: true,  label: 'Dégâts feu' }],
-      3: [{ stat: 'damage',  value: 20, percent: false, label: 'Dégâts' }],
-      4: [{ stat: 'crit',    value: 25, percent: true,  label: 'Crit' }],
+      2: [{ stat: 'fireDmg', value: 40, percent: true,  label: 'Dégâts feu' }],
+      3: [{ stat: 'damage',  value: 35, percent: false, label: 'Dégâts' }],
+      4: [{ stat: 'crit',    value: 40, percent: true,  label: 'Crit' }],
     },
+    effect: { id: 'dragon_breath', name: 'Souffle dragon',
+              desc: '15% : ton attaque inflige le double de dégâts (feu)' },
   },
   {
     id: 'shadow', name: 'Ombre', color: '#8855ff',
@@ -486,10 +504,12 @@ export const SETS = [
       amulet: { baseTypeId: 'pendant', emoji: '📿', name: 'Pendentif de l\'Ombre' },
     },
     bonuses: {
-      2: [{ stat: 'speed',  value: 20, percent: true,  label: 'Vitesse' }],
-      3: [{ stat: 'crit',   value: 25, percent: true,  label: 'Crit' }],
-      4: [{ stat: 'damage', value: 30, percent: false, label: 'Dégâts' }],
+      2: [{ stat: 'speed',  value: 30, percent: true,  label: 'Vitesse' }],
+      3: [{ stat: 'crit',   value: 40, percent: true,  label: 'Crit' }],
+      4: [{ stat: 'damage', value: 50, percent: false, label: 'Dégâts' }],
     },
+    effect: { id: 'shadow_strike', name: 'Frappe d\'ombre',
+              desc: 'Après une esquive, la prochaine attaque est garantie crit' },
   },
   {
     id: 'titan', name: 'Titan', color: '#ffaa00',
@@ -500,10 +520,12 @@ export const SETS = [
       ring:   { baseTypeId: 'signet', emoji: '💎', name: 'Anneau Titan' },
     },
     bonuses: {
-      2: [{ stat: 'armor',    value: 25, percent: false, label: 'Armure' }],
-      3: [{ stat: 'vitality', value: 40, percent: false, label: 'Vie' }],
-      4: [{ stat: 'damage',   value: 25, percent: false, label: 'Dégâts' }],
+      2: [{ stat: 'armor',    value: 50, percent: false, label: 'Armure' }],
+      3: [{ stat: 'vitality', value: 80, percent: false, label: 'Vie' }],
+      4: [{ stat: 'damage',   value: 40, percent: false, label: 'Dégâts' }],
     },
+    effect: { id: 'titan_wall', name: 'Mur immuable',
+              desc: '15% : esquive complète de l\'attaque ennemie' },
   },
   {
     id: 'phoenix', name: 'Phénix', color: '#ff3000',
@@ -514,10 +536,12 @@ export const SETS = [
       amulet: { baseTypeId: 'pendant', emoji: '📿', name: 'Pendentif du Phénix' },
     },
     bonuses: {
-      2: [{ stat: 'fireDmg', value: 30, percent: true,  label: 'Dégâts feu' }],
-      3: [{ stat: 'vitality', value: 35, percent: false, label: 'Vie' }],
-      4: [{ stat: 'damage',  value: 25, percent: false, label: 'Dégâts' }],
+      2: [{ stat: 'fireDmg', value: 50, percent: true,  label: 'Dégâts feu' }],
+      3: [{ stat: 'vitality', value: 70, percent: false, label: 'Vie' }],
+      4: [{ stat: 'damage',  value: 40, percent: false, label: 'Dégâts' }],
     },
+    effect: { id: 'phoenix_rebirth', name: 'Renaissance',
+              desc: 'Une fois par combat, revis avec 30% de tes PV max' },
   },
   {
     id: 'frost', name: 'Givre', color: '#5ad8e8',
@@ -528,10 +552,12 @@ export const SETS = [
       amulet: { baseTypeId: 'talisman', emoji: '🧿', name: 'Talisman Glacial' },
     },
     bonuses: {
-      2: [{ stat: 'speed', value: 25, percent: true,  label: 'Vitesse' }],
-      3: [{ stat: 'crit',  value: 20, percent: true,  label: 'Crit' }],
-      4: [{ stat: 'damage', value: 30, percent: false, label: 'Dégâts' }],
+      2: [{ stat: 'speed', value: 40, percent: true,  label: 'Vitesse' }],
+      3: [{ stat: 'crit',  value: 35, percent: true,  label: 'Crit' }],
+      4: [{ stat: 'damage', value: 50, percent: false, label: 'Dégâts' }],
     },
+    effect: { id: 'frost_freeze', name: 'Gel',
+              desc: '20% par hit : le monstre est gelé et saute son tour' },
   },
   {
     id: 'lich', name: 'Liche', color: '#3aaa50',
@@ -542,10 +568,12 @@ export const SETS = [
       ring:   { baseTypeId: 'signet', emoji: '💎', name: 'Sceau de la Liche' },
     },
     bonuses: {
-      2: [{ stat: 'vitality', value: 30, percent: false, label: 'Vie' }],
-      3: [{ stat: 'fireDmg',  value: 25, percent: true,  label: 'Dégâts feu' }],
-      4: [{ stat: 'crit',     value: 30, percent: true,  label: 'Crit' }],
+      2: [{ stat: 'vitality', value: 60, percent: false, label: 'Vie' }],
+      3: [{ stat: 'fireDmg',  value: 40, percent: true,  label: 'Dégâts feu' }],
+      4: [{ stat: 'crit',     value: 50, percent: true,  label: 'Crit' }],
     },
+    effect: { id: 'lich_drain', name: 'Drain de vie',
+              desc: '10% des dégâts infligés te soignent' },
   },
 ];
 
@@ -560,10 +588,15 @@ export const PRESTIGE_REQUIREMENTS = {
   minFloor: 50,
 };
 
+// Bonus per prestige level. Switched from exponential (1.25^L) to linear (1 + 0.15*L)
+// to keep endgame challenging — exponential made prestige 5 trivialize content.
 export const PRESTIGE_BONUS_PER_LEVEL = {
-  rareDropWeightMult: 1.25,
-  goldMult: 1.25,
+  rareDropWeightMult: 0.15, // additive per level
+  goldMult: 0.15,           // additive per level
 };
+
+export function prestigeGoldMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.goldMult * (level || 0); }
+export function prestigeRareMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.rareDropWeightMult * (level || 0); }
 
 
 // Auto-sell unlock costs (per rarity). Common is free from start.
