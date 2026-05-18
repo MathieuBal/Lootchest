@@ -905,31 +905,48 @@ export function renderForgeModal() {
 
 function renderForgeActionsPanel(actionsEl, selected) {
   actionsEl.innerHTML = '';
+  // Group actions by their declared category (.group), fallback 'Autre'.
+  const groups = {};
+  const groupOrder = [];
   for (const action of FORGE_ACTIONS) {
-    const enabled = action.can(selected);
-    let costHTML;
-    if (action.orb) {
-      const orbDef = CURRENCY_BY_ID[action.orb];
-      const have = state.orbs[action.orb] || 0;
-      const haveColor = have >= 1 ? orbDef.color : '#666';
-      costHTML = `<div class="forge-cost" style="color:${haveColor}">${orbDef.emoji} ${have}</div>`;
-    } else if (action.shards) {
-      const have = state.shards[selected.rarity] || 0;
-      const haveColor = have >= action.shards ? '#a0e0ff' : '#666';
-      costHTML = `<div class="forge-cost" style="color:${haveColor}">${have}/${action.shards} 💎</div>`;
-    } else {
-      costHTML = '';
+    const g = action.group || 'Autre';
+    if (!groups[g]) { groups[g] = []; groupOrder.push(g); }
+    groups[g].push(action);
+  }
+  for (const g of groupOrder) {
+    const section = document.createElement('div');
+    section.className = 'forge-group';
+    section.innerHTML = `<div class="forge-group-title">${g}</div>`;
+    const grid = document.createElement('div');
+    grid.className = 'forge-group-grid';
+    for (const action of groups[g]) {
+      const enabled = action.can(selected);
+      let costHTML;
+      if (action.orb) {
+        const orbDef = CURRENCY_BY_ID[action.orb];
+        const have = state.orbs[action.orb] || 0;
+        const haveColor = have >= 1 ? orbDef.color : '#666';
+        costHTML = `<div class="forge-cost" style="color:${haveColor}">${orbDef.emoji} ${have}</div>`;
+      } else if (action.shards) {
+        const have = state.shards[selected.rarity] || 0;
+        const haveColor = have >= action.shards ? '#a0e0ff' : '#666';
+        costHTML = `<div class="forge-cost" style="color:${haveColor}">${have}/${action.shards} 💎</div>`;
+      } else {
+        costHTML = '';
+      }
+      const btn = document.createElement('button');
+      btn.className = 'btn forge-btn';
+      btn.dataset.forgeAction = action.id;
+      btn.disabled = !enabled;
+      btn.innerHTML = `
+        <div class="forge-btn-label">${action.label}</div>
+        <div class="forge-btn-desc">${action.desc}</div>
+        ${costHTML}
+      `;
+      grid.appendChild(btn);
     }
-    const btn = document.createElement('button');
-    btn.className = 'btn forge-btn';
-    btn.dataset.forgeAction = action.id;
-    btn.disabled = !enabled;
-    btn.innerHTML = `
-      <div class="forge-btn-label">${action.label}</div>
-      <div class="forge-btn-desc">${action.desc}</div>
-      ${costHTML}
-    `;
-    actionsEl.appendChild(btn);
+    section.appendChild(grid);
+    actionsEl.appendChild(section);
   }
 }
 
