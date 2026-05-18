@@ -3,6 +3,7 @@ import { state, notify } from './state.js';
 import { CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, CURRENCY_TYPES } from './data.js';
 import { generateItemFromChest } from './loot.js';
 import { orbDropMultiplier } from './talents.js';
+import { trackProgress as bountyTrack } from './bounties.js';
 
 // Roll each currency type independently. Higher chest tier slightly boosts rates.
 // Returns array of currency IDs that dropped this open.
@@ -35,6 +36,7 @@ export function openChest() {
   state.opened += 1;
   const item = generateItemFromChest(state.chestTier);
   const orbs = rollOrbDrops(state.chestTier);
+  bountyTrack('open_chests', 1);
   notify();
   return { item, orbs };
 }

@@ -7,6 +7,7 @@ import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
 import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
 import { upgradeTalent } from './talents.js';
+import { refreshBoardIfEmpty, rerollBounty, onBountyComplete } from './bounties.js';
 import { CURRENCY_BY_ID } from './data.js';
 import { canAscend, ascend } from './prestige.js';
 import {
@@ -56,6 +57,19 @@ renderAll();
 setActiveTab(state.ui?.leftTab || 'chest');
 // First check on load (in case of imported save with already-met conditions)
 checkAchievements();
+// Initialise bounty board if empty
+refreshBoardIfEmpty();
+onBountyComplete(b => {
+  const rewardSummary = [`+${b.reward.gold.toLocaleString('fr-FR')} 💰`];
+  for (const [orbId, q] of Object.entries(b.reward.orbs)) {
+    const orb = CURRENCY_BY_ID[orbId];
+    if (orb) rewardSummary.push(`${q} ${orb.emoji}`);
+  }
+  if (b.reward.talents) rewardSummary.push(`${b.reward.talents} 🌳`);
+  showToast(b.emoji, `Contrat complété : ${b.name}`, rewardSummary.join(' · '));
+  soundAchievement();
+  spawnParticles(b.diffColor, window.innerWidth / 2, window.innerHeight / 3, 30);
+});
 
 // Unlock audio on first user interaction (browser autoplay policy)
 document.addEventListener('click', unlockAudio, { once: true });
@@ -208,10 +222,32 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
       floatingDamage(ev.dmg, c.x, c.y, ev.isCrit ? 'crit' : 'normal');
       ev.isCrit ? soundCrit() : soundHit();
       if (ev.isCrit) screenShake(3, 120);
-    } else {
+      // Show skill multiplier icons next to the damage number
+      if (ev.mults && ev.mults.length > 0) {
+        const txt = ev.mults.map(m => m.emoji).join(' ');
+        floatingText(txt, c.x + 30, c.y - 20, '#ffe14a');
+      }
+    } else if (ev.type === 'monster_hit') {
       updatePlayerHp(ev.playerHp, playerMaxHp);
       const c = getCharacterAvatarCenter();
       floatingDamage(ev.dmg, c.x, c.y, 'player-took');
+      soundHit();
+    } else if (ev.type === 'skill_heal') {
+      updatePlayerHp(ev.playerHp, playerMaxHp);
+      const c = getCharacterAvatarCenter();
+      floatingDamage(ev.amount, c.x, c.y, 'heal');
+      floatingText(`${ev.emoji} Soin`, c.x, c.y - 40, '#6acc6a');
+      soundUpgrade();
+      spawnParticles('#6acc6a', c.x, c.y, 12);
+    } else if (ev.type === 'skill_dodge') {
+      const c = getCharacterAvatarCenter();
+      floatingText('💨 ESQUIVE', c.x, c.y, '#5a8af0');
+      soundClick();
+    } else if (ev.type === 'skill_reflect') {
+      updateMonsterHp(ev.monsterHp, monsterMaxHp);
+      const c = getMonsterEmojiCenter();
+      floatingDamage(ev.amount, c.x, c.y, 'normal');
+      floatingText(`${ev.emoji} Épines`, c.x, c.y - 40, '#5acc6a');
       soundHit();
     }
   }
@@ -403,6 +439,23 @@ document.getElementById('btn-codex').addEventListener('click', () => {
   showModal('codex-modal');
 });
 
+document.getElementById('btn-skills').addEventListener('click', () => {
+  showModal('skills-modal');
+});
+
+document.getElementById('btn-bounties').addEventListener('click', () => {
+  refreshBoardIfEmpty();
+  showModal('bounties-modal');
+});
+
+document.getElementById('bounties-list').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-bounty-reroll]');
+  if (!btn || btn.disabled) return;
+  if (rerollBounty(btn.dataset.bountyReroll)) {
+    soundClick();
+  }
+});
+
 document.getElementById('talents-grid').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-talent]');
   if (!btn || btn.disabled) return;
@@ -572,6 +625,8 @@ document.addEventListener('keydown', (e) => {
     if (isModalOpen('help-modal')) { hideModal('help-modal'); return; }
     if (isModalOpen('talents-modal')) { hideModal('talents-modal'); return; }
     if (isModalOpen('codex-modal')) { hideModal('codex-modal'); return; }
+    if (isModalOpen('skills-modal')) { hideModal('skills-modal'); return; }
+    if (isModalOpen('bounties-modal')) { hideModal('bounties-modal'); return; }
   } else if (e.key === ' ' || e.code === 'Space') {
     // Spacebar: chest open OR fight depending on current tab
     if (getCurrentDrop()) return;

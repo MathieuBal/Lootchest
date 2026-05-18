@@ -8,6 +8,7 @@ import {
 import { state } from './state.js';
 import { rollWeaponParts, hasCompositionFor } from './parts.js';
 import { rareDropMultiplier, pityReduction } from './talents.js';
+import { trackProgress as bountyTrack } from './bounties.js';
 
 let _id = 0;
 function nextId() { return `it_${Date.now().toString(36)}_${(_id++).toString(36)}`; }
@@ -128,6 +129,10 @@ function trackDropStats(item) {
     if (item.uniqueId) state.codex.uniques[item.uniqueId] = true;
     if (item.setId) state.codex.sets[item.setId] = (state.codex.sets[item.setId] || 0) + 1;
   }
+  // Bounty tracking
+  const rarePlus = ['rare', 'epic', 'legendary', 'ancestral'].includes(item.rarity);
+  if (rarePlus) bountyTrack('loot_rare_plus', 1);
+  if (item.rarity === 'legendary' || item.rarity === 'ancestral') bountyTrack('loot_legendary', 1);
 }
 
 // Forge helpers — rebuild item in-place based on its current slot/baseTypeId/rarity/chestTier.

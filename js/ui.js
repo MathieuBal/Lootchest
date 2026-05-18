@@ -16,6 +16,8 @@ import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, UNIQUE_LEGENDARIES, BIOMES } from './data.js';
 import { rankOf, canUpgradeTalent } from './talents.js';
+import { SKILLS, getActiveSkills } from './skills.js';
+import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG } from './sprites.js';
 import { getCompositionLayers } from './parts.js';
 
@@ -152,6 +154,86 @@ function renderHUD() {
   if (badge) {
     badge.textContent = pts;
     badge.style.color = pts > 0 ? '#6acc6a' : '';
+  }
+
+  // Skills count badge
+  const skillsBadge = document.getElementById('skills-count-badge');
+  if (skillsBadge) {
+    const unlocked = getActiveSkills().length;
+    skillsBadge.textContent = `${unlocked}/${SKILLS.length}`;
+  }
+
+  // Bounties badge: count near-complete + total active
+  const bountyBadge = document.getElementById('bounties-badge');
+  if (bountyBadge) {
+    const active = state.bounties?.active || [];
+    const total = active.length;
+    bountyBadge.textContent = `${total}`;
+    // Highlight if any bounty is close to completion (>= 80%)
+    const close = active.some(b => !b.completed && b.target > 0 && (b.progress / b.target) >= 0.8);
+    bountyBadge.style.color = close ? '#6acc6a' : '';
+  }
+}
+
+export function renderBountiesModal() {
+  const bounties = state.bounties?.active || [];
+  const completedEl = document.getElementById('bounties-completed');
+  if (completedEl) completedEl.textContent = state.bounties?.completed || 0;
+  const costEl = document.getElementById('bounty-reroll-cost');
+  if (costEl) costEl.textContent = BOUNTY_REROLL_COST.toLocaleString('fr-FR');
+
+  const list = document.getElementById('bounties-list');
+  list.innerHTML = '';
+  for (const b of bounties) {
+    const pct = b.target > 0 ? Math.min(100, (b.progress / b.target) * 100) : 0;
+    const rewardChips = [];
+    rewardChips.push(`<span class="bounty-reward-chip" style="color: var(--gold)">💰 ${b.reward.gold.toLocaleString('fr-FR')}</span>`);
+    for (const [orbId, q] of Object.entries(b.reward.orbs)) {
+      const orb = CURRENCY_BY_ID[orbId];
+      if (orb) rewardChips.push(`<span class="bounty-reward-chip" style="color:${orb.color}">${orb.emoji} ×${q}</span>`);
+    }
+    if (b.reward.talents) rewardChips.push(`<span class="bounty-reward-chip" style="color:#6acc6a">🌳 ×${b.reward.talents}</span>`);
+    const canReroll = (state.gold || 0) >= BOUNTY_REROLL_COST && !b.completed;
+    const el = document.createElement('div');
+    el.className = 'bounty' + (b.completed ? ' completed' : '');
+    el.style.borderColor = b.diffColor;
+    el.innerHTML = `
+      <div class="bounty-emoji">${b.emoji}</div>
+      <div class="bounty-info">
+        <div class="bounty-name" style="color:${b.diffColor}">${b.name} <span class="bounty-difficulty">[${b.difficulty}]</span></div>
+        <div class="bounty-desc">${b.desc}</div>
+        <div class="bounty-bar"><div class="bounty-bar-fill" style="width:${pct}%;background:${b.diffColor}"></div></div>
+        <div class="bounty-progress">${b.progress.toLocaleString('fr-FR')} / ${b.target.toLocaleString('fr-FR')}</div>
+        <div class="bounty-rewards">${rewardChips.join(' ')}</div>
+      </div>
+      <button class="btn btn-small bounty-reroll" data-bounty-reroll="${b.id}" ${canReroll ? '' : 'disabled'} title="Rerouler ce contrat">🔄</button>
+    `;
+    list.appendChild(el);
+  }
+  if (bounties.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px;font-size:9px;">Aucun contrat — réouvre la modal pour générer.</div>';
+  }
+}
+
+export function renderSkillsModal() {
+  const active = new Set(getActiveSkills().map(s => s.id));
+  document.getElementById('skills-unlocked-count').textContent = active.size;
+  document.getElementById('skills-total-count').textContent = SKILLS.length;
+  const grid = document.getElementById('skills-grid');
+  grid.innerHTML = '';
+  for (const s of SKILLS) {
+    const unlocked = active.has(s.id);
+    const el = document.createElement('div');
+    el.className = 'skill' + (unlocked ? ' unlocked' : ' locked');
+    el.innerHTML = `
+      <div class="skill-emoji">${s.emoji}</div>
+      <div class="skill-info">
+        <div class="skill-name">${s.name}</div>
+        <div class="skill-desc">${s.desc}</div>
+        <div class="skill-unlock">${unlocked ? '✓ Active' : '🔒 ' + s.unlockText}</div>
+      </div>
+    `;
+    grid.appendChild(el);
   }
 }
 
@@ -841,6 +923,8 @@ export function showModal(id) {
   if (id === 'forge-modal') renderForgeModal();
   if (id === 'talents-modal') renderTalentsModal();
   if (id === 'codex-modal') renderCodexModal();
+  if (id === 'skills-modal') renderSkillsModal();
+  if (id === 'bounties-modal') renderBountiesModal();
 }
 
 export function renderCodexModal() {
@@ -949,4 +1033,6 @@ export function renderAll() {
   if (isModalOpen('achievements-modal')) renderAchievementsModal();
   if (isModalOpen('talents-modal')) renderTalentsModal();
   if (isModalOpen('codex-modal')) renderCodexModal();
+  if (isModalOpen('skills-modal')) renderSkillsModal();
+  if (isModalOpen('bounties-modal')) renderBountiesModal();
 }

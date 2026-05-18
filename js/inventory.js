@@ -2,6 +2,7 @@
 import { state, notify } from './state.js';
 import { AUTOSELL_UNLOCK_COSTS, PRESTIGE_BONUS_PER_LEVEL } from './data.js';
 import { sellMultiplier, shardBonus } from './talents.js';
+import { trackProgress as bountyTrack } from './bounties.js';
 
 function prestigeGoldMult() {
   return Math.pow(PRESTIGE_BONUS_PER_LEVEL.goldMult, state.prestige?.level || 0);
@@ -47,6 +48,7 @@ export function sellItem(item) {
     state.stats.itemsSold += 1;
     state.stats.totalGoldEarned += earned;
   }
+  bountyTrack('sell_items', 1);
   notify();
   return earned;
 }
@@ -81,6 +83,7 @@ export function sellAllOfRarities(raritySet) {
     state.stats.itemsSold += sold;
     state.stats.totalGoldEarned += totalEarned;
   }
+  if (sold > 0) bountyTrack('sell_items', sold);
   notify();
   return totalEarned;
 }

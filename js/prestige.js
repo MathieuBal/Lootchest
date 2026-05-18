@@ -1,6 +1,7 @@
 // Prestige / Ascension: reset most of the run for permanent multipliers.
 import { state, notify } from './state.js';
 import { SLOTS, PRESTIGE_REQUIREMENTS } from './data.js';
+import { syncAbsoluteProgress as bountySync } from './bounties.js';
 
 export function canAscend() {
   return state.chestTier >= PRESTIGE_REQUIREMENTS.minChestTier
@@ -28,6 +29,7 @@ export function ascend() {
     state.autoSell[r].unlocked = (r === 'common');
     state.autoSell[r].on = false;
   }
+  bountySync();
   notify();
   return true;
 }

@@ -5,6 +5,7 @@ import { RARITIES, RARITY_BY_ID, AFFIXES, AFFIXES_BY_ID, AFFIX_LIMITS } from './
 import {
   rebuildItemAffixesOnly, rebuildItemAffixesPlus, rebuildItemAffixesAndStats,
 } from './loot.js';
+import { trackProgress as bountyTrack } from './bounties.js';
 
 export const REROLL_PLUS_SHARD_COST = 3;
 
@@ -18,6 +19,7 @@ function spendOrb(id) {
 
 function trackForge() {
   if (state.stats) state.stats.forgesPerformed += 1;
+  bountyTrack('use_forge', 1);
 }
 
 // Resolve the type of an affix (read from data.js if missing on legacy items)

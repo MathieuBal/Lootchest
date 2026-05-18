@@ -4,6 +4,8 @@ import { computeStats } from './character.js';
 import { PLAYER_BASE, biomeForFloor } from './data.js';
 import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
+import { buildSkillContext } from './skills.js';
+import { trackProgress as bountyTrack, syncAbsoluteProgress as bountySync } from './bounties.js';
 
 export function isBossFloor(floor) {
   return floor > 0 && floor % 5 === 0;
@@ -46,20 +48,79 @@ export function resolveFight(monster) {
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   const fireBonus = (stats.fireDmg || 0) / 100;
 
+  // Skill context (active skills + per-fight state)
+  const { active: activeSkills, states: skillStates } = buildSkillContext();
+
+  function runHook(hookName, ctx) {
+    const results = [];
+    for (const s of activeSkills) {
+      const fn = s[hookName];
+      if (!fn) continue;
+      const r = fn({ ...ctx, skillState: skillStates.get(s.id), stats });
+      if (r) results.push({ skill: s, result: r });
+    }
+    return results;
+  }
+
+  const monsterMaxHp = monster.hp;
   let pHp = playerMaxHp;
-  let mHp = monster.hp;
+  let mHp = monsterMaxHp;
   let turns = 0;
   const maxTurns = 200;
   const events = [];
   while (turns < maxTurns) {
     turns++;
-    const isCrit = Math.random() < critChance;
-    const hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + fireBonus * Math.random()));
+
+    // Turn start: heal, etc.
+    const startHooks = runHook('onTurnStart', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
+    for (const h of startHooks) {
+      if (h.result.kind === 'heal') {
+        pHp = Math.min(playerMaxHp, pHp + h.result.amount);
+        events.push({ type: 'skill_heal', amount: h.result.amount, skill: h.skill.id, emoji: h.skill.emoji, playerHp: pHp });
+      }
+    }
+
+    // Player attack: forceCrit + damage multipliers
+    let forceCrit = false;
+    let extraMult = 1;
+    let mults = [];
+    const atkHooks = runHook('onPlayerAttack', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
+    for (const h of atkHooks) {
+      if (h.result.kind === 'forceCrit') forceCrit = true;
+    }
+    const dmgHooks = runHook('onDamageCalc', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
+    for (const h of dmgHooks) {
+      if (h.result.kind === 'mult') {
+        extraMult *= h.result.mult;
+        if (h.result.label) mults.push({ emoji: h.skill.emoji, label: h.result.label });
+      }
+    }
+    const isCrit = forceCrit || Math.random() < critChance;
+    const hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + fireBonus * Math.random()) * extraMult);
     mHp = Math.max(0, mHp - hit);
-    events.push({ type: 'player_hit', dmg: hit, isCrit, monsterHp: mHp, playerHp: pHp });
+    events.push({ type: 'player_hit', dmg: hit, isCrit, forceCrit, monsterHp: mHp, playerHp: pHp, mults });
     if (mHp <= 0) break;
+
+    // Monster attack: dodge hook
+    const moHooks = runHook('onMonsterAttack', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
+    const dodged = moHooks.some(h => h.result.kind === 'dodge');
+    if (dodged) {
+      events.push({ type: 'skill_dodge', playerHp: pHp, monsterHp: mHp });
+      continue;
+    }
     pHp = Math.max(0, pHp - monsterDmg);
     events.push({ type: 'monster_hit', dmg: monsterDmg, monsterHp: mHp, playerHp: pHp });
+
+    // On-take-damage hook: reflect damage
+    const takeHooks = runHook('onTakeDamage', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp, dmgTaken: monsterDmg });
+    for (const h of takeHooks) {
+      if (h.result.kind === 'reflect') {
+        mHp = Math.max(0, mHp - h.result.amount);
+        events.push({ type: 'skill_reflect', amount: h.result.amount, emoji: h.skill.emoji, monsterHp: mHp, playerHp: pHp });
+        if (mHp <= 0) break;
+      }
+    }
+    if (mHp <= 0) break;
     if (pHp <= 0) break;
   }
   const won = mHp <= 0;
@@ -111,8 +172,10 @@ export function attemptCurrentFloor() {
   let milestone = null;
   if (result.won) {
     state.combat.kills += 1;
+    bountyTrack('kill_monsters', 1);
     if (monster.isBoss) {
       state.combat.bossKills += 1;
+      bountyTrack('kill_bosses', 1);
       // Codex: track boss kills per biome
       const biome = biomeForFloor(floor);
       if (state.codex && biome) {
@@ -133,6 +196,7 @@ export function attemptCurrentFloor() {
     if (floor === state.combat.highestUnlocked) {
       state.combat.highestUnlocked = floor + 1;
       advanced = true;
+      bountySync();
       // Milestone crossed? Only on first-time progression beyond a multiple of 25.
       if (floor > 0 && floor % 25 === 0) {
         const level = floor / 25;

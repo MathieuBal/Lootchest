@@ -68,6 +68,10 @@ export const state = {
     sets: {},         // { setId: piecesSeen (count) }
     bosses: {},       // { biomeId: killCount }
   },
+  bounties: {
+    active: [],       // up to 3 bounty objects
+    completed: 0,     // lifetime completions
+  },
 };
 
 // Init empty equipment slots
@@ -129,6 +133,8 @@ export function replaceState(newState) {
   if (!state.codex.uniques) state.codex.uniques = {};
   if (!state.codex.sets) state.codex.sets = {};
   if (!state.codex.bosses) state.codex.bosses = {};
+  if (!state.bounties) state.bounties = { active: [], completed: 0 };
+  if (!Array.isArray(state.bounties.active)) state.bounties.active = [];
   notify();
 }
 
@@ -154,5 +160,6 @@ export function resetState() {
   state.talentPoints = 0;
   state.milestonesGranted = {};
   state.codex = { uniques: {}, sets: {}, bosses: {} };
+  state.bounties = { active: [], completed: 0 };
   notify();
 }
