@@ -200,6 +200,12 @@ export function renderBountiesModal() {
 
   const list = document.getElementById('bounties-list');
   list.innerHTML = '';
+  if (bounties.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.innerHTML = '<div class="empty-icon">📋</div><div class="empty-title">Aucun contrat actif</div><div class="empty-desc">Les contrats apparaissent automatiquement à l\'ouverture du tableau.</div>';
+    list.appendChild(empty);
+  }
   for (const b of bounties) {
     const pct = b.target > 0 ? Math.min(100, (b.progress / b.target) * 100) : 0;
     const rewardChips = [];
@@ -600,6 +606,18 @@ function renderInventory() {
     );
   }
   const sorted = sortInventory(items, invSortMode);
+
+  if (sorted.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    if (state.inventory.length === 0) {
+      empty.innerHTML = '<div class="empty-icon">📭</div><div class="empty-title">Inventaire vide</div><div class="empty-desc">Ouvre des coffres ou combats des monstres pour looter du matos.</div>';
+    } else {
+      empty.innerHTML = `<div class="empty-icon">🔍</div><div class="empty-title">Aucun résultat</div><div class="empty-desc">Aucun item ne correspond à "${invSearchText}".</div>`;
+    }
+    grid.appendChild(empty);
+    return;
+  }
 
   for (const item of sorted) {
     const el = document.createElement('div');

@@ -1575,6 +1575,24 @@ button, input, select {
   .drop-item .item-icon-big { width: 60px; height: 60px; font-size: 42px; }
   .toast-container { right: 6px; top: 60px; max-width: 70vw; }
 }
+/* === Empty states === */
+.empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--text-dim);
+  text-align: center;
+  background: var(--bg);
+  border: 2px dashed var(--border);
+}
+.empty-icon { font-size: 42px; opacity: 0.6; }
+.empty-title { font-size: 11px; color: var(--text); }
+.empty-desc { font-size: 9px; line-height: 1.6; max-width: 320px; }
+
 /* === Settings modal === */
 .settings-body {
   display: flex;
