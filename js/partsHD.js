@@ -544,6 +544,155 @@ export const HD_AXE_WRAPS = [
   },
 ];
 
+// === WAND HEADS (64×64) ===
+// Heads sit at the top of the staff (rows 0-16, centered cols 26-37).
+// Distinct ornamental shapes — orbs, crystals, claws.
+
+function buildWandHeadOrb() {
+  const c = makeCanvas(64, 64);
+  // Large glowing orb at the very top
+  ellipse(c, 31, 8, 7, 6, 'm');
+  ellipse(c, 30, 7, 4, 3, 'l');
+  px(c, 29, 6, 'h'); px(c, 30, 5, 'h');
+  // Mounting prongs (4 small spikes around the orb)
+  px(c, 24, 13, 'm'); px(c, 38, 13, 'm');
+  px(c, 25, 14, 's'); px(c, 37, 14, 's');
+  // Decorative collar below orb
+  rect(c, 28, 16, 6, 2, 'm');
+  hline(c, 28, 33, 16, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+function buildWandHeadCrystal() {
+  const c = makeCanvas(64, 64);
+  // Crystal cluster at top — angular shape
+  // Main central crystal (vertical lozenge)
+  px(c, 31, 2, 'h');
+  px(c, 30, 3, 'l'); px(c, 31, 3, 'h'); px(c, 32, 3, 'l');
+  px(c, 29, 4, 'm'); px(c, 30, 4, 'l'); px(c, 31, 4, 'h'); px(c, 32, 4, 'l'); px(c, 33, 4, 'm');
+  rect(c, 28, 5, 8, 5, 'm');
+  px(c, 29, 5, 'l'); px(c, 30, 5, 'h'); px(c, 31, 5, 'h'); px(c, 32, 5, 'l');
+  px(c, 30, 6, 'l');
+  px(c, 30, 7, 'l');
+  // Side crystals (smaller)
+  px(c, 25, 8, 'm'); px(c, 24, 9, 's');
+  px(c, 37, 8, 'm'); px(c, 38, 9, 's');
+  // Tapered point at bottom
+  rect(c, 29, 10, 6, 3, 'm');
+  rect(c, 30, 13, 4, 2, 'm');
+  // Bindings to shaft
+  rect(c, 29, 15, 6, 2, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+function buildWandHeadClaw() {
+  const c = makeCanvas(64, 64);
+  // 3 claws holding a small gem
+  // Left claw
+  px(c, 26, 4, 'm'); px(c, 26, 5, 'm'); px(c, 27, 6, 'm'); px(c, 28, 7, 'm');
+  // Right claw
+  px(c, 36, 4, 'm'); px(c, 36, 5, 'm'); px(c, 35, 6, 'm'); px(c, 34, 7, 'm');
+  // Center claw
+  px(c, 31, 2, 'm'); px(c, 31, 3, 'm'); px(c, 31, 4, 'm');
+  // Held gem (kept out of roles → keeps red color through retint)
+  rect(c, 30, 8, 4, 4, 'A');
+  px(c, 30, 8, 'B'); px(c, 31, 8, 'B');
+  // Base socket
+  rect(c, 29, 13, 6, 3, 'm');
+  hline(c, 29, 34, 13, 'l');
+  // Bottom binding
+  rect(c, 29, 16, 6, 1, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+const PALETTE_WAND_HEAD_GOLD = {
+  o: '#1a0e04',
+  s: '#5a3818',
+  m: '#c89020',
+  l: '#ffe14a',
+  h: '#fff8c8',
+  A: '#7028a0',   // gem dark (out of roles → preserved through retint)
+  B: '#c080ff',   // gem light
+};
+const ROLES_WAND_HEAD = {
+  o: 'outline', s: 'shadow', m: 'mid', l: 'light', h: 'highlight',
+};
+
+// === WAND SHAFTS (64×64) ===
+// Long vertical staff from rows 16-58 (about 42 px tall, dominant).
+
+function buildWandShaftWood() {
+  const c = makeCanvas(64, 64);
+  rect(c, 30, 17, 4, 42, 'm');
+  vline(c, 30, 18, 57, 'l');
+  vline(c, 33, 18, 57, 's');
+  // Wood knots
+  px(c, 31, 24, 's'); px(c, 32, 25, 's');
+  px(c, 31, 33, 's');
+  px(c, 32, 42, 's');
+  px(c, 31, 51, 's');
+  // Decorative binding mid-shaft
+  rect(c, 29, 36, 6, 2, 'd');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+function buildWandShaftRunic() {
+  const c = makeCanvas(64, 64);
+  rect(c, 30, 17, 4, 42, 'm');
+  vline(c, 30, 18, 57, 'l');
+  vline(c, 33, 18, 57, 's');
+  // Glowing runes along the shaft (small accent pixels)
+  px(c, 31, 25, 'a'); px(c, 32, 25, 'a');
+  px(c, 31, 35, 'a');
+  px(c, 32, 45, 'a');
+  px(c, 31, 55, 'a'); px(c, 32, 55, 'a');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+const PALETTE_WAND_SHAFT_WOOD  = { o: '#1a0a04', s: '#3a1d0c', m: '#5a3018', l: '#8a5028', d: '#3a2010' };
+const PALETTE_WAND_SHAFT_RUNIC = { o: '#1a0a04', s: '#3a1d0c', m: '#5a3018', l: '#8a5028', a: '#a058ff' };
+
+export const HD_WAND_HEADS = [
+  {
+    id: 'orb',     name: 'Tête Orbe HD',    weight: 22,
+    layout: buildWandHeadOrb(),     palette: PALETTE_WAND_HEAD_GOLD, roles: ROLES_WAND_HEAD,
+    statBias: { fireDmg: [6, 14], damage: [4, 9] },
+    tags: ['magic', 'orb'],
+  },
+  {
+    id: 'crystal', name: 'Tête Cristal HD', weight: 14,
+    layout: buildWandHeadCrystal(), palette: PALETTE_WAND_HEAD_GOLD, roles: ROLES_WAND_HEAD,
+    statBias: { fireDmg: [8, 18], crit: [2, 5] },
+    tags: ['magic', 'crystal'],
+  },
+  {
+    id: 'claw',    name: 'Tête Griffe HD',  weight: 8,
+    layout: buildWandHeadClaw(),    palette: PALETTE_WAND_HEAD_GOLD, roles: ROLES_WAND_HEAD,
+    statBias: { fireDmg: [5, 12], crit: [4, 9], damage: [3, 7] },
+    tags: ['magic', 'gem', 'flashy'],
+  },
+];
+
+export const HD_WAND_SHAFTS = [
+  {
+    id: 'wood',  name: 'Bâton Bois HD',   weight: 24,
+    layout: buildWandShaftWood(),  palette: PALETTE_WAND_SHAFT_WOOD,
+    statBias: { vitality: [3, 6] },
+    tags: ['wood'],
+  },
+  {
+    id: 'runic', name: 'Bâton Runique HD', weight: 10,
+    layout: buildWandShaftRunic(), palette: PALETTE_WAND_SHAFT_RUNIC,
+    statBias: { fireDmg: [3, 8] },
+    tags: ['runic', 'magic'],
+  },
+];
+
 // Weapon-parts definition (mirrors the WEAPON_PARTS shape from parts.js)
 export const HD_WEAPON_PARTS = {
   sword: {
@@ -562,6 +711,13 @@ export const HD_WEAPON_PARTS = {
       { type: 'wrap',   variants: HD_AXE_WRAPS },
     ],
     drawOrder: ['handle', 'head', 'wrap'],
+  },
+  wand: {
+    parts: [
+      { type: 'head',  variants: HD_WAND_HEADS },
+      { type: 'shaft', variants: HD_WAND_SHAFTS },
+    ],
+    drawOrder: ['shaft', 'head'],
   },
 };
 
@@ -781,6 +937,71 @@ function buildHDOverlayVoidAxe() {
   return canvasToLayout(c);
 }
 
+// --- HD WAND OVERLAYS (head zone rows 0-16, centered cols 28-34) ---
+
+function buildHDOverlayFireWand() {
+  const c = makeCanvas(64, 64);
+  // Tip aura: bright glow above the head
+  px(c, 30, 1, 'g'); px(c, 31, 0, 'g'); px(c, 32, 1, 'g');
+  px(c, 29, 2, 'l'); px(c, 30, 2, 'l'); px(c, 31, 2, 'l'); px(c, 32, 2, 'l'); px(c, 33, 2, 'l');
+  // Halo around the orb
+  px(c, 27, 6, 'l'); px(c, 36, 6, 'l');
+  px(c, 26, 9, 'm'); px(c, 37, 9, 'm');
+  // Falling embers down the shaft
+  px(c, 31, 20, 'g'); px(c, 32, 28, 'm'); px(c, 31, 38, 'g'); px(c, 32, 50, 'm');
+  return canvasToLayout(c);
+}
+
+function buildHDOverlayFrostWand() {
+  const c = makeCanvas(64, 64);
+  // Frost halo around the head
+  px(c, 31, 0, 'g');
+  px(c, 28, 4, 'l'); px(c, 34, 4, 'l');
+  px(c, 26, 8, 'g'); px(c, 37, 8, 'g');
+  // Frost crystals on the head
+  px(c, 30, 11, 'l'); px(c, 32, 11, 'l');
+  // Tiny snowflakes near shaft
+  px(c, 28, 25, 'g'); px(c, 35, 35, 'g'); px(c, 29, 45, 'l');
+  return canvasToLayout(c);
+}
+
+function buildHDOverlayPoisonWand() {
+  const c = makeCanvas(64, 64);
+  // Bubbling drips dripping from the head
+  px(c, 30, 14, 'l'); px(c, 32, 14, 'm');
+  px(c, 31, 17, 'g'); px(c, 33, 19, 'l');
+  px(c, 30, 22, 'm'); px(c, 32, 25, 'g');
+  px(c, 31, 30, 'l');
+  return canvasToLayout(c);
+}
+
+function buildHDOverlayLightningWand() {
+  const c = makeCanvas(64, 64);
+  // Lightning arcs jumping from the head
+  px(c, 31, 0, 'g'); px(c, 30, 1, 'l'); px(c, 32, 1, 'l');
+  // Arc 1 — to upper left
+  px(c, 27, 3, 'l'); px(c, 25, 5, 'l'); px(c, 23, 7, 'g');
+  // Arc 2 — to upper right
+  px(c, 35, 3, 'l'); px(c, 37, 5, 'l'); px(c, 39, 7, 'g');
+  // Sparks down the shaft
+  px(c, 32, 25, 'l'); px(c, 30, 40, 'l');
+  return canvasToLayout(c);
+}
+
+function buildHDOverlayVoidWand() {
+  const c = makeCanvas(64, 64);
+  // Dark void halo around the head
+  px(c, 31, 1, 'd'); px(c, 30, 2, 'd'); px(c, 32, 2, 'd');
+  px(c, 28, 5, 'l'); px(c, 34, 5, 'l');
+  // Core void sphere overlay on the orb
+  px(c, 31, 8, 'g'); px(c, 30, 9, 'd'); px(c, 32, 9, 'd');
+  // Tendrils
+  px(c, 26, 11, 'm'); px(c, 36, 11, 'm');
+  // Sparkles down shaft
+  px(c, 30, 25, 'g'); px(c, 33, 40, 'l'); px(c, 29, 50, 'g');
+  return canvasToLayout(c);
+}
+
 const HD_ELEMENT_OVERLAYS = {
   sword: {
     fire:      buildHDOverlayFire(),
@@ -795,6 +1016,13 @@ const HD_ELEMENT_OVERLAYS = {
     poison:    buildHDOverlayPoisonAxe(),
     lightning: buildHDOverlayLightningAxe(),
     void:      buildHDOverlayVoidAxe(),
+  },
+  wand: {
+    fire:      buildHDOverlayFireWand(),
+    frost:     buildHDOverlayFrostWand(),
+    poison:    buildHDOverlayPoisonWand(),
+    lightning: buildHDOverlayLightningWand(),
+    void:      buildHDOverlayVoidWand(),
   },
 };
 
