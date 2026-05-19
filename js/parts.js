@@ -10,6 +10,7 @@
 
 import { applyMaterialToPalette } from './materials.js';
 import { getElementOverlayLayer } from './elements.js';
+import { HD_WEAPON_PARTS, hasHDCompositionFor } from './partsHD.js';
 
 // === Auto-infer metal roles from a palette by sorting colors by luminance.
 // Darkest → outline, brightest → highlight. Used to bulk-annotate every
@@ -3119,8 +3120,9 @@ function rollPart(partDef, chestTier, statMult) {
 // display / explainability and is safe to ignore if missing.
 
 // Helper: variant lookup by partType + variantId (for keep-variant re-rolls).
-function variantLookup(weaponBaseTypeId) {
-  const def = WEAPON_PARTS[weaponBaseTypeId];
+function variantLookup(weaponBaseTypeId, hd = false) {
+  const registry = hd && hasHDCompositionFor(weaponBaseTypeId) ? HD_WEAPON_PARTS : WEAPON_PARTS;
+  const def = registry[weaponBaseTypeId];
   if (!def) return null;
   const byType = {};
   for (const partDef of def.parts) {
@@ -3133,8 +3135,8 @@ function variantLookup(weaponBaseTypeId) {
 //   - 'keepRoll'   : keep each part's existing d20 (preserves quality identity)
 //   - 'rerollRoll' : re-roll d20 for each part (same visuals, new values)
 // Used by rescaleItemToTier (keepRoll) and rerollPartValuesOnly (rerollRoll).
-export function recomputePartStats(weaponBaseTypeId, parts, chestTier, statMult, mode = 'keepRoll') {
-  const lookup = variantLookup(weaponBaseTypeId);
+export function recomputePartStats(weaponBaseTypeId, parts, chestTier, statMult, mode = 'keepRoll', { hd = false } = {}) {
+  const lookup = variantLookup(weaponBaseTypeId, hd);
   if (!lookup) return { parts, baseStats: {}, statSources: [] };
   const baseStats = {};
   const statSources = [];
@@ -3163,8 +3165,9 @@ export function recomputePartStats(weaponBaseTypeId, parts, chestTier, statMult,
   return { parts: newParts, baseStats, statSources };
 }
 
-export function rollWeaponParts(weaponBaseTypeId, chestTier, statMult) {
-  const def = WEAPON_PARTS[weaponBaseTypeId];
+export function rollWeaponParts(weaponBaseTypeId, chestTier, statMult, { hd = false } = {}) {
+  const registry = hd && hasHDCompositionFor(weaponBaseTypeId) ? HD_WEAPON_PARTS : WEAPON_PARTS;
+  const def = registry[weaponBaseTypeId];
   if (!def) return null;
   const parts = def.parts.map(p => rollPart(p, chestTier, statMult));
   const baseStats = {};
@@ -3195,8 +3198,12 @@ export function rollWeaponParts(weaponBaseTypeId, chestTier, statMult) {
 // `elementId` (optional, phase 4D) appends a sparse overlay layer with the
 // element's signature pixels (embers for fire, crystals for frost, etc.) so
 // elemental items LOOK elemental, not just labeled.
-export function getCompositionLayers(weaponBaseTypeId, parts, materialId = null, elementId = null) {
-  const def = WEAPON_PARTS[weaponBaseTypeId];
+// `hd` (optional, phase 4G) routes to the HD (64×64) parts registry when
+// the weapon type supports it. Combined with item.hdParts on the item itself
+// — set at generation time — this lets HD and legacy items coexist.
+export function getCompositionLayers(weaponBaseTypeId, parts, materialId = null, elementId = null, { hd = false } = {}) {
+  const registry = (hd && hasHDCompositionFor(weaponBaseTypeId)) ? HD_WEAPON_PARTS : WEAPON_PARTS;
+  const def = registry[weaponBaseTypeId];
   if (!def || !Array.isArray(parts)) return [];
   const variantById = {};
   for (const partDef of def.parts) {
@@ -3219,8 +3226,12 @@ export function getCompositionLayers(weaponBaseTypeId, parts, materialId = null,
     layers.push({ layout: v.layout, palette });
   }
   // Element overlay layer (drawn last so its signature pixels stay on top).
-  const elementOverlay = getElementOverlayLayer(weaponBaseTypeId, elementId);
-  if (elementOverlay) layers.push(elementOverlay);
+  // Skipped in HD mode for now — overlays are 16×16 sparse, would need
+  // dedicated 64×64 versions to align with HD parts. TODO: HD overlays.
+  if (!hd) {
+    const elementOverlay = getElementOverlayLayer(weaponBaseTypeId, elementId);
+    if (elementOverlay) layers.push(elementOverlay);
+  }
   return layers;
 }
 
