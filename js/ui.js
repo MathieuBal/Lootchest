@@ -69,7 +69,9 @@ function setBadgeHTML(item, big) {
 function itemVisualHTML(item, big = false) {
   if (item.parts) {
     const layers = getCompositionLayers(item.baseTypeId, item.parts, item.material?.id, item.element?.id);
-    return composedSpriteSVG(layers, big ? 64 : 40);
+    // HD upscale (scale2x) when displayed big — drop popup, paper doll, etc.
+    // Grid thumbnails stay at native 16×16 for crispness at small sizes.
+    return composedSpriteSVG(layers, big ? 96 : 40, { hd: big });
   }
   return item.emoji || '❔';
 }

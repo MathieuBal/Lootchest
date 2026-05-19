@@ -521,13 +521,66 @@ for (const tier of Object.keys(CHEST_PALETTES)) {
   CHEST_RECTS_BY_TIER[tier] = gridToRects(CHEST_LAYOUTS_BY_TIER[tier], CHEST_PALETTES[tier]);
 }
 
+// === Scale2x upscale (phase 4E) ===
+// Classic pixel-art upscaling: each source pixel becomes a 2×2 block in the
+// destination, with diagonal smoothing when neighbors agree. Doubles the
+// effective resolution of any layout without redrawing — turns a chunky
+// 16×16 sprite into a crisper 32×32 at no asset cost.
+//
+// Algorithm (Maxim Stepin 2003):
+//   For each pixel P with neighbors A(top) B(right) C(left) D(bottom):
+//     TL = (C==A && C!=D && A!=B) ? A : P
+//     TR = (A==B && A!=C && B!=D) ? B : P
+//     BL = (D==C && D!=B && C!=A) ? C : P
+//     BR = (B==D && B!=A && D!=C) ? D : P
+function scale2x(layout) {
+  const h = layout.length;
+  const w = layout[0].length;
+  const out = new Array(h * 2);
+  for (let y = 0; y < h; y++) {
+    const row1 = new Array(w * 2);
+    const row2 = new Array(w * 2);
+    const cur = layout[y];
+    const prev = y > 0 ? layout[y - 1] : cur;
+    const next = y < h - 1 ? layout[y + 1] : cur;
+    for (let x = 0; x < w; x++) {
+      const P = cur[x];
+      const A = prev[x];
+      const D = next[x];
+      const C = x > 0 ? cur[x - 1] : P;
+      const B = x < w - 1 ? cur[x + 1] : P;
+      // Treat transparent ('.') as never matching for smoothing — otherwise
+      // empty corners get filled in by the sprite edge.
+      const TL = (C === A && C !== D && A !== B && A !== '.') ? A : P;
+      const TR = (A === B && A !== C && B !== D && B !== '.') ? B : P;
+      const BL = (D === C && D !== B && C !== A && C !== '.') ? C : P;
+      const BR = (B === D && B !== A && D !== C && D !== '.') ? D : P;
+      row1[x * 2]     = TL;
+      row1[x * 2 + 1] = TR;
+      row2[x * 2]     = BL;
+      row2[x * 2 + 1] = BR;
+    }
+    out[y * 2]     = row1.join('');
+    out[y * 2 + 1] = row2.join('');
+  }
+  return out;
+}
+
 // Compose multiple pixel layers ({layout, palette}) onto a single SVG.
-// Used by item icons (16×16 weapon parts).
-export function composedSpriteSVG(layers, sizePx = 64) {
+// `hd: true` runs every layer through scale2x → effective 32×32 sprites
+// from 16×16 source. Curves and diagonals (axe heads, helmets, ornate
+// guards) get visibly smoother; straight blades stay sharp but with more
+// pixel "real estate" at large display sizes. Reserved for big displays
+// (drop popup, paper doll) where the upscale shows.
+export function composedSpriteSVG(layers, sizePx = 64, { hd = false } = {}) {
   if (!layers || layers.length === 0) return '';
-  const cells = layers[0].layout.length;
+  let effectiveLayers = layers;
+  if (hd) {
+    effectiveLayers = layers.map(l => ({ layout: scale2x(l.layout), palette: l.palette }));
+  }
+  const cells = effectiveLayers[0].layout.length;
   const parts = [];
-  for (const layer of layers) parts.push(gridToRects(layer.layout, layer.palette));
+  for (const layer of effectiveLayers) parts.push(gridToRects(layer.layout, layer.palette));
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cells} ${cells}" width="${sizePx}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${parts.join('')}</svg>`;
 }
 
