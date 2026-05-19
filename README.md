@@ -1,8 +1,10 @@
-# Lootchest ⚔️
+# Lootchest ⚔️📦
 
-Un RPG idle de loot en vanilla JS — ouvrez des coffres, équipez votre héros, plongez dans le donjon.
+Un RPG-looter pixel-art en vanilla JS — ouvre des coffres, équipe ton héros,
+plonge dans le donjon.
 
-**Aucun build requis.** Ouvrez `index.html` dans un navigateur moderne.
+**Aucun build requis.** Ouvre `index.html` dans un navigateur moderne.
+**100% jouable au tactile** (mobile / tablette) avec une feuille d'action dédiée.
 
 ---
 
@@ -12,207 +14,301 @@ Un RPG idle de loot en vanilla JS — ouvrez des coffres, équipez votre héros,
 Donjon → Clés + Or → Coffres → Équipement → Donjon plus profond
 ```
 
-1. **Combattez** dans le donjon pour gagner des clés et de l'or.
-2. **Ouvrez des coffres** (1 clé par coffre) pour obtenir de l'équipement.
-3. **Équipez** les meilleurs items pour renforcer votre héros.
-4. **Montez** dans le donjon pour débloquer de nouveaux étages.
-5. **Ascendez** (prestige) pour repartir plus puissant.
+1. **Combats** dans le donjon pour gagner clés, or et items.
+2. **Ouvre des coffres** (1 clé par coffre) pour looter de l'équipement.
+3. **Équipe** les meilleurs items pour renforcer ton héros.
+4. **Monte** dans les étages, traverse les 5 biomes.
+5. **Ascensionne** (prestige) à T5 + étage 50 pour repartir plus puissant.
 
 ---
 
-## Systèmes
+## 🆕 Première visite
+
+Au premier chargement, un **welcome modal** explique le jeu en 4 cartes :
+ouvre des coffres → équipe & combats → progresse → astuces tactile/desktop.
+
+Des **indicateurs "prochaine étape"** (pulsation dorée) guident le joueur
+vers l'action la plus utile : ouvrir le premier coffre, équiper son premier
+item, aller au donjon pour le premier combat.
+
+Les termes de jeu (`affixe`, `orbe`, `ascension`, `pity`, `set`…) sont
+**soulignés en pointillés dorés** dans l'aide et dans certaines zones —
+hover ou tap dessus affiche leur définition (glossaire inline de 23 termes).
+
+---
+
+## Pixel-art & visuel
+
+### 👤 Personnage (64×64 procédural)
+Sprite construit programmatiquement avec primitives (rect, ellipse,
+outline). Multi-niveaux de shading (4 hair, 4 skin), traits faciaux
+distincts (sourcils, yeux + blancs, nez, bouche), armure (pauldrons,
+plastron, rivets, collerette V), bottes anatomiques.
+
+### 📦 Coffres (64×64, 10 variantes décorées)
+Au-delà du changement de palette, **chaque tier a sa décoration unique** :
+
+| Tier | Nom        | Décoration                         |
+|------|------------|------------------------------------|
+| T1   | Bois       | base classique                     |
+| T2   | Fer        | 2 bandes métalliques               |
+| T3   | Or         | gemme dorée + sparkles             |
+| T4   | Mythique   | 3 runes violettes                  |
+| T5   | Ancestral  | grosse gemme rouge + 3 pics        |
+| T6   | Stellaire  | 4 étoiles + sparkle sommet         |
+| T7   | Cosmique   | rune centrale + sparkles cosmiques |
+| T8   | Vide       | glyphe sombre avec œil             |
+| T9   | Primordial | feuilles + vigne en arc            |
+| T10  | Divin      | couronne dorée + halo + gemme      |
+
+T3-T10 affichent une **aura colorée** (drop-shadow) selon leur thème,
+et un pulse doré `chest-ready` quand tu as ≥1 clé.
+
+### 👹 Boss pixel-art (5 sprites 48×48)
+Chaque boss de biome remplace l'emoji par un sprite dédié :
+
+- 🌲 **Roi Sylvain** : tronc face creuse, yeux jaunes, couronne de feuilles
+- 🪨 **Hydre des Profondeurs** : 3 têtes serpent vertes, yeux rouges
+- 🏰 **Roi Mort** : crâne + couronne dorée à 3 pics + gemme rouge
+- 🔥 **Seigneur Démon** : tête cornue rouge, yeux blancs incandescents
+- 🌌 **Maître du Néant** : œil cosmique, 4 tentacules, sparkles
+
+### ⚔️ Pièces d'armes composées
+Système de composition par parts (blade + guard + grip + pommel pour
+les épées, head + handle + wrap pour les haches, etc.). Chaque arme
+loot a un sprite **unique** selon les parts roulées au drop. Voir
+`parts.js` pour les variants par catégorie.
+
+### Optimisations rendu
+- Fusion des runs horizontaux dans `gridToRects` : 1 `<rect width="N">`
+  au lieu de N rects de 1px → **-64% rects sur le perso, -77% sur le coffre**
+- Cache des rects pour layouts immutables (perso + 10 tiers + 5 bosses)
+
+---
+
+## 📱 Mobile / Tactile
+
+- Viewport : `viewport-fit=cover` + safe-areas (notch iPhone)
+- `touch-action: manipulation` partout → pas de délai 300ms
+- Cibles de tap : `min-height 36–44px` (recommandation WCAG)
+- `@media (hover: none)` : suppression des `:hover` collants
+- Breakpoints : 800px / 600px / 480px / 360px + landscape compact
+- **Feuille d'action** (bottom sheet animé) au tap sur un item :
+  Équiper / Vendre / Récupérer / Verrouiller — remplace Shift/Ctrl/Alt+click
+  qui restent disponibles en desktop
+- HUD plus lisible : 7 boutons principaux + menu `⋯` regroupant
+  Aide / Son / Paramètres / Export / Import / Reset
+
+---
+
+## Systèmes de jeu
 
 ### 🗝 Clés & Coffres
-- Les coffres sont verrouillés — il faut des **clés** pour les ouvrir.
-- Les clés se farment dans le donjon :
-  - Monstre normal : ~30% de chance de lâcher 1 clé
-  - Elite : 1 clé garantie
-  - Boss : 3 clés garanties
-- Le compteur de clés est visible dans le HUD en haut.
-- Sans clé, le bouton d'ouverture est grisé avec un message d'indication.
+- Coffres verrouillés → 1 clé pour ouvrir.
+- Clés farmées au donjon : ~30% par monstre normal, **1 garantie sur Elite**,
+  **3 sur boss**.
+- Démarre avec 10 clés. Compteur dans le HUD, pulse rouge quand vide.
 
 ### ⚔️ Donjon & Combat
-- **10 étages** par biome (Forêt → Désert → Toundra → Volcan → Abysses).
-- Navigation libre : revenez à n'importe quel étage déjà débloqué.
-- Chaque victoire déverrouille l'étage suivant.
+**5 biomes** de 10 étages chacun (étage 41+ = Néant infini) :
 
-#### 🔁 Mode Boucle
-- Disponible une fois un étage passé une première fois.
-- Le bouton **Boucle** relance automatiquement le même combat après chaque victoire.
-- La boucle s'arrête sur défaite (enjeux réels) ou si vous changez d'étage.
-- Idéal pour farmer des clés et de l'or sans micro-gestion.
+| Étages | Biome    | Boss (×5 étages)         | Mécanique                                          |
+|--------|----------|--------------------------|----------------------------------------------------|
+| 1-10   | Forêt    | Roi Sylvain              | **Régen** 5% PV/tour                              |
+| 11-20  | Cavernes | Hydre des Profondeurs    | **Enragé** ×2 dmg sous 30% PV                      |
+| 21-30  | Château  | Roi Mort                 | **Bouclier** immunise 1 tour sur 3                 |
+| 31-40  | Enfer    | Seigneur Démon           | **Brûlure** 8 dmg/tour passifs                     |
+| 41+    | Néant    | Maître du Néant          | **Phase** ×1.5 dmg tous les 4 tours                |
 
-#### ⭐ Monstres Élites
-- 8% de chance d'apparaître sur les étages non-boss (étage ≥ 3).
-- 4 variants : **Sauvage** (+30% ATK), **Blindé** (+50% DEF), **Frénétique** (+25% ATK/vitesse), **Colossal** (+80% HP/DEF).
-- Loot garanti de rareté **Rare+**, 1 clé assurée.
-- Visuellement distincts dans la carte de combat (badge ⭐ Elite).
-
-#### 💀 Boss avec Mécaniques Uniques
-Chaque boss de biome a une mécanique propre visible pendant le combat :
-
-| Biome | Boss | Mécanique |
-|-------|------|-----------|
-| Forêt | Dragon Vert | **Régénération** — récupère 8% HP/tour |
-| Désert | Scorpion Géant | **Enragé** — double dégâts sous 30% HP |
-| Toundra | Golem de Glace | **Bouclier** — immunité 1 tour sur 3 |
-| Volcan | Seigneur du Feu | **Brûlure** — 15% HP en dégâts bonus/tour |
-| Abysses | Lich Ancienne | **Phase Shift** — 50% de rater l'attaque du joueur |
+- Navigation libre entre étages débloqués.
+- **⭐ Elites** (8% sur étages ≥3, hors boss) : monstre violet, stats ×2.5,
+  récompenses ×2.5, 1 clé garantie.
+- **🔁 Boucle** : auto-combat sur tout étage déjà battu, s'arrête à la défaite.
 
 ### 🎒 Inventaire & Items
 
 #### Raretés
 `Commun → Magique → Rare → Épique → Légendaire → Ancestral`
 
-- **Uniques Légendaires** (16) : items nommés avec effets spéciaux.
-- **Pièces de Set** : 6 sets complets à collecter.
+#### Sets & Uniques
+- **20 uniques légendaires** (items nommés, affixes fixes, flavor text,
+  pas rerollables)
+- **9 sets** thématiques avec bonus 2/3/4 pièces + effet 4 pièces unique
 
-#### ⚡ Power Score
-Chaque item affiche son **score de puissance** dans le tooltip, calculé à partir de la contribution réelle de ses stats à votre build.
+| Set         | Pièces                                  | Effet 4-pièces                                    |
+|-------------|-----------------------------------------|---------------------------------------------------|
+| Dragon      | helm + plate + sword + tower            | 15% dégâts ×2 (feu)                               |
+| Ombre       | robe + dagger + band + pendant          | Après esquive, prochaine attaque = crit garanti   |
+| Titan       | helm + plate + tower + signet           | 15% esquive totale                                |
+| Phénix      | crown + robe + wand + pendant           | Une fois par combat, revis à 30% PV               |
+| Givre       | helm + bow + band + talisman            | 20%/hit : gèle le monstre (saute son tour)        |
+| Liche       | crown + robe + wand + signet            | 10% des dégâts infligés te soignent               |
+| Druide      | crown + robe + wand + pendant           | Soin 20% PV tous les 4 tours                      |
+| Démoniaque  | helm + plate + sword + signet           | Le 1er coup d'un combat inflige ×3 dégâts         |
+| Voyageur    | robe + tower + band + talisman          | 25% esquive permanente                            |
 
-#### 🔒 Verrouillage d'item
-- `Alt+clic` sur un item pour le **verrouiller** (icône cadenas 🔒).
-- Un item verrouillé est **exclu** de toutes les ventes et recyclages en masse.
-- Protection contre la vente accidentelle d'items précieux.
+#### Préfixes / Suffixes
+Chaque affixe est **Préfixe (P)** ou **Suffixe (S)**. Limites par rareté :
+- Magique : 1+1 (max 2)
+- Rare / Épique : 2+2 (max 4)
+- Légendaire / Ancestral : 3+3 (max 6)
 
-#### 🤖 Actions Automatiques (Auto-Sell / Auto-Salvage)
-Par rareté (Commun → Ancestral), choisissez l'action après ouverture d'un coffre :
-- **OFF** : rien (comportement normal)
-- **💰 Vendre** : vente automatique au prix d'achat
-- **💎 Recycler** : recyclage en éclats automatique
+#### Power Score
+Chaque item affiche son **score de puissance** calculé à partir de la
+contribution réelle de ses stats à votre build.
 
-Chaque rareté se débloque contre de l'or dans le panneau Auto.
+#### 🔒 Verrouillage & 🤖 Auto-actions
+- `Alt+clic` (desktop) ou bouton 🔒 du sheet (mobile) verrouille un item —
+  exclu de toutes les ventes/recyclages en masse.
+- Auto-sell / Auto-salvage par rareté : action automatique après ouverture
+  de coffre (sell, salvage, ou off).
 
-### 🧪 Forge (Style Path of Exile)
-9 currencies avec des effets distincts, regroupées par catégorie :
+### ⚒ Forge (style Path of Exile, 10 actions)
+- 🟢 **Transmutation** : commun → magique
+- 🔵 **Augmentation** : +1 affixe sur magique
+- 🟣 **Altération** : reroll complet d'un magique
+- 🟡 **Régal** : magique → rare
+- 🟠 **Chaos** : reroll complet d'un rare+
+- ⚪ **Divin** : reroll uniquement les valeurs
+- 🔴 **Exil** : +1 affixe sur un rare+
+- 🪨 **Pierre de Forge** : +1 tier d'objet (max T5)
+- 🟪 **Maître Forgeron** : ajoute un affixe au CHOIX (drop très rare)
+- 💎 **Reroll+** : reroll avec hauts rolls garantis (coûte 3 cristaux
+  de la rareté de l'objet)
 
-**Rareté**
-- Orbe de Transmutation → Commun à Magique
-- Orbe d'Altération → reroll affixes Magique
-- Orbe Regal → Magique à Rare (+1 affix)
-- Orbe du Chaos → reroll tous les affixes Rare
-- Orbe Divin → reroll valeurs d'affixes existants
+### 💎 Cristaux & Recyclage
+Recycler un item (Ctrl+clic ou sheet sur mobile) donne des **cristaux**
+de sa rareté. Utilisés pour le Reroll+ — choix stratégique : 💰 or
+immédiat vs 💎 cristaux pour des items parfaits plus tard.
 
-**Tiers & Puissance**
-- Pierre de Forge → +1 Tier (cap dynamique selon niveau de prestige)
-- Orbe d'Augmentation → +1 affix (si slot libre)
+### 📜 Compétences (12 passives)
+S'activent automatiquement en combat selon stats/talents :
 
-**Spécial**
-- Orbe d'Exil → reset à Commun (puis reroll rareté)
-- Orbe de Maîtrise → maîtrise craft (choisir un affix spécifique)
+| # | Compétence       | Effet                                          |
+|---|------------------|------------------------------------------------|
+| 1 | Sang-Froid       | -15% dégâts reçus des boss                     |
+| 2 | Précision        | +15% précision                                  |
+| 3 | Endurance        | +20% HP                                         |
+| 4 | Esquive          | 10% d'esquive                                   |
+| 5 | Coup Critique    | 20% crit, ×2 dégâts                             |
+| 6 | Pilleur          | +25% or                                         |
+| 7 | Chanceux         | +15% item drop                                  |
+| 8 | Exécution        | +50% dégâts sous 30% PV ennemi                  |
+| 9 | Tempête          | 15% de frapper ×2                               |
+| 10| Vampirisme       | Régénère 5% PV à chaque attaque                 |
+| 11| Adrénaline       | Tous les 3 tours : +75% dégâts                  |
+| 12| Ultime Résistance| 60% esquive sous 25% PV                         |
 
-### 🧙 Compétences (12 passifs)
-Débloquées aux jalons de kills (floor 5, 10, etc.) :
-
-| Compétence | Effet |
-|-----------|-------|
-| Sang-Froid | -15% dégâts reçus des boss |
-| Précision | +15% précision |
-| Endurance | +20% HP |
-| Esquive | 10% d'esquive |
-| Coup Critique | 20% crit, ×2 dégâts |
-| Pilleur | +25% or |
-| Chanceux | +15% item drop |
-| Exécution | +50% dégâts sous 30% HP ennemi |
-| **Tempête** | 15% de frapper ×2 |
-| **Vampirisme** | Régénère 5% HP à chaque attaque |
-| **Adrénaline** | Tous les 3 tours : +75% dégâts |
-| **Ultime Résistance** | 60% esquive sous 25% HP |
-
-### 🌟 Talents (8 améliorations passives)
-Gagnez des **points de talent** aux jalons de combat. 3 catégories :
+### 🌳 Talents (8 améliorations passives, 3 catégories)
+Points gagnés aux paliers d'étage (25/50/75…) et à chaque ascension (+2).
 
 - ⚔️ **Combat** : forgeKnight, sharpBlade, ironWill, pityMaster
 - 💰 **Richesse** : greedyHands, scrapper, crestBonus, goldFinder
 
-**Bonus de Maîtrise** : investir ≥5 points dans une catégorie octroie +10% d'effet à tous les talents de cette catégorie.
+**Bonus de Maîtrise** : ≥5 points dans une catégorie = +10% d'effet à
+tous les talents de cette catégorie.
 
-### 🏆 Sets v2 — Effets 4 Pièces
-Équiper les 4 pièces d'un set déclenche un effet unique en combat :
+### 🌟 Ascension / Prestige
+- Débloqué à **T5 coffre + étage 50**.
+- Reset complet du jeu, mais conserve talents + codex.
+- Gagne +1 niveau de prestige : **+25% drops rares et or** par niveau,
+  cumulatif et permanent.
+- Chaque ascension débloque un tier de coffre supérieur (T6 Stellaire →
+  T10 Divin) et octroie +2 points de talent.
 
-| Set | Effet 4 Pièces |
-|-----|---------------|
-| Dragon | Souffle de feu — 30% de brûler le monstre (+40% dégâts tour suivant) |
-| Ombre | Frappe dans l'ombre — 25% de frapper ×3 |
-| Titan | Mur de Titane — -50% dégâts reçus 1 tour sur 4 |
-| Phénix | Résurrection — se relève 1× par combat à 1 HP |
-| Givre | Gel — 20% de geler le monstre (perd son attaque) |
-| Liche | Drain vital — vole 15% HP à chaque attaque |
+### 📋 Contrats
+3 contrats actifs en permanence (tuer X monstres, looter Y légendaires,
+atteindre l'étage Z…). Progression auto en jouant, récompenses en or /
+orbes / points de talent. Reroll payant (5 000 💰).
 
-### 🔮 Prestige (Ascension)
-- Nécessite Tier de coffre 10 + Or requis (croissant).
-- Réinitialise le progrès mais conserve les **talents** et le **codex**.
-- Bonus **linéaire** : `+15% or et drop par niveau` (vs l'ancien exponentiel qui trivialise trop tôt).
-- Débloque les tiers de coffres supérieurs (jusqu'à T10).
+### 📖 Codex
+- **Uniques** lootés (20 au total)
+- **Sets** découverts (pièces vues sur les 9 sets)
+- **Boss** tués (par biome)
+- 3 succès "100% complet" associés.
+
+### 🏆 Achievements
+40+ succès avec récompenses, toast à l'unlock.
 
 ### 📊 Stats Breakdown
-Bouton **📊** dans le panneau personnage — modal détaillant la contribution de chaque source :
-- Stats de base
-- Chaque équipement slot par slot
-- Bonus de sets actifs
-- Effets de talents
-- Compétences passives actives
-
-### 🏅 Achievements & Codex
-- **40+ achievements** déclenchent un toast visuel à l'unlock.
-- **Codex Uniques** : liste tous les legendaries découverts.
-- **Codex Sets** : progression par set (pièces vues).
-- **Codex Boss** : kill count par boss de biome.
-
-### 📋 Bounties (Contrats)
-- 3 contrats actifs avec objectifs variés (kills, or, items ouverts, etc.).
-- Récompenses en or ou éclats à la complétion.
-- Reroll payant si le contrat ne convient pas.
+Bouton ⚡ du HUD : modal détaillant la contribution de chaque source
+(base, équipement par slot, sets actifs, talents, compétences).
 
 ### ⚙️ Paramètres
-| Option | Effet |
-|--------|-------|
-| Combat Rapide | Skip animations de combat |
-| Particules réduites | Moins d'effets visuels |
-| Confirmer Ascension | Dialog avant prestige |
-| Confirmer Vente Destructive | Confirm avant "tout vendre" épique+ |
-| Mode Difficile | Monstres ×1.5 HP/dégâts, drops ×1.5 |
+| Option                       | Effet                                          |
+|------------------------------|------------------------------------------------|
+| Combat Rapide                | Skip animations de combat                      |
+| Particules réduites          | Moins d'effets visuels                         |
+| Confirmer Ascension          | Dialog avant prestige                          |
+| Confirmer Vente Destructive  | Confirm avant "tout vendre" épique+            |
+| Mode Cauchemar               | Monstres ×1.5 HP/dmg, drops ×1.5               |
 
 ### 💾 Sauvegarde
 - Sauvegarde **automatique** dans `localStorage` après chaque action.
-- Export/Import JSON pour backup manuel.
-- **Système de migration** : les anciennes sauvegardes (v1, v2) migrent automatiquement vers v3 sans perte de données.
+- Export/Import JSON pour backup.
+- **Migrations versionnées** : v1 → v2 → v3 sans perte de données.
 
 ---
 
-## Raccourcis Clavier
-| Touche | Action |
-|--------|--------|
-| `1` / `2` | Onglet Coffre / Donjon |
-| `Alt+clic` | Verrouiller/déverrouiller un item |
-| `Échap` | Fermer la modal active |
+## Raccourcis Clavier (desktop)
+
+| Touche             | Action                                         |
+|--------------------|------------------------------------------------|
+| `Espace`           | Ouvre le coffre / lance le combat              |
+| `Échap`            | Ferme popup / modal                            |
+| `1` / `2`          | Onglet Coffre / Donjon                         |
+| `S`                | Détail des stats                                |
+| `T` / `A`          | Talents / Succès                                |
+| `B` / `C` / `K`    | Contrats / Codex / Compétences                  |
+| `I`                | Forge                                           |
+| `Clic` (inventaire)| Équiper                                         |
+| `Shift+Clic`       | Vendre                                          |
+| `Ctrl+Clic`        | Recycler (💎)                                   |
+| `Alt+Clic`         | Verrouiller / déverrouiller 🔒                  |
+| `Clic` (slot)      | Déséquiper                                      |
+
+Sur **mobile / tactile**, un simple tap sur un item ouvre la feuille
+d'action avec tous les boutons.
 
 ---
 
-## Structure Technique
+## Structure technique
 
 ```
+index.html        layout + modals + welcome + action sheet
+style.css         design pixel + responsive + animations
 js/
-  data.js         Constantes : raretés, affixes, currencies, biomes, sets, uniques, talents
-  state.js        État global + pub/sub pour les re-renders (version 3)
+  data.js         constantes : raretés, affixes, currencies, biomes,
+                  sets, uniques, talents
+  state.js        état global + pub/sub + flag onboarding (v3)
   save.js         localStorage + export/import + migrations v1→v2→v3
-  loot.js         Génération d'items (rollRarity, buildItem, buildSetPiece, buildUniqueLegendary)
+  glossary.js     définitions de 23 termes de jeu + aliases
+  loot.js         génération d'items (rollRarity, buildItem,
+                  buildSetPiece, buildUniqueLegendary)
   chest.js        openChest (gate clés), rollOrbDrops, canUpgrade
-  character.js    computeStats, computeStatsBreakdown, activeSetEffects, itemPowerContribution
-  inventory.js    sellItem, salvageItem, toggleLockItem, autoActionFor, setAutoMode
-  combat.js       resolveFight (skills/sets/boss mechanics/elite), generateMonster, key drops
+  character.js    computeStats, computeStatsBreakdown,
+                  activeSetEffects, itemPowerContribution
+  inventory.js    sellItem, salvageItem, toggleLockItem,
+                  autoActionFor, setAutoMode
+  combat.js       resolveFight (skills/sets/boss mechanics/elite),
+                  generateMonster, key drops
   achievements.js checkAchievements, onAchievementUnlocked
-  forge.js        9 FORGE_ACTIONS (Pierre cap dynamique selon prestige)
+  forge.js        10 actions (Pierre cap dynamique selon prestige)
   prestige.js     canAscend, ascend (reset + keys = 10)
-  skills.js       12 compétences passives avec hooks onTurnStart/onPlayerAttack/onDamageCalc/onTakeDamage
-  talents.js      Multiplicateurs + categoryPoints + categoryMastery
+  skills.js       12 compétences passives avec hooks de combat
+  talents.js      multiplicateurs + categoryPoints + categoryMastery
   bounties.js     generateBounty, trackProgress, rerollBounty
-  sprites.js      Composition SVG personnage + équipement
-  parts.js        Composition visuelle armes (WEAPON_PARTS)
+  sprites.js      builder procédural (rect/ellipse/outline) :
+                  perso 64×64, coffres 64×64 ×10 tiers décorés,
+                  5 boss 48×48, composition perso+équipement
+  parts.js        WEAPON_PARTS — composition visuelle des armes par
+                  parts (blade/guard/grip/pommel…) ; ~150 variants
   sound.js        SFX synthétisés Web Audio (toggle mute)
-  fx.js           Particules, floating damage, screen shake
-  ui.js           renderAll + tous les renders modaux, stats breakdown, settings
-  main.js         Bootstrap + wiring événements + loop mode + raccourcis
+  fx.js           particules, floating damage, screen shake
+  ui.js           renderAll + tous les renders modaux + stats
+                  breakdown + welcome + action sheet
+  main.js         bootstrap + wiring événements + boucle + raccourcis
+                  + dropdown HUD + onboarding + glossaire
 ```
 
 ---
@@ -220,12 +316,13 @@ js/
 ## Lancer le jeu
 
 ```bash
-# Option 1 — Directement (Chrome/Edge uniquement en local)
-open index.html
-
-# Option 2 — Serveur local (recommandé, évite les restrictions CORS modules ES)
+# Option 1 — Serveur local (recommandé pour les ES modules)
 python3 -m http.server 8080
 # puis ouvrir http://localhost:8080
+
+# Option 2 — Directement
+open index.html
 ```
 
-Compatible Chrome, Firefox, Edge — ES modules natifs requis.
+Compatible Chrome, Firefox, Edge, Safari (desktop + mobile) — ES modules
+natifs requis.
