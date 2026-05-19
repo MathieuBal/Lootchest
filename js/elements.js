@@ -65,21 +65,24 @@ function pickWeighted(list) {
 }
 
 /**
- * Pick an element appropriate for the item's chestTier × rarity. Rare items
- * are biased slightly toward rarer elements (lower weights).
+ * Pick an element appropriate for the item's chestTier × rarity.
+ * If `faction.elementTags` is provided, elements sharing any of those tags
+ * get a heavy weight boost (×4) so factions push toward their theme element.
  */
-export function rollElement(chestTier, rarity = 'common') {
+export function rollElement(chestTier, rarity = 'common', faction = null) {
   const pool = ELEMENT_LIST.filter(e => chestTier >= (e.minChestTier || 1));
   if (pool.length === 0) return ELEMENTS.none;
   const rarityBoost = (RARITY_BY_ID[rarity]?.statMult || 1) - 1;
-  const weighted = pool.map(e => ({
-    ...e,
-    // Boost rare elements (low weight) on high-rarity items.
-    // Never boost 'none' though — high-rarity items SHOULD have an element.
-    weight: e.id === 'none'
-      ? Math.max(5, e.weight - rarityBoost * 20)  // shrink 'none' weight at rare+
-      : e.weight + rarityBoost * (15 - Math.min(15, e.weight)),
-  }));
+  const factionTags = new Set(faction?.elementTags || []);
+  const weighted = pool.map(e => {
+    let w = e.id === 'none'
+      ? Math.max(5, e.weight - rarityBoost * 20)
+      : e.weight + rarityBoost * (15 - Math.min(15, e.weight));
+    // Faction coherence: 4× weight when element tags match (also shrinks 'none').
+    if (factionTags.size > 0 && e.tags.some(t => factionTags.has(t))) w *= 4;
+    if (factionTags.size > 0 && e.id === 'none') w = Math.max(2, w * 0.3);
+    return { ...e, weight: w };
+  });
   return pickWeighted(weighted);
 }
 

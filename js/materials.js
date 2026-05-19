@@ -100,16 +100,20 @@ function pickWeighted(list) {
  * Pick a material appropriate for the item's chestTier.
  * Higher tiers unlock rarer materials (gated by minChestTier).
  * Rarity boosts the chance of drawing from the rarer end of the pool.
+ * If `faction.materialTags` is provided, materials sharing any of those tags
+ * get a heavy weight boost (×3) so factions feel thematically coherent.
  */
-export function rollMaterial(chestTier, rarity = 'common') {
+export function rollMaterial(chestTier, rarity = 'common', faction = null) {
   const pool = MATERIAL_LIST.filter(m => chestTier >= (m.minChestTier || 1));
   if (pool.length === 0) return MATERIALS.iron;
-  // Rare+ items get a weighted bonus on rare materials (low weight = rare).
   const rarityBoost = (RARITY_BY_ID[rarity]?.statMult || 1) - 1;
-  const weighted = pool.map(m => ({
-    ...m,
-    weight: m.weight + rarityBoost * (10 - Math.min(10, m.weight)),
-  }));
+  const factionTags = new Set(faction?.materialTags || []);
+  const weighted = pool.map(m => {
+    let w = m.weight + rarityBoost * (10 - Math.min(10, m.weight));
+    // Faction coherence: triple weight when material tags match.
+    if (factionTags.size > 0 && m.tags.some(t => factionTags.has(t))) w *= 3;
+    return { ...m, weight: w };
+  });
   return pickWeighted(weighted);
 }
 

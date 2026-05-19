@@ -9,6 +9,7 @@ import { state } from './state.js';
 import { rollWeaponParts, hasCompositionFor, recomputePartStats } from './parts.js';
 import { rollMaterial, rollMaterialStats, materialStatSource, mergeMaterialStats, MATERIALS } from './materials.js';
 import { rollElement, rollElementStats, elementStatSource, mergeElementStats, ELEMENTS } from './elements.js';
+import { rollFaction, rollFactionStats, factionStatSource, mergeFactionStats, FACTIONS } from './factions.js';
 import { rareDropMultiplier, pityReduction } from './talents.js';
 import { trackProgress as bountyTrack } from './bounties.js';
 
@@ -119,21 +120,30 @@ function applyElementContribution(item, baseStats, statSources) {
   applyLayerContribution(item, 'element', ELEMENTS, 'element', baseStats, statSources);
 }
 
-// Re-apply both identity layers (material + element). Used by every rebuild
-// path so the layers survive operations that re-derive baseStats from parts.
+function applyFactionContribution(item, baseStats, statSources) {
+  applyLayerContribution(item, 'faction', FACTIONS, 'faction', baseStats, statSources);
+}
+
+// Re-apply all identity layers (material + element + faction). Used by every
+// rebuild path so the layers survive operations that re-derive baseStats.
 function applyIdentityLayers(item) {
   applyMaterialContribution(item, item.baseStats, item.statSources);
   applyElementContribution(item, item.baseStats, item.statSources);
+  applyFactionContribution(item, item.baseStats, item.statSources);
 }
 
-function makeName(baseType, rarity, material, element) {
+function makeName(baseType, rarity, material, element, faction) {
   const matSuffix = material ? ` ${material.adjective}` : '';
   // Element adjective comes RIGHT AFTER the base name (before the material):
-  // "Lame Givrée en Acier du Vainqueur" reads better than "Lame en Acier Givrée".
+  // "Lame Givrée en Acier" reads better than "Lame en Acier Givrée".
   const elemAdj = (element && element.adjective) ? ` ${element.adjective}` : '';
+  // Faction adjective REPLACES the random NAME_SUFFIX on rare+ items so the
+  // total name doesn't explode. Falls back to a random suffix if no faction.
+  const factionAdj = (faction && faction.adjective) ? faction.adjective : null;
   if (rarity === 'common') return `${baseType.name}${elemAdj}${matSuffix}`;
   if (rarity === 'magic')  return `${pickRandom(NAME_PREFIXES)} ${baseType.name}${elemAdj}${matSuffix}`;
-  return `${pickRandom(NAME_PREFIXES)} ${baseType.name}${elemAdj}${matSuffix} ${pickRandom(NAME_SUFFIXES)}`;
+  const suffix = factionAdj || pickRandom(NAME_SUFFIXES);
+  return `${pickRandom(NAME_PREFIXES)} ${baseType.name}${elemAdj}${matSuffix} ${suffix}`;
 }
 
 function computeGoldValue(rarity, chestTier) {
@@ -222,9 +232,10 @@ export function rebuildItemAffixesAndStats(item) {
   item.goldValue = computeGoldValue(item.rarity, item.chestTier);
   // Regenerate name for regular items only; set/unique names are preserved.
   if (!item.setId && !item.uniqueId) {
-    const mat = item.material ? MATERIALS[item.material.id] : null;
-    const elem = item.element ? ELEMENTS[item.element.id] : null;
-    item.name = makeName(baseType, item.rarity, mat, elem);
+    const mat  = item.material ? MATERIALS[item.material.id] : null;
+    const elem = item.element  ? ELEMENTS[item.element.id]   : null;
+    const fac  = item.faction  ? FACTIONS[item.faction.id]   : null;
+    item.name = makeName(baseType, item.rarity, mat, elem, fac);
   }
 }
 
@@ -343,13 +354,18 @@ function buildRegularItem(chestTier, rarity) {
   if (hasCompositionFor(baseType.id)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
     const { parts, baseStats, statSources } = rollWeaponParts(baseType.id, chestTier, statMult);
-    // Material — second identity layer.
-    const material = rollMaterial(chestTier, rarity);
+    // Faction first — drives coherence on material/element via tag bias.
+    const faction = rollFaction(chestTier, rarity);
+    const factionRolled = rollFactionStats(faction, chestTier, statMult);
+    mergeFactionStats(baseStats, factionRolled.stats);
+    if (Object.keys(factionRolled.stats).length > 0) statSources.push(factionStatSource(faction, factionRolled));
+    // Material — biased by faction.materialTags.
+    const material = rollMaterial(chestTier, rarity, faction);
     const matRolled = rollMaterialStats(material, chestTier, statMult);
     mergeMaterialStats(baseStats, matRolled.stats);
     if (Object.keys(matRolled.stats).length > 0) statSources.push(materialStatSource(material, matRolled));
-    // Element — third identity layer (often 'none').
-    const element = rollElement(chestTier, rarity);
+    // Element — biased by faction.elementTags.
+    const element = rollElement(chestTier, rarity, faction);
     const elemRolled = rollElementStats(element, chestTier, statMult);
     mergeElementStats(baseStats, elemRolled.stats);
     if (Object.keys(elemRolled.stats).length > 0) statSources.push(elementStatSource(element, elemRolled));
@@ -360,7 +376,7 @@ function buildRegularItem(chestTier, rarity) {
       baseTypeId: baseType.id,
       emoji: baseType.emoji,
       rarity,
-      name: makeName(baseType, rarity, material, element),
+      name: makeName(baseType, rarity, material, element, faction),
       baseStats,
       affixes,
       goldValue: computeGoldValue(rarity, chestTier),
@@ -368,7 +384,8 @@ function buildRegularItem(chestTier, rarity) {
       parts,
       statSources,
       material: { id: material.id, name: material.name, d20: matRolled.d20 },
-      element: { id: element.id, name: element.name, d20: elemRolled.d20 },
+      element:  { id: element.id,  name: element.name,  d20: elemRolled.d20 },
+      faction:  { id: faction.id,  name: faction.name,  d20: factionRolled.d20 },
     };
   }
 
@@ -440,15 +457,21 @@ function buildSetPiece(chestTier, rarity) {
   if (hasCompositionFor(piece.baseTypeId)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
     const rolled = rollWeaponParts(piece.baseTypeId, chestTier, statMult);
-    // Material + element — set pieces keep their canonical name (the set's
-    // identity) but still benefit from these layers' stats + tooltip lines.
-    const material = rollMaterial(chestTier, rarity);
+    // Set pieces keep their canonical name (the set IS their faction-equivalent
+    // identity). They still get all three layers for stats + tooltip lines.
+    const faction = rollFaction(chestTier, rarity);
+    const factionRolled = rollFactionStats(faction, chestTier, statMult);
+    mergeFactionStats(rolled.baseStats, factionRolled.stats);
+    if (Object.keys(factionRolled.stats).length > 0) {
+      rolled.statSources.push(factionStatSource(faction, factionRolled));
+    }
+    const material = rollMaterial(chestTier, rarity, faction);
     const matRolled = rollMaterialStats(material, chestTier, statMult);
     mergeMaterialStats(rolled.baseStats, matRolled.stats);
     if (Object.keys(matRolled.stats).length > 0) {
       rolled.statSources.push(materialStatSource(material, matRolled));
     }
-    const element = rollElement(chestTier, rarity);
+    const element = rollElement(chestTier, rarity, faction);
     const elemRolled = rollElementStats(element, chestTier, statMult);
     mergeElementStats(rolled.baseStats, elemRolled.stats);
     if (Object.keys(elemRolled.stats).length > 0) {
@@ -471,7 +494,8 @@ function buildSetPiece(chestTier, rarity) {
       parts: rolled.parts,
       statSources: rolled.statSources,
       material: { id: material.id, name: material.name, d20: matRolled.d20 },
-      element: { id: element.id, name: element.name, d20: elemRolled.d20 },
+      element:  { id: element.id,  name: element.name,  d20: elemRolled.d20 },
+      faction:  { id: faction.id,  name: faction.name,  d20: factionRolled.d20 },
     };
   }
 
