@@ -605,18 +605,22 @@ export function characterSpriteSVG(sizePx = 120) {
   return gridToSVG(CHARACTER_LAYOUT, null, sizePx, CHARACTER_RECTS);
 }
 
-// Composite character (64×64) + equipped items (16×16 at 2× scale = 32 logical px)
-// into a paper-doll canvas. Canvas is 96×72 logical, character centered.
+// Composite character (64×64) + equipped items (HD-upscaled to 32×32) into a
+// paper-doll canvas. Canvas is 96×80 logical (extra 8 rows for a ground
+// shadow under the character). Equipped item sprites apply scale2x like
+// the inventory big-icon path so they show smooth diagonals + animated
+// element overlays at this rendering size.
 export function composeCharacterWithGearSVG(equipment, sizePx = 120) {
-  const W = 96, H = 72;
+  const W = 96, H = 80;
   const charX = 16, charY = 4;
-  // Item sprites are 16×16, drawn at 2× scale (32 logical px) to match the 64×64 character.
-  // Offsets target the new layout: head rows 5-25, torso 26-44, arms 30-43.
+  // Item sprites use scale2x (32×32) and are drawn at scale(1) → 32 logical px.
+  // Offsets target the 64×64 character layout: head rows 5-25, torso 26-44,
+  // arms 30-43. The weapon sits over the right hand around row 28-44.
   const slotPositions = {
-    helmet: { x: 24, y: 0 },   // over head
-    armor:  { x: 24, y: 18 },  // over torso
-    weapon: { x: 60, y: 14 },  // right of character
-    shield: { x: 0,  y: 20 },  // left of character
+    helmet: { x: 24, y: 0 },
+    armor:  { x: 24, y: 18 },
+    weapon: { x: 60, y: 14 },
+    shield: { x: 0,  y: 20 },
   };
 
   const drawSequence = [
@@ -627,11 +631,15 @@ export function composeCharacterWithGearSVG(equipment, sizePx = 120) {
     { type: 'item', slot: 'weapon' },
   ];
 
-  const parts = [];
+  const body = [];
+
+  // Ground shadow ellipse under the character — gives the doll an anchor.
+  body.push(`<ellipse cx="48" cy="72" rx="22" ry="3" fill="#000" opacity="0.55"/>`);
+  body.push(`<ellipse cx="48" cy="72" rx="14" ry="2" fill="#000" opacity="0.4"/>`);
+
   for (const step of drawSequence) {
     if (step.type === 'char') {
-      // Reuse cached character rects (palette is constant).
-      parts.push(`<g transform="translate(${charX},${charY})">${CHARACTER_RECTS}</g>`);
+      body.push(`<g transform="translate(${charX},${charY})">${CHARACTER_RECTS}</g>`);
       continue;
     }
     const item = equipment[step.slot];
@@ -640,16 +648,25 @@ export function composeCharacterWithGearSVG(equipment, sizePx = 120) {
     if (!pos) continue;
     if (item.parts && hasCompositionFor(item.baseTypeId)) {
       const layers = getCompositionLayers(item.baseTypeId, item.parts, item.material?.id, item.element?.id);
-      const innerParts = [];
-      for (const layer of layers) innerParts.push(gridToRects(layer.layout, layer.palette));
-      parts.push(`<g transform="translate(${pos.x},${pos.y}) scale(2)">${innerParts.join('')}</g>`);
+      const inner = [];
+      for (const layer of layers) {
+        // scale2x → 32×32 to match the character's higher detail
+        const upscaled = scale2x(layer.layout);
+        const rects = gridToRects(upscaled, layer.palette);
+        if (layer.kind === 'element-overlay' && layer.elementId) {
+          inner.push(`<g class="sprite-overlay sprite-overlay-${layer.elementId}">${rects}</g>`);
+        } else {
+          inner.push(rects);
+        }
+      }
+      body.push(`<g transform="translate(${pos.x},${pos.y})">${inner.join('')}</g>`);
     } else if (item.emoji) {
-      parts.push(`<text x="${pos.x + 16}" y="${pos.y + 22}" font-size="22" text-anchor="middle" dominant-baseline="middle">${item.emoji}</text>`);
+      body.push(`<text x="${pos.x + 16}" y="${pos.y + 22}" font-size="22" text-anchor="middle" dominant-baseline="middle">${item.emoji}</text>`);
     }
   }
 
   const width = Math.round(sizePx * W / H);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${width}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${parts.join('')}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${width}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${body.join('')}</svg>`;
 }
 
 // ====================================================
