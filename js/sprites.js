@@ -1,71 +1,8 @@
 // Hand-crafted pixel-art sprites rendered as inline SVG.
-// Character and chest are now 64×64 with multi-level shading.
-// Weapon parts stay 16×16 (parts.js) — rendered at 2× scale in the paper doll.
+// Character and chest are 64×64, bosses 48×48, HD weapons 64×64 (partsHD.js).
+// 16×16 legacy weapon parts (parts.js) remain for inventory thumbnails.
 import { getCompositionLayers, hasCompositionFor } from './parts.js';
-
-// === SPRITE BUILDER PRIMITIVES ===
-// We build the 64×64 layouts procedurally then freeze them into string arrays.
-
-function makeCanvas(w, h) {
-  const grid = [];
-  for (let y = 0; y < h; y++) grid.push(new Array(w).fill('.'));
-  return { w, h, grid };
-}
-
-function px(c, x, y, ch) {
-  if (x >= 0 && x < c.w && y >= 0 && y < c.h) c.grid[y][x] = ch;
-}
-
-function rect(c, x, y, w, h, ch) {
-  for (let yy = y; yy < y + h; yy++)
-    for (let xx = x; xx < x + w; xx++) px(c, xx, yy, ch);
-}
-
-function ellipse(c, cx, cy, rx, ry, ch) {
-  for (let yy = cy - ry; yy <= cy + ry; yy++) {
-    for (let xx = cx - rx; xx <= cx + rx; xx++) {
-      const dx = (xx - cx + 0.5) / (rx + 0.5);
-      const dy = (yy - cy + 0.5) / (ry + 0.5);
-      if (dx * dx + dy * dy <= 1) px(c, xx, yy, ch);
-    }
-  }
-}
-
-function ellipseOutline(c, cx, cy, rx, ry, ch) {
-  for (let yy = cy - ry; yy <= cy + ry; yy++) {
-    for (let xx = cx - rx; xx <= cx + rx; xx++) {
-      const dx = (xx - cx + 0.5) / (rx + 0.5);
-      const dy = (yy - cy + 0.5) / (ry + 0.5);
-      const d = dx * dx + dy * dy;
-      if (d <= 1 && d >= 0.62) px(c, xx, yy, ch);
-    }
-  }
-}
-
-function hline(c, x1, x2, y, ch) {
-  for (let x = x1; x <= x2; x++) px(c, x, y, ch);
-}
-
-function vline(c, x, y1, y2, ch) {
-  for (let y = y1; y <= y2; y++) px(c, x, y, ch);
-}
-
-// Add a 1-pixel outline around every non-transparent area using char ch.
-function outline(c, ch) {
-  const w = c.w, h = c.h;
-  const orig = c.grid.map(r => r.slice());
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (orig[y][x] !== '.') continue;
-      const n = [orig[y - 1]?.[x], orig[y + 1]?.[x], orig[y]?.[x - 1], orig[y]?.[x + 1]];
-      if (n.some(v => v && v !== '.')) c.grid[y][x] = ch;
-    }
-  }
-}
-
-function canvasToLayout(c) {
-  return c.grid.map(r => r.join(''));
-}
+import { makeCanvas, px, rect, ellipse, hline, vline, outline, canvasToLayout, cloneCanvas } from './builder.js';
 
 // === CHARACTER 64×64 ===
 // Palette codes:
@@ -357,9 +294,7 @@ function stampCrown(c, cx, cy) {
   hline(c, cx-2, cx+2, cy, 'Y');
 }
 
-function cloneCanvas(c) {
-  return { w: c.w, h: c.h, grid: c.grid.map(r => r.slice()) };
-}
+// cloneCanvas now imported from ./builder.js
 
 // Apply tier-specific decorations to a (cloned) base canvas
 function applyTierDecoration(c, tier) {
@@ -521,13 +456,77 @@ for (const tier of Object.keys(CHEST_PALETTES)) {
   CHEST_RECTS_BY_TIER[tier] = gridToRects(CHEST_LAYOUTS_BY_TIER[tier], CHEST_PALETTES[tier]);
 }
 
+// === Scale2x upscale (phase 4E) ===
+// Classic pixel-art upscaling: each source pixel becomes a 2×2 block in the
+// destination, with diagonal smoothing when neighbors agree. Doubles the
+// effective resolution of any layout without redrawing — turns a chunky
+// 16×16 sprite into a crisper 32×32 at no asset cost.
+//
+// Algorithm (Maxim Stepin 2003):
+//   For each pixel P with neighbors A(top) B(right) C(left) D(bottom):
+//     TL = (C==A && C!=D && A!=B) ? A : P
+//     TR = (A==B && A!=C && B!=D) ? B : P
+//     BL = (D==C && D!=B && C!=A) ? C : P
+//     BR = (B==D && B!=A && D!=C) ? D : P
+function scale2x(layout) {
+  const h = layout.length;
+  const w = layout[0].length;
+  const out = new Array(h * 2);
+  for (let y = 0; y < h; y++) {
+    const row1 = new Array(w * 2);
+    const row2 = new Array(w * 2);
+    const cur = layout[y];
+    const prev = y > 0 ? layout[y - 1] : cur;
+    const next = y < h - 1 ? layout[y + 1] : cur;
+    for (let x = 0; x < w; x++) {
+      const P = cur[x];
+      const A = prev[x];
+      const D = next[x];
+      const C = x > 0 ? cur[x - 1] : P;
+      const B = x < w - 1 ? cur[x + 1] : P;
+      // Treat transparent ('.') as never matching for smoothing — otherwise
+      // empty corners get filled in by the sprite edge.
+      const TL = (C === A && C !== D && A !== B && A !== '.') ? A : P;
+      const TR = (A === B && A !== C && B !== D && B !== '.') ? B : P;
+      const BL = (D === C && D !== B && C !== A && C !== '.') ? C : P;
+      const BR = (B === D && B !== A && D !== C && D !== '.') ? D : P;
+      row1[x * 2]     = TL;
+      row1[x * 2 + 1] = TR;
+      row2[x * 2]     = BL;
+      row2[x * 2 + 1] = BR;
+    }
+    out[y * 2]     = row1.join('');
+    out[y * 2 + 1] = row2.join('');
+  }
+  return out;
+}
+
 // Compose multiple pixel layers ({layout, palette}) onto a single SVG.
-// Used by item icons (16×16 weapon parts).
-export function composedSpriteSVG(layers, sizePx = 64) {
+// `hd: true` runs every layer through scale2x → effective 32×32 sprites
+// from 16×16 source. Curves and diagonals (axe heads, helmets, ornate
+// guards) get visibly smoother; straight blades stay sharp but with more
+// pixel "real estate" at large display sizes. Reserved for big displays
+// (drop popup, paper doll) where the upscale shows.
+export function composedSpriteSVG(layers, sizePx = 64, { hd = false } = {}) {
   if (!layers || layers.length === 0) return '';
-  const cells = layers[0].layout.length;
+  let effectiveLayers = layers;
+  if (hd) {
+    // Preserve `kind` / `elementId` so wrapper groups still tag the layer
+    // after scale2x upscale.
+    effectiveLayers = layers.map(l => ({ ...l, layout: scale2x(l.layout) }));
+  }
+  const cells = effectiveLayers[0].layout.length;
   const parts = [];
-  for (const layer of layers) parts.push(gridToRects(layer.layout, layer.palette));
+  for (const layer of effectiveLayers) {
+    const rects = gridToRects(layer.layout, layer.palette);
+    // Wrap kind-tagged layers in a <g> so CSS can target them independently
+    // (e.g. element-overlay layers get animated flicker per element).
+    if (layer.kind === 'element-overlay' && layer.elementId) {
+      parts.push(`<g class="sprite-overlay sprite-overlay-${layer.elementId}">${rects}</g>`);
+    } else {
+      parts.push(rects);
+    }
+  }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cells} ${cells}" width="${sizePx}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${parts.join('')}</svg>`;
 }
 
@@ -541,18 +540,22 @@ export function characterSpriteSVG(sizePx = 120) {
   return gridToSVG(CHARACTER_LAYOUT, null, sizePx, CHARACTER_RECTS);
 }
 
-// Composite character (64×64) + equipped items (16×16 at 2× scale = 32 logical px)
-// into a paper-doll canvas. Canvas is 96×72 logical, character centered.
+// Composite character (64×64) + equipped items (HD-upscaled to 32×32) into a
+// paper-doll canvas. Canvas is 96×80 logical (extra 8 rows for a ground
+// shadow under the character). Equipped item sprites apply scale2x like
+// the inventory big-icon path so they show smooth diagonals + animated
+// element overlays at this rendering size.
 export function composeCharacterWithGearSVG(equipment, sizePx = 120) {
-  const W = 96, H = 72;
+  const W = 96, H = 80;
   const charX = 16, charY = 4;
-  // Item sprites are 16×16, drawn at 2× scale (32 logical px) to match the 64×64 character.
-  // Offsets target the new layout: head rows 5-25, torso 26-44, arms 30-43.
+  // Item sprites use scale2x (32×32) and are drawn at scale(1) → 32 logical px.
+  // Offsets target the 64×64 character layout: head rows 5-25, torso 26-44,
+  // arms 30-43. The weapon sits over the right hand around row 28-44.
   const slotPositions = {
-    helmet: { x: 24, y: 0 },   // over head
-    armor:  { x: 24, y: 18 },  // over torso
-    weapon: { x: 60, y: 14 },  // right of character
-    shield: { x: 0,  y: 20 },  // left of character
+    helmet: { x: 24, y: 0 },
+    armor:  { x: 24, y: 18 },
+    weapon: { x: 60, y: 14 },
+    shield: { x: 0,  y: 20 },
   };
 
   const drawSequence = [
@@ -563,11 +566,15 @@ export function composeCharacterWithGearSVG(equipment, sizePx = 120) {
     { type: 'item', slot: 'weapon' },
   ];
 
-  const parts = [];
+  const body = [];
+
+  // Ground shadow ellipse under the character — gives the doll an anchor.
+  body.push(`<ellipse cx="48" cy="72" rx="22" ry="3" fill="#000" opacity="0.55"/>`);
+  body.push(`<ellipse cx="48" cy="72" rx="14" ry="2" fill="#000" opacity="0.4"/>`);
+
   for (const step of drawSequence) {
     if (step.type === 'char') {
-      // Reuse cached character rects (palette is constant).
-      parts.push(`<g transform="translate(${charX},${charY})">${CHARACTER_RECTS}</g>`);
+      body.push(`<g transform="translate(${charX},${charY})">${CHARACTER_RECTS}</g>`);
       continue;
     }
     const item = equipment[step.slot];
@@ -575,17 +582,30 @@ export function composeCharacterWithGearSVG(equipment, sizePx = 120) {
     const pos = slotPositions[step.slot];
     if (!pos) continue;
     if (item.parts && hasCompositionFor(item.baseTypeId)) {
-      const layers = getCompositionLayers(item.baseTypeId, item.parts);
-      const innerParts = [];
-      for (const layer of layers) innerParts.push(gridToRects(layer.layout, layer.palette));
-      parts.push(`<g transform="translate(${pos.x},${pos.y}) scale(2)">${innerParts.join('')}</g>`);
+      const isHD = !!item.hdParts;
+      const layers = getCompositionLayers(item.baseTypeId, item.parts, item.material?.id, item.element?.id, { hd: isHD });
+      const inner = [];
+      for (const layer of layers) {
+        // Legacy 16×16 layers get scale2x; HD 64×64 layers render native.
+        const final = isHD ? layer.layout : scale2x(layer.layout);
+        const rects = gridToRects(final, layer.palette);
+        if (layer.kind === 'element-overlay' && layer.elementId) {
+          inner.push(`<g class="sprite-overlay sprite-overlay-${layer.elementId}">${rects}</g>`);
+        } else {
+          inner.push(rects);
+        }
+      }
+      // HD parts are 64×64; legacy 16×16 upscaled to 32×32 via scale2x.
+      // The paper doll slot positions assume ~32 logical px so HD needs scale 0.5.
+      const itemScale = isHD ? 'scale(0.5)' : '';
+      body.push(`<g transform="translate(${pos.x},${pos.y}) ${itemScale}">${inner.join('')}</g>`);
     } else if (item.emoji) {
-      parts.push(`<text x="${pos.x + 16}" y="${pos.y + 22}" font-size="22" text-anchor="middle" dominant-baseline="middle">${item.emoji}</text>`);
+      body.push(`<text x="${pos.x + 16}" y="${pos.y + 22}" font-size="22" text-anchor="middle" dominant-baseline="middle">${item.emoji}</text>`);
     }
   }
 
   const width = Math.round(sizePx * W / H);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${width}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${parts.join('')}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${width}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${body.join('')}</svg>`;
 }
 
 // ====================================================

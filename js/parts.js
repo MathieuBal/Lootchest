@@ -1,6 +1,61 @@
 // Procedural weapon parts: each weapon is composed of multiple parts.
 // Each part has visual variants (16x16 pixel layouts) and stat biases.
-// MVP: swords only. Other weapon types still use classic generation.
+//
+// Material retint (phase 4A): variants whose `palette` represents a metallic
+// surface get a `roles` field that maps palette codes to render roles
+// (outline/shadow/mid/light/highlight/accent). The composition layer then
+// substitutes those codes with the player item's material palette so the
+// SAME part looks different in Or vs Fer vs Obsidienne. Variants without
+// `roles` are rendered unchanged.
+
+import { applyMaterialToPalette } from './materials.js';
+import { getElementOverlayLayer } from './elements.js';
+import { HD_WEAPON_PARTS, hasHDCompositionFor } from './partsHD.js';
+
+// === Auto-infer metal roles from a palette by sorting colors by luminance.
+// Darkest → outline, brightest → highlight. Used to bulk-annotate every
+// variant in metal-only arrays via `markMetal()` below. Non-metal arrays
+// (wood handles, leather grips, cloth) skip annotation and keep their look.
+function _luminance(hex) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16) / 255;
+  const g = parseInt(h.substring(2, 4), 16) / 255;
+  const b = parseInt(h.substring(4, 6), 16) / 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+
+function inferMetalRoles(palette) {
+  // Sort palette entries by luminance ascending (darkest first).
+  const sorted = Object.entries(palette).sort((a, b) => _luminance(a[1]) - _luminance(b[1]));
+  const n = sorted.length;
+  // Hand-tuned distributions per palette size — small palettes shouldn't
+  // jump to 'accent' (overbright highlight) for their main body. Most
+  // weapons use 2-4 colors, so optimize for those.
+  const DIST = {
+    1: ['mid'],
+    2: ['outline', 'mid'],
+    3: ['outline', 'mid', 'highlight'],
+    4: ['outline', 'shadow', 'mid', 'highlight'],
+    5: ['outline', 'shadow', 'mid', 'light', 'highlight'],
+    6: ['outline', 'shadow', 'mid', 'light', 'highlight', 'accent'],
+  };
+  const order = DIST[Math.min(n, 6)] || DIST[6];
+  const roles = {};
+  for (let i = 0; i < n; i++) {
+    // For >6 colors, repeat 'accent' at the end (rare case).
+    roles[sorted[i][0]] = order[Math.min(i, order.length - 1)];
+  }
+  return roles;
+}
+
+// Tag a list of parts as metallic — every variant gets auto-inferred roles
+// unless it already has explicit `roles` (allowing per-part override).
+function markMetal(parts) {
+  for (const p of parts) {
+    if (!p.roles) p.roles = inferMetalRoles(p.palette);
+  }
+  return parts;
+}
 
 // Format:
 //   variant: { id, name, weight, layout: string[16], palette: {char: color}, statBias: {stat: [min, max]} }
@@ -2841,6 +2896,43 @@ const TALISMAN_FIGURES = [
   },
 ];
 
+// === Metal-tint annotation pass ===
+// Tag every variant in these arrays as metallic so getCompositionLayers
+// can replace their palette with the player item's material palette.
+// Auto-infers roles by luminance; per-part `roles:` overrides still win.
+// Excluded on purpose (kept artistic):
+//   - SWORD_GRIP, AXE_HANDLES, AXE_WRAPS (wood/leather grips)
+//   - BOW_LIMBS, BOW_GRIPS, BOW_TIPS, WAND_SHAFTS (wood/bone shafts)
+//   - WAND_HEADS (each one is its own elemental motif — gems, suns, stars)
+//   - CAP/TUNIC/ROBE collections (cloth — material would over-tint)
+//   - *_GEMS, *_SEALS, *_FIGURES, PENDANT_CHAINS (gems & decorative seals
+//     keep their gemstone colors; chains are too thin to retint cleanly)
+markMetal(SWORD_BLADES);
+markMetal(SWORD_GUARDS);
+markMetal(SWORD_POMMELS);
+markMetal(AXE_HEADS);
+markMetal(DAGGER_BLADES);
+markMetal(DAGGER_GUARDS);
+markMetal(DAGGER_POMMELS);
+markMetal(HELM_CROWNS);
+markMetal(HELM_VISORS);
+markMetal(HELM_JAWS);
+markMetal(PLATE_SHOULDERS);
+markMetal(PLATE_CHESTS);
+markMetal(PLATE_LOWERS);
+markMetal(SHIELD_RIMS);
+markMetal(SHIELD_BODIES);
+markMetal(SHIELD_BOSSES);
+markMetal(BUCKLER_BODIES);
+markMetal(BUCKLER_RIMS);
+markMetal(BUCKLER_BOSSES);
+markMetal(CROWN_BANDS);
+markMetal(CROWN_SPIKES);
+markMetal(BAND_RINGS);
+markMetal(SIGNET_SEALS);
+markMetal(PENDANT_BODIES);
+markMetal(TALISMAN_FIGURES);
+
 // Final dictionary
 const ARMOR_PARTS = {
   helm: {
@@ -3028,8 +3120,9 @@ function rollPart(partDef, chestTier, statMult) {
 // display / explainability and is safe to ignore if missing.
 
 // Helper: variant lookup by partType + variantId (for keep-variant re-rolls).
-function variantLookup(weaponBaseTypeId) {
-  const def = WEAPON_PARTS[weaponBaseTypeId];
+function variantLookup(weaponBaseTypeId, hd = false) {
+  const registry = hd && hasHDCompositionFor(weaponBaseTypeId) ? HD_WEAPON_PARTS : WEAPON_PARTS;
+  const def = registry[weaponBaseTypeId];
   if (!def) return null;
   const byType = {};
   for (const partDef of def.parts) {
@@ -3042,8 +3135,8 @@ function variantLookup(weaponBaseTypeId) {
 //   - 'keepRoll'   : keep each part's existing d20 (preserves quality identity)
 //   - 'rerollRoll' : re-roll d20 for each part (same visuals, new values)
 // Used by rescaleItemToTier (keepRoll) and rerollPartValuesOnly (rerollRoll).
-export function recomputePartStats(weaponBaseTypeId, parts, chestTier, statMult, mode = 'keepRoll') {
-  const lookup = variantLookup(weaponBaseTypeId);
+export function recomputePartStats(weaponBaseTypeId, parts, chestTier, statMult, mode = 'keepRoll', { hd = false } = {}) {
+  const lookup = variantLookup(weaponBaseTypeId, hd);
   if (!lookup) return { parts, baseStats: {}, statSources: [] };
   const baseStats = {};
   const statSources = [];
@@ -3072,8 +3165,9 @@ export function recomputePartStats(weaponBaseTypeId, parts, chestTier, statMult,
   return { parts: newParts, baseStats, statSources };
 }
 
-export function rollWeaponParts(weaponBaseTypeId, chestTier, statMult) {
-  const def = WEAPON_PARTS[weaponBaseTypeId];
+export function rollWeaponParts(weaponBaseTypeId, chestTier, statMult, { hd = false } = {}) {
+  const registry = hd && hasHDCompositionFor(weaponBaseTypeId) ? HD_WEAPON_PARTS : WEAPON_PARTS;
+  const def = registry[weaponBaseTypeId];
   if (!def) return null;
   const parts = def.parts.map(p => rollPart(p, chestTier, statMult));
   const baseStats = {};
@@ -3098,8 +3192,18 @@ export function rollWeaponParts(weaponBaseTypeId, chestTier, statMult) {
 // blade (back) → guard → grip → pommel (front).
 // drawOrder may include part type names AND tokens starting with '@' that reference
 // fixedLayers (always-on visual layers per weapon definition, e.g. grip).
-export function getCompositionLayers(weaponBaseTypeId, parts) {
-  const def = WEAPON_PARTS[weaponBaseTypeId];
+//
+// `materialId` (optional, phase 4A) retints any variant whose `roles` field
+// maps palette codes to render roles. Non-marked variants render unchanged.
+// `elementId` (optional, phase 4D) appends a sparse overlay layer with the
+// element's signature pixels (embers for fire, crystals for frost, etc.) so
+// elemental items LOOK elemental, not just labeled.
+// `hd` (optional, phase 4G) routes to the HD (64×64) parts registry when
+// the weapon type supports it. Combined with item.hdParts on the item itself
+// — set at generation time — this lets HD and legacy items coexist.
+export function getCompositionLayers(weaponBaseTypeId, parts, materialId = null, elementId = null, { hd = false } = {}) {
+  const registry = (hd && hasHDCompositionFor(weaponBaseTypeId)) ? HD_WEAPON_PARTS : WEAPON_PARTS;
+  const def = registry[weaponBaseTypeId];
   if (!def || !Array.isArray(parts)) return [];
   const variantById = {};
   for (const partDef of def.parts) {
@@ -3110,13 +3214,23 @@ export function getCompositionLayers(weaponBaseTypeId, parts) {
   for (const t of order) {
     if (t.startsWith('@')) {
       const fixed = def.fixedLayers?.[t.slice(1)];
+      // Fixed layers (grip, etc.) are intentionally non-metal — no retint.
       if (fixed) layers.push({ layout: fixed.layout, palette: fixed.palette });
       continue;
     }
     const p = parts.find(pp => pp.partType === t);
     if (!p) continue;
     const v = variantById[t]?.[p.variantId];
-    if (v) layers.push({ layout: v.layout, palette: v.palette });
+    if (!v) continue;
+    const palette = applyMaterialToPalette(v.palette, v.roles, materialId);
+    layers.push({ layout: v.layout, palette });
+  }
+  // Element overlay layer (drawn last so its signature pixels stay on top).
+  // Skipped in HD mode for now — overlays are 16×16 sparse, would need
+  // dedicated 64×64 versions to align with HD parts. TODO: HD overlays.
+  if (!hd) {
+    const elementOverlay = getElementOverlayLayer(weaponBaseTypeId, elementId);
+    if (elementOverlay) layers.push(elementOverlay);
   }
   return layers;
 }

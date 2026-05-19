@@ -341,6 +341,32 @@ btnOpen.addEventListener('click', () => {
     return;
   }
   showDropPopup(item);
+  // Phase 4B — celebratory particles bursting from the popup item frame.
+  // Scale intensity by rarity so the "wow" matches the loot.
+  requestAnimationFrame(() => {
+    const frame = document.querySelector('.drop-item-frame');
+    if (!frame) return;
+    const r = frame.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top  + r.height / 2;
+    const count = item.rarity === 'ancestral' ? 50
+                : item.rarity === 'legendary' ? 32
+                : item.rarity === 'epic' ? 18
+                : item.rarity === 'rare' ? 10
+                : item.rarity === 'magic' ? 5
+                : 0;
+    if (count > 0) {
+      spawnParticles(RARITY_BY_ID[item.rarity].color, cx, cy, count);
+      // Element overlay particles (a few sparks in the element's color)
+      if (item.element && item.element.id !== 'none') {
+        const elemColor = {
+          fire: '#ff7a30', frost: '#7adcff', poison: '#5ad858',
+          lightning: '#ffe14a', void: '#a058ff',
+        }[item.element.id];
+        if (elemColor) spawnParticles(elemColor, cx, cy, Math.max(6, count / 3));
+      }
+    }
+  });
 });
 
 // === Drop popup actions ===

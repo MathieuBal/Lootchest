@@ -114,3 +114,340 @@ export function mergeElementStats(baseStats, elementStats) {
     baseStats[k] = (baseStats[k] || 0) + v;
   }
 }
+
+// === Element overlay sprites (phase 4D) ===
+// Sparse 16×16 layouts painted ON TOP of the composed weapon sprite so the
+// element's signature is visually present on the item — embers along a fire
+// blade, frost crystals on a frost axe, etc. Most pixels are transparent.
+//
+// Palettes follow the 4-step ramp (dark → mid → light → glow) from the
+// art-pack spec so overlays read clearly without overwhelming the base.
+
+const ELEMENT_OVERLAY_PALETTES = {
+  fire:      { d: '#7a1a08', m: '#ff6728', l: '#ffb347', g: '#fff0a8' },
+  frost:     { d: '#145070', m: '#54cfff', l: '#b8f4ff', g: '#ffffff' },
+  poison:    { d: '#174f18', m: '#4bc84a', l: '#a8ff6a', g: '#eaffc8' },
+  lightning: { d: '#8a6400', m: '#ffd33d', l: '#fff08a', g: '#ffffff' },
+  void:      { d: '#210840', m: '#6d34d7', l: '#a66cff', g: '#f0ddff' },
+};
+
+// Per-weapon-type overlays. Each overlay is a 16×16 sparse layout that
+// targets the typical "blade region" of that weapon family:
+//   - sword/dagger: vertical blade centered cols 6-9, rows 0-10
+//   - axe: head occupies upper third, cols 3-12, rows 0-7
+//   - wand: head at top center, cols 6-9, rows 0-5
+//   - bow: tips at top/bottom + middle grip
+//
+// Pixels at empty space simply don't render (no spurious dots floating).
+
+const OVERLAY_SWORD_FIRE = [
+  '.......g........',
+  '......gmg.......',
+  '......dmd.......',
+  '.......d........',
+  '......l.........',
+  '......d.l.......',
+  '.......d........',
+  '......l.........',
+  '.......d........',
+  '......d.l.......',
+  '.......d........',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_SWORD_FROST = [
+  '......l.l.......',
+  '.......g........',
+  '......lml.......',
+  '.....g..g.......',
+  '.......d........',
+  '......l.l.......',
+  '.....g..g.......',
+  '.......m........',
+  '......l.l.......',
+  '.......g........',
+  '......d.d.......',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_SWORD_POISON = [
+  '................',
+  '......m.m.......',
+  '.......l........',
+  '......l.l.......',
+  '.......m........',
+  '.....l...l......',
+  '......m.m.......',
+  '.......g........',
+  '......d.d.......',
+  '.......l........',
+  '......m.m.......',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_SWORD_LIGHTNING = [
+  '.......g........',
+  '......lml.......',
+  '.......d........',
+  '......l.........',
+  '.......m........',
+  '........l.......',
+  '.......d........',
+  '......m.........',
+  '.......l........',
+  '........d.......',
+  '.......g........',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_SWORD_VOID = [
+  '......l.l.......',
+  '.......g........',
+  '.....l.d.l......',
+  '......dgd.......',
+  '.......g........',
+  '......dmd.......',
+  '.......g........',
+  '......dgd.......',
+  '.....l.d.l......',
+  '.......g........',
+  '......l.l.......',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_AXE_FIRE = [
+  '....g...g.......',
+  '...gmg.gmg......',
+  '...dmd.dmd......',
+  '....d...d.......',
+  '....l...l.......',
+  '....m...m.......',
+  '.....d.d........',
+  '......d.........',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_AXE_FROST = [
+  '....l...l.......',
+  '...g.g.g.g......',
+  '....l...l.......',
+  '....m...m.......',
+  '....d...d.......',
+  '.....l.l........',
+  '......g.........',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_AXE_POISON = [
+  '................',
+  '....m...m.......',
+  '...l.l.l.l......',
+  '....m...m.......',
+  '.....l.l........',
+  '......d.........',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_AXE_LIGHTNING = [
+  '....g...g.......',
+  '....l...l.......',
+  '....d...d.......',
+  '.....m.m........',
+  '......l.........',
+  '......d.........',
+  '......g.........',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_AXE_VOID = [
+  '....l...l.......',
+  '...g.g.g.g......',
+  '....dgggd.......',
+  '....mgggm.......',
+  '....dgggd.......',
+  '.....l.l........',
+  '......g.........',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_WAND_FIRE = [
+  '......g.g.......',
+  '.....gmgmg......',
+  '......lml.......',
+  '......dmd.......',
+  '.......d........',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_WAND_FROST = [
+  '......l.l.......',
+  '......glg.......',
+  '.....l.g.l......',
+  '......lml.......',
+  '.......d........',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_WAND_VOID = [
+  '......l.l.......',
+  '......dgd.......',
+  '.....l.g.l......',
+  '.....g.d.g......',
+  '......dmd.......',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_WAND_LIGHTNING = [
+  '......g.g.......',
+  '......dld.......',
+  '.....lgmgl......',
+  '......dld.......',
+  '......g.g.......',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+const OVERLAY_WAND_POISON = [
+  '......m.m.......',
+  '.....l.g.l......',
+  '......lml.......',
+  '.......d........',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+// Registry: weapon baseTypeId → element id → { layout, palette }
+const ELEMENT_OVERLAYS = {
+  sword:  { fire: OVERLAY_SWORD_FIRE, frost: OVERLAY_SWORD_FROST, poison: OVERLAY_SWORD_POISON, lightning: OVERLAY_SWORD_LIGHTNING, void: OVERLAY_SWORD_VOID },
+  dagger: { fire: OVERLAY_SWORD_FIRE, frost: OVERLAY_SWORD_FROST, poison: OVERLAY_SWORD_POISON, lightning: OVERLAY_SWORD_LIGHTNING, void: OVERLAY_SWORD_VOID },
+  axe:    { fire: OVERLAY_AXE_FIRE,   frost: OVERLAY_AXE_FROST,   poison: OVERLAY_AXE_POISON,   lightning: OVERLAY_AXE_LIGHTNING,   void: OVERLAY_AXE_VOID   },
+  wand:   { fire: OVERLAY_WAND_FIRE,  frost: OVERLAY_WAND_FROST,  poison: OVERLAY_WAND_POISON,  lightning: OVERLAY_WAND_LIGHTNING,  void: OVERLAY_WAND_VOID  },
+  // Bow could share sword overlays if needed — leaving it for now since the
+  // bow silhouette is sideways and the centered overlays would float in air.
+};
+
+/**
+ * Return the overlay layer ({ layout, palette, kind, elementId }) for a
+ * given weapon base type and element id, or null if no overlay applies.
+ * The `kind: 'element-overlay'` flag lets the renderer wrap this layer in
+ * a class-tagged SVG group so it can be animated independently (phase 4F).
+ */
+export function getElementOverlayLayer(weaponBaseTypeId, elementId) {
+  if (!elementId || elementId === 'none') return null;
+  const overlays = ELEMENT_OVERLAYS[weaponBaseTypeId];
+  if (!overlays) return null;
+  const layout = overlays[elementId];
+  if (!layout) return null;
+  const palette = ELEMENT_OVERLAY_PALETTES[elementId];
+  if (!palette) return null;
+  return { layout, palette, kind: 'element-overlay', elementId };
+}

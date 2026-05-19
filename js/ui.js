@@ -51,7 +51,12 @@ export function itemIconHTML(item, { big = false } = {}) {
     effectBadge = `<div class="item-effect-chip" title="Effet : ${item.legendaryEffect.name}">✦</div>`;
   }
   const setStyle = item.setId && SETS_BY_ID[item.setId] ? ` style="--set-color: ${SETS_BY_ID[item.setId].color}"` : '';
-  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}${item.setId ? ' item-icon-set' : ''}${item.locked ? ' item-icon-locked' : ''}"${setStyle} data-item-id="${item.id}">${inner}${setBadge}${uniqueBadge}${lockBadge}${matBadge}${elemBadge}${effectBadge}</div>`;
+  // data-element + data-material drive CSS filter effects (glow, drop-shadow)
+  // so an item's elemental and material identity shows through ambient lighting
+  // even before the player reads the chip.
+  const elemAttr = (item.element && item.element.id !== 'none') ? ` data-element="${item.element.id}"` : '';
+  const matAttr  = item.material ? ` data-material="${item.material.id}"` : '';
+  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}${item.setId ? ' item-icon-set' : ''}${item.locked ? ' item-icon-locked' : ''}"${setStyle}${elemAttr}${matAttr} data-item-id="${item.id}">${inner}${setBadge}${uniqueBadge}${lockBadge}${matBadge}${elemBadge}${effectBadge}</div>`;
 }
 
 function setBadgeHTML(item, big) {
@@ -63,8 +68,11 @@ function setBadgeHTML(item, big) {
 
 function itemVisualHTML(item, big = false) {
   if (item.parts) {
-    const layers = getCompositionLayers(item.baseTypeId, item.parts);
-    return composedSpriteSVG(layers, big ? 64 : 40);
+    const isHD = !!item.hdParts;
+    const layers = getCompositionLayers(item.baseTypeId, item.parts, item.material?.id, item.element?.id, { hd: isHD });
+    // For HD items the source is already 64×64 — no scale2x needed.
+    // For legacy 16×16 items, scale2x at big sizes (drop popup, paper doll).
+    return composedSpriteSVG(layers, big ? 96 : 40, { hd: !isHD && big });
   }
   return item.emoji || '❔';
 }
@@ -765,18 +773,90 @@ export function hideTooltip() {
 
 let currentDrop = null;
 
+// === Drop reveal banner per rarity (phase 4B) ===
+const RARITY_BANNER = {
+  common:    { text: 'OBJET TROUVÉ',           emoji: '' },
+  magic:     { text: 'OBJET MAGIQUE',          emoji: '🔵' },
+  rare:      { text: 'OBJET RARE !',           emoji: '🟡' },
+  epic:      { text: '★ ÉPIQUE !',             emoji: '🟣' },
+  legendary: { text: '★★ LÉGENDAIRE !!',       emoji: '🔥' },
+  ancestral: { text: '★★★ ANCESTRAL !!!',      emoji: '💥' },
+};
+
 export function showDropPopup(item) {
   currentDrop = item;
   const popup = document.getElementById('drop-popup');
-  const inner = document.getElementById('drop-item');
-  inner.innerHTML = `
-    ${itemIconHTML(item, { big: true })}
-    <div class="item-name rt-${RARITY_BY_ID[item.rarity].cssClass}">${item.name}</div>
-    <div class="item-details">
-      ${Object.entries(item.baseStats || {}).map(([k, v]) => `<div>+${v} ${statLabel(k)}</div>`).join('')}
-      ${(item.affixes || []).map(a => `<div class="item-affix">+${a.value}${a.percent ? '%' : ''} ${a.label}</div>`).join('')}
-    </div>
-  `;
+  const r = RARITY_BY_ID[item.rarity];
+
+  // 1. Rarity datasets drive the whole frame theme via CSS
+  popup.dataset.rarity = item.rarity;
+  popup.dataset.element = item.element?.id || 'none';
+
+  // 2. Banner adapted to rarity
+  const banner = RARITY_BANNER[item.rarity] || RARITY_BANNER.common;
+  const bannerEl = document.getElementById('drop-banner');
+  bannerEl.className = 'drop-popup-label rt-' + r.cssClass;
+  bannerEl.textContent = banner.emoji ? `${banner.emoji} ${banner.text} ${banner.emoji}` : banner.text;
+
+  // 3. Aura color from element (set as CSS variable on the aura div)
+  const aura = document.getElementById('drop-aura');
+  const elem = item.element && item.element.id !== 'none' ? ELEMENTS[item.element.id] : null;
+  aura.style.setProperty('--aura-color', elem?.glowColor || 'transparent');
+  aura.dataset.active = elem ? '1' : '0';
+
+  // 4. The item sprite itself — render bigger for rare+
+  document.getElementById('drop-item').innerHTML = itemIconHTML(item, { big: true });
+
+  // 5. Name + meta line
+  document.getElementById('drop-item-name').className = 'drop-item-name rt-' + r.cssClass;
+  document.getElementById('drop-item-name').textContent = item.name;
+  const slot = SLOT_BY_ID[item.slot];
+  document.getElementById('drop-item-meta').innerHTML =
+    `<span>T${item.chestTier}</span> · <span>${slot?.name || ''}</span> · <span class="rt-${r.cssClass}">${r.name}</span>`;
+
+  // 6. Layer chips (material + element + faction + set + unique badge)
+  const chips = [];
+  if (item.material) {
+    const m = MATERIALS[item.material.id];
+    if (m) chips.push(`<span class="layer-chip layer-mat" style="border-color:${m.tintColor};color:${m.tintColor}">${m.icon} ${m.name}</span>`);
+  }
+  if (item.element && item.element.id !== 'none') {
+    const e = ELEMENTS[item.element.id];
+    if (e) chips.push(`<span class="layer-chip layer-elem" style="border-color:${e.glowColor};color:${e.glowColor}">${e.icon} ${e.name}</span>`);
+  }
+  if (item.faction && item.faction.id !== 'none') {
+    chips.push(`<span class="layer-chip layer-fac">🏷 ${item.faction.name}</span>`);
+  }
+  if (item.setId && SETS_BY_ID[item.setId]) {
+    const s = SETS_BY_ID[item.setId];
+    chips.push(`<span class="layer-chip layer-set" style="border-color:${s.color};color:${s.color}">🎭 ${s.name}</span>`);
+  }
+  if (item.uniqueId) chips.push(`<span class="layer-chip layer-uniq">✨ UNIQUE</span>`);
+  document.getElementById('drop-item-layers').innerHTML = chips.join('');
+
+  // 7. Stats grid (base + affixes)
+  const baseHTML = Object.entries(item.baseStats || {})
+    .map(([k, v]) => `<div class="drop-stat-base">+${v}${PCT_STATS.has(k) ? '%' : ''} ${statLabel(k)}</div>`)
+    .join('');
+  const affixHTML = (item.affixes || [])
+    .map(a => `<div class="drop-stat-affix">${affixTypeBadge(a)}+${a.value}${a.percent ? '%' : ''} ${a.label}</div>`)
+    .join('');
+  document.getElementById('drop-item-stats').innerHTML = baseHTML + affixHTML;
+
+  // 8. Legendary effect block
+  const effectEl = document.getElementById('drop-item-effect');
+  if (item.legendaryEffect) {
+    const eff = LEGENDARY_EFFECTS[item.legendaryEffect.id];
+    if (eff) {
+      effectEl.innerHTML =
+        `<div class="drop-effect-title">✦ ${eff.name}</div><div class="drop-effect-desc">${eff.desc}</div>`;
+      effectEl.style.display = '';
+    }
+  } else {
+    effectEl.style.display = 'none';
+    effectEl.innerHTML = '';
+  }
+
   document.getElementById('drop-sell-value').textContent = item.goldValue.toLocaleString('fr-FR');
   popup.classList.remove('hidden');
 }

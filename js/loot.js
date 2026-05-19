@@ -220,7 +220,7 @@ export function rebuildItemAffixesAndStats(item) {
   // Composed weapons: re-roll parts to scale with new tier/rarity.
   if (item.parts && hasCompositionFor(item.baseTypeId)) {
     const statMult = RARITY_BY_ID[item.rarity].statMult;
-    const { parts, baseStats, statSources } = rollWeaponParts(item.baseTypeId, item.chestTier, statMult);
+    const { parts, baseStats, statSources } = rollWeaponParts(item.baseTypeId, item.chestTier, statMult, { hd: !!item.hdParts });
     item.parts = parts;
     item.baseStats = baseStats;
     item.statSources = statSources;
@@ -256,7 +256,7 @@ export function rerollPartValuesOnly(item) {
   if (!item.parts || !hasCompositionFor(item.baseTypeId)) return;
   const statMult = RARITY_BY_ID[item.rarity].statMult;
   const { parts, baseStats, statSources } =
-    recomputePartStats(item.baseTypeId, item.parts, item.chestTier, statMult, 'rerollRoll');
+    recomputePartStats(item.baseTypeId, item.parts, item.chestTier, statMult, 'rerollRoll', { hd: !!item.hdParts });
   item.parts = parts;
   item.baseStats = baseStats;
   item.statSources = statSources;
@@ -269,7 +269,7 @@ export function rerollPartsAndVisuals(item) {
   if (item.uniqueId) return;
   if (!item.parts || !hasCompositionFor(item.baseTypeId)) return;
   const statMult = RARITY_BY_ID[item.rarity].statMult;
-  const { parts, baseStats, statSources } = rollWeaponParts(item.baseTypeId, item.chestTier, statMult);
+  const { parts, baseStats, statSources } = rollWeaponParts(item.baseTypeId, item.chestTier, statMult, { hd: !!item.hdParts });
   item.parts = parts;
   item.baseStats = baseStats;
   item.statSources = statSources;
@@ -297,7 +297,7 @@ export function rescaleItemToTier(item, newTier) {
   if (item.parts && hasCompositionFor(item.baseTypeId)) {
     const statMult = RARITY_BY_ID[item.rarity].statMult;
     const { parts, baseStats, statSources } =
-      recomputePartStats(item.baseTypeId, item.parts, newTier, statMult, 'keepRoll');
+      recomputePartStats(item.baseTypeId, item.parts, newTier, statMult, 'keepRoll', { hd: !!item.hdParts });
     item.parts = parts;
     item.baseStats = baseStats;
     item.statSources = statSources;
@@ -354,7 +354,10 @@ function buildRegularItem(chestTier, rarity) {
   // Composed item path: any base type registered in WEAPON_PARTS (weapons + armor).
   if (hasCompositionFor(baseType.id)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
-    const { parts, baseStats, statSources } = rollWeaponParts(baseType.id, chestTier, statMult);
+    // HD parts (64×64 procedural) when the weapon type has them registered.
+    // Currently: swords. Other weapons fall back to legacy 16×16.
+    const useHD = baseType.id === 'sword';
+    const { parts, baseStats, statSources } = rollWeaponParts(baseType.id, chestTier, statMult, { hd: useHD });
     // Faction first — drives coherence on material/element via tag bias.
     const faction = rollFaction(chestTier, rarity);
     const factionRolled = rollFactionStats(faction, chestTier, statMult);
@@ -387,6 +390,7 @@ function buildRegularItem(chestTier, rarity) {
       material: { id: material.id, name: material.name, d20: matRolled.d20 },
       element:  { id: element.id,  name: element.name,  d20: elemRolled.d20 },
       faction:  { id: faction.id,  name: faction.name,  d20: factionRolled.d20 },
+      hdParts: useHD,  // 64×64 procedural source — drives the renderer dispatch
     };
     // Legendary effect — 30% on legendary, 80% on ancestral, tag-gated.
     const effect = rollLegendaryEffect(item);
@@ -443,8 +447,12 @@ function buildUniqueLegendary(chestTier) {
   };
   // Visual-only composed sprite for uniques whose base type has parts (weapons + armor).
   if (hasCompositionFor(tpl.baseTypeId)) {
-    const rolled = rollWeaponParts(tpl.baseTypeId, chestTier, 1);
-    if (rolled) item.parts = rolled.parts;
+    const useHD = tpl.baseTypeId === 'sword';
+    const rolled = rollWeaponParts(tpl.baseTypeId, chestTier, 1, { hd: useHD });
+    if (rolled) {
+      item.parts = rolled.parts;
+      if (useHD) item.hdParts = true;
+    }
   }
   return item;
 }
@@ -461,7 +469,8 @@ function buildSetPiece(chestTier, rarity) {
   // Composed item path (weapons + armor): parts contribute baseStats AND visual.
   if (hasCompositionFor(piece.baseTypeId)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
-    const rolled = rollWeaponParts(piece.baseTypeId, chestTier, statMult);
+    const useHD = piece.baseTypeId === 'sword';
+    const rolled = rollWeaponParts(piece.baseTypeId, chestTier, statMult, { hd: useHD });
     // Set pieces keep their canonical name (the set IS their faction-equivalent
     // identity). They still get all three layers for stats + tooltip lines.
     const faction = rollFaction(chestTier, rarity);
@@ -501,6 +510,7 @@ function buildSetPiece(chestTier, rarity) {
       material: { id: material.id, name: material.name, d20: matRolled.d20 },
       element:  { id: element.id,  name: element.name,  d20: elemRolled.d20 },
       faction:  { id: faction.id,  name: faction.name,  d20: factionRolled.d20 },
+      hdParts: useHD,
     };
   }
 

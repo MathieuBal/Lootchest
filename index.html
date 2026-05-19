@@ -175,11 +175,22 @@
     <div class="inventory-grid" id="inventory-grid"></div>
   </section>
 
-  <!-- DROP POPUP -->
+  <!-- DROP POPUP (rarity-themed premium reveal) -->
   <div id="drop-popup" class="drop-popup hidden">
+    <div class="drop-popup-bg"></div>
     <div class="drop-popup-inner">
-      <div class="drop-popup-label">VOUS AVEZ LOOT !</div>
-      <div id="drop-item" class="drop-item"></div>
+      <div class="drop-popup-label" id="drop-banner">VOUS AVEZ LOOT !</div>
+      <div class="drop-item-showcase">
+        <div class="drop-aura" id="drop-aura"></div>
+        <div class="drop-item-frame">
+          <div id="drop-item" class="drop-item"></div>
+        </div>
+      </div>
+      <div class="drop-item-name" id="drop-item-name"></div>
+      <div class="drop-item-meta" id="drop-item-meta"></div>
+      <div class="drop-item-layers" id="drop-item-layers"></div>
+      <div class="drop-item-stats" id="drop-item-stats"></div>
+      <div class="drop-item-effect" id="drop-item-effect"></div>
       <div class="drop-actions">
         <button id="btn-equip" class="btn btn-primary">Équiper</button>
         <button id="btn-keep" class="btn">Garder</button>

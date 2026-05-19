@@ -1085,33 +1085,173 @@ button, input, select {
   margin-bottom: 14px;
   letter-spacing: 2px;
 }
-.drop-item {
-  margin-bottom: 18px;
+/* === Premium drop reveal (phase 4B) === */
+
+/* Rarity-themed backdrop layer behind the popup card */
+.drop-popup-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, var(--drop-bg-glow, transparent), transparent 70%);
+  animation: drop-bg-pulse 3s ease-in-out infinite;
 }
-.drop-item .item-icon-big {
-  display: inline-flex;
+.drop-popup[data-rarity="common"]    { --drop-bg-glow: rgba(154,160,166,0.10); --drop-frame-color: var(--r-common);    --drop-frame-glow: rgba(154,160,166,0.4); }
+.drop-popup[data-rarity="magic"]     { --drop-bg-glow: rgba(74,158,245,0.15);  --drop-frame-color: var(--r-magic);     --drop-frame-glow: rgba(74,158,245,0.5); }
+.drop-popup[data-rarity="rare"]      { --drop-bg-glow: rgba(255,225,74,0.20);  --drop-frame-color: var(--r-rare);      --drop-frame-glow: rgba(255,225,74,0.6); }
+.drop-popup[data-rarity="epic"]      { --drop-bg-glow: rgba(179,91,214,0.25);  --drop-frame-color: var(--r-epic);      --drop-frame-glow: rgba(179,91,214,0.7); }
+.drop-popup[data-rarity="legendary"] { --drop-bg-glow: rgba(255,122,26,0.30);  --drop-frame-color: var(--r-legendary); --drop-frame-glow: rgba(255,122,26,0.8); }
+.drop-popup[data-rarity="ancestral"] { --drop-bg-glow: rgba(255,48,80,0.35);   --drop-frame-color: var(--r-ancestral); --drop-frame-glow: rgba(255,48,80,0.9); }
+
+/* Frame border switches color by rarity */
+.drop-popup .drop-popup-inner {
+  border-color: var(--drop-frame-color, var(--gold)) !important;
+  box-shadow: 0 0 36px var(--drop-frame-glow, rgba(245,200,66,0.4)),
+              inset 0 1px 0 rgba(255,255,255,0.08);
+}
+/* Ancestral gets a shaky entrance */
+.drop-popup[data-rarity="ancestral"] .drop-popup-inner {
+  animation: drop-shake 0.4s ease-out, pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+/* Legendary+ have a continuous border shimmer */
+.drop-popup[data-rarity="legendary"] .drop-popup-inner,
+.drop-popup[data-rarity="ancestral"] .drop-popup-inner {
+  animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), drop-border-pulse 2.4s ease-in-out 0.4s infinite;
+}
+
+/* Showcase area: item sprite framed by aura ring */
+.drop-item-showcase {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 16px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 80px;
-  height: 80px;
-  font-size: 56px;
-  margin: 0 auto 12px auto;
 }
-.drop-item .item-name {
-  font-size: 12px;
-  margin-bottom: 8px;
+.drop-aura {
+  position: absolute;
+  inset: -8px;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--aura-color, transparent) 0%, transparent 65%);
+  filter: blur(3px);
+  animation: drop-aura-pulse 2s ease-in-out infinite;
 }
-.drop-item .item-details {
+.drop-aura[data-active="0"] { display: none; }
+.drop-item-frame {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.05), transparent 60%),
+              rgba(0,0,0,0.3);
+  border: 3px solid var(--drop-frame-color, var(--gold));
+  box-shadow: inset 0 0 16px rgba(0,0,0,0.5);
+}
+/* Scale the inner item svg/icon to fill the frame */
+.drop-item .item-icon-big {
+  width: 96px;
+  height: 96px;
+  margin: 0;
+  font-size: 72px;
+  background: transparent;
+}
+.drop-item .item-icon-big svg { width: 100%; height: 100%; }
+
+/* Item identity lines */
+.drop-item-name {
+  font-size: 13px;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  text-shadow: 2px 2px 0 #000;
+}
+.drop-item-meta {
   font-size: 9px;
   color: var(--text-dim);
-  line-height: 1.8;
+  margin-bottom: 10px;
+  letter-spacing: 1px;
 }
-.drop-item .item-affix { color: var(--r-magic); }
+.drop-item-meta span { padding: 0 4px; }
+
+/* Layer chips row (material / element / faction / set / unique) */
+.drop-item-layers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 12px;
+  min-height: 16px; /* avoid layout jump when empty */
+}
+.layer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 8px;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.3);
+  color: var(--text);
+  letter-spacing: 0.5px;
+}
+.layer-chip.layer-uniq {
+  border-color: var(--r-legendary);
+  color: var(--r-legendary);
+  text-shadow: 0 0 6px var(--r-legendary);
+  animation: leg-pulse 2s ease-in-out infinite;
+}
+
+/* Stats grid */
+.drop-item-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+  margin-bottom: 12px;
+  text-align: left;
+  font-size: 9px;
+}
+.drop-stat-base  { color: var(--text); }
+.drop-stat-affix { color: var(--r-magic); }
+
+/* Legendary effect block — visually stronger than tooltip version */
+.drop-item-effect {
+  margin: 4px 0 14px;
+  padding: 10px 12px;
+  border: 2px solid var(--r-legendary);
+  background: linear-gradient(135deg, rgba(255,122,26,0.18), rgba(255,80,30,0.08));
+  text-align: center;
+  font-size: 9px;
+  box-shadow: 0 0 12px rgba(255,122,26,0.3);
+}
+.drop-effect-title { color: var(--r-legendary); font-size: 10px; margin-bottom: 4px; text-shadow: 0 0 6px var(--r-legendary); }
+.drop-effect-desc  { color: var(--text); line-height: 1.6; }
+
 .drop-actions {
   display: flex;
   gap: 8px;
   justify-content: center;
   flex-wrap: wrap;
+}
+
+/* --- Animations --- */
+@keyframes drop-bg-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 1.0; transform: scale(1.05); }
+}
+@keyframes drop-aura-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 1.0; transform: scale(1.08); }
+}
+@keyframes drop-border-pulse {
+  0%, 100% { box-shadow: 0 0 28px var(--drop-frame-glow), inset 0 1px 0 rgba(255,255,255,0.08); }
+  50%      { box-shadow: 0 0 48px var(--drop-frame-glow), 0 0 90px var(--drop-frame-glow), inset 0 1px 0 rgba(255,255,255,0.1); }
+}
+@keyframes drop-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
 }
 
 @keyframes fade-in {
@@ -2092,6 +2232,202 @@ button, input, select {
 @keyframes ancestralFlicker {
   0%, 100% { filter: brightness(1) saturate(1); }
   50%      { filter: brightness(1.2) saturate(1.3); }
+}
+
+/* === Premium inventory frames (phase 4C) === */
+/* Rare+ items get 4 corner glints painted via radial gradients on a ::before
+   layer. Higher rarities pulse and add an outer aura ring (::after) that
+   gently bleeds into adjacent cells for a "premium" feel without overflowing
+   pseudo-elements outside the grid container. */
+.item-icon.r-rare,
+.item-icon.r-epic,
+.item-icon.r-legendary,
+.item-icon.r-ancestral {
+  overflow: visible;
+}
+.item-icon.r-rare::before,
+.item-icon.r-epic::before,
+.item-icon.r-legendary::before,
+.item-icon.r-ancestral::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 0% 0%,   var(--frame-color, transparent) 0%, transparent 14%),
+    radial-gradient(circle at 100% 0%, var(--frame-color, transparent) 0%, transparent 14%),
+    radial-gradient(circle at 0% 100%, var(--frame-color, transparent) 0%, transparent 14%),
+    radial-gradient(circle at 100% 100%, var(--frame-color, transparent) 0%, transparent 14%);
+  opacity: 0.85;
+}
+.item-icon.r-rare      { --frame-color: var(--r-rare);      }
+.item-icon.r-epic      { --frame-color: var(--r-epic);      }
+.item-icon.r-legendary { --frame-color: var(--r-legendary); }
+.item-icon.r-ancestral { --frame-color: var(--r-ancestral); }
+
+/* Animated pulse on the corner glints for legendary+ */
+.item-icon.r-legendary::before,
+.item-icon.r-ancestral::before {
+  animation: frame-corner-pulse 1.8s ease-in-out infinite;
+}
+.item-icon.r-ancestral::before { animation-duration: 1.2s; }
+@keyframes frame-corner-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1.0;  }
+}
+
+/* Outer aura that bleeds slightly into adjacent grid cells (gap is 4-6px;
+   ring extends -3px so it stays mostly within cell padding). */
+.item-icon.r-legendary::after,
+.item-icon.r-ancestral::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(circle, var(--frame-color) 0%, transparent 70%);
+  opacity: 0.35;
+  animation: frame-aura-breath 2.2s ease-in-out infinite;
+}
+.item-icon.r-ancestral::after { animation-duration: 1.5s; opacity: 0.5; }
+@keyframes frame-aura-breath {
+  0%, 100% { transform: scale(0.92); opacity: 0.30; }
+  50%      { transform: scale(1.08); opacity: 0.55; }
+}
+
+/* Unique items — special engraved plate look */
+.item-icon-unique {
+  /* Reserved for unique items; if needed, applied via JS */
+}
+.item-icon:has(.item-unique-chip) {
+  background:
+    linear-gradient(135deg, rgba(255,225,74,0.08), transparent 60%),
+    var(--bg);
+  box-shadow:
+    inset 0 1px 0 rgba(255,225,74,0.3),
+    inset 0 -1px 0 rgba(255,225,74,0.2),
+    0 0 8px rgba(255,225,74,0.4);
+}
+
+/* Ancestral inner pattern — subtle diagonal scratch lines */
+.item-icon.r-ancestral {
+  background-image:
+    repeating-linear-gradient(45deg,
+      transparent 0,
+      transparent 6px,
+      rgba(255,48,80,0.05) 6px,
+      rgba(255,48,80,0.05) 7px),
+    radial-gradient(circle at 50% 50%, rgba(255,48,80,0.08), transparent 80%);
+}
+
+/* === Elemental ambient glow on items (phase 4D) === */
+/* Each element drops a colored shadow behind the sprite so the ambient
+   light hints at the element even before the player reads the chip. */
+.item-icon[data-element="fire"]      .item-icon-big > svg,
+.item-icon[data-element="fire"]      > svg { filter: drop-shadow(0 0 3px rgba(255, 103, 40, 0.7)); }
+.item-icon[data-element="frost"]     .item-icon-big > svg,
+.item-icon[data-element="frost"]     > svg { filter: drop-shadow(0 0 3px rgba(84, 207, 255, 0.7)); }
+.item-icon[data-element="poison"]    .item-icon-big > svg,
+.item-icon[data-element="poison"]    > svg { filter: drop-shadow(0 0 3px rgba(75, 200, 74, 0.7)); }
+.item-icon[data-element="lightning"] .item-icon-big > svg,
+.item-icon[data-element="lightning"] > svg { filter: drop-shadow(0 0 3px rgba(255, 211, 61, 0.8)); }
+.item-icon[data-element="void"]      .item-icon-big > svg,
+.item-icon[data-element="void"]      > svg { filter: drop-shadow(0 0 4px rgba(166, 108, 255, 0.8)); }
+
+/* Inner background tint also nudges toward the element color. */
+.item-icon[data-element="fire"]      { background-image: radial-gradient(circle at 50% 60%, rgba(255, 103, 40, 0.08), transparent 70%); }
+.item-icon[data-element="frost"]     { background-image: radial-gradient(circle at 50% 60%, rgba(84, 207, 255, 0.08), transparent 70%); }
+.item-icon[data-element="poison"]    { background-image: radial-gradient(circle at 50% 60%, rgba(75, 200, 74, 0.08), transparent 70%); }
+.item-icon[data-element="lightning"] { background-image: radial-gradient(circle at 50% 60%, rgba(255, 211, 61, 0.08), transparent 70%); }
+.item-icon[data-element="void"]      { background-image: radial-gradient(circle at 50% 60%, rgba(166, 108, 255, 0.10), transparent 70%); }
+
+/* Material identity hints (very subtle — material is also in the sprite retint
+   but a small ambient tint reinforces it). */
+.item-icon[data-material="gold"]       { box-shadow: inset 0 0 8px rgba(245, 200, 66, 0.25); }
+.item-icon[data-material="obsidian"]   { box-shadow: inset 0 0 8px rgba(120, 50, 200, 0.25); }
+.item-icon[data-material="crystal"]    { box-shadow: inset 0 0 8px rgba(122, 220, 255, 0.30); }
+.item-icon[data-material="mithril"]    { box-shadow: inset 0 0 8px rgba(168, 208, 240, 0.30); }
+.item-icon[data-material="dragonbone"] { box-shadow: inset 0 0 8px rgba(220, 130, 80, 0.25); }
+/* iron/bronze/steel/silver/bone stay neutral — they're the default look */
+
+/* Drop popup gets stronger versions of these effects */
+.drop-item .item-icon-big {
+  /* Elemental glow is more pronounced at large size */
+}
+.drop-popup[data-element="fire"]      .item-icon-big > svg { filter: drop-shadow(0 0 8px rgba(255, 103, 40, 0.9));  }
+.drop-popup[data-element="frost"]     .item-icon-big > svg { filter: drop-shadow(0 0 8px rgba(84, 207, 255, 0.9));  }
+.drop-popup[data-element="poison"]    .item-icon-big > svg { filter: drop-shadow(0 0 8px rgba(75, 200, 74, 0.9));   }
+.drop-popup[data-element="lightning"] .item-icon-big > svg { filter: drop-shadow(0 0 8px rgba(255, 211, 61, 1.0));  }
+.drop-popup[data-element="void"]      .item-icon-big > svg { filter: drop-shadow(0 0 12px rgba(166, 108, 255, 1.0)); }
+
+/* === Animated element overlays on sprites (phase 4F) === */
+/* The element overlay layer is wrapped in <g class="sprite-overlay-X"> by
+   the SVG composer. Each element gets its own visual rhythm so a "Lame
+   Ardente" actually scintille, a "Lame Givrée" twinkle, a "Lame Foudroyante"
+   flashes occasionally, etc. */
+
+/* Fire — quick irregular flicker, brightness + slight saturation pulse */
+.sprite-overlay-fire {
+  animation: overlay-fire 1.2s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes overlay-fire {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  30%      { opacity: 0.7; filter: brightness(1.4); }
+  60%      { opacity: 1; filter: brightness(0.9); }
+  85%      { opacity: 0.85; filter: brightness(1.2); }
+}
+
+/* Frost — slow gentle twinkle, opacity breathes */
+.sprite-overlay-frost {
+  animation: overlay-frost 2.4s ease-in-out infinite;
+}
+@keyframes overlay-frost {
+  0%, 100% { opacity: 0.7; filter: brightness(1); }
+  50%      { opacity: 1; filter: brightness(1.4); }
+}
+
+/* Poison — slow pulse green, slight scale */
+.sprite-overlay-poison {
+  animation: overlay-poison 2.0s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes overlay-poison {
+  0%, 100% { opacity: 0.85; filter: hue-rotate(0deg) brightness(1); }
+  50%      { opacity: 1; filter: hue-rotate(-10deg) brightness(1.2); }
+}
+
+/* Lightning — occasional bright flash, mostly subdued */
+.sprite-overlay-lightning {
+  animation: overlay-lightning 1.6s steps(8, end) infinite;
+}
+@keyframes overlay-lightning {
+  0%, 100%  { opacity: 0.6; filter: brightness(0.9); }
+  10%       { opacity: 1; filter: brightness(1.8); }
+  12%       { opacity: 1; filter: brightness(1); }
+  50%, 70%  { opacity: 0.75; }
+  72%       { opacity: 1; filter: brightness(1.5); }
+  75%       { opacity: 0.8; }
+}
+
+/* Void — ethereal slow drift + opacity wave */
+.sprite-overlay-void {
+  animation: overlay-void 3.5s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes overlay-void {
+  0%, 100% { opacity: 0.7; filter: brightness(1); }
+  50%      { opacity: 1; filter: brightness(1.5) hue-rotate(15deg); }
+}
+
+/* Reduced motion: disable animations for users who prefer less movement */
+@media (prefers-reduced-motion: reduce) {
+  .sprite-overlay-fire,
+  .sprite-overlay-frost,
+  .sprite-overlay-poison,
+  .sprite-overlay-lightning,
+  .sprite-overlay-void { animation: none; }
 }
 
 /* Equipment slot — subtle inner glow when occupied */
