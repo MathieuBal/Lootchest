@@ -1085,33 +1085,173 @@ button, input, select {
   margin-bottom: 14px;
   letter-spacing: 2px;
 }
-.drop-item {
-  margin-bottom: 18px;
+/* === Premium drop reveal (phase 4B) === */
+
+/* Rarity-themed backdrop layer behind the popup card */
+.drop-popup-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, var(--drop-bg-glow, transparent), transparent 70%);
+  animation: drop-bg-pulse 3s ease-in-out infinite;
 }
-.drop-item .item-icon-big {
-  display: inline-flex;
+.drop-popup[data-rarity="common"]    { --drop-bg-glow: rgba(154,160,166,0.10); --drop-frame-color: var(--r-common);    --drop-frame-glow: rgba(154,160,166,0.4); }
+.drop-popup[data-rarity="magic"]     { --drop-bg-glow: rgba(74,158,245,0.15);  --drop-frame-color: var(--r-magic);     --drop-frame-glow: rgba(74,158,245,0.5); }
+.drop-popup[data-rarity="rare"]      { --drop-bg-glow: rgba(255,225,74,0.20);  --drop-frame-color: var(--r-rare);      --drop-frame-glow: rgba(255,225,74,0.6); }
+.drop-popup[data-rarity="epic"]      { --drop-bg-glow: rgba(179,91,214,0.25);  --drop-frame-color: var(--r-epic);      --drop-frame-glow: rgba(179,91,214,0.7); }
+.drop-popup[data-rarity="legendary"] { --drop-bg-glow: rgba(255,122,26,0.30);  --drop-frame-color: var(--r-legendary); --drop-frame-glow: rgba(255,122,26,0.8); }
+.drop-popup[data-rarity="ancestral"] { --drop-bg-glow: rgba(255,48,80,0.35);   --drop-frame-color: var(--r-ancestral); --drop-frame-glow: rgba(255,48,80,0.9); }
+
+/* Frame border switches color by rarity */
+.drop-popup .drop-popup-inner {
+  border-color: var(--drop-frame-color, var(--gold)) !important;
+  box-shadow: 0 0 36px var(--drop-frame-glow, rgba(245,200,66,0.4)),
+              inset 0 1px 0 rgba(255,255,255,0.08);
+}
+/* Ancestral gets a shaky entrance */
+.drop-popup[data-rarity="ancestral"] .drop-popup-inner {
+  animation: drop-shake 0.4s ease-out, pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+/* Legendary+ have a continuous border shimmer */
+.drop-popup[data-rarity="legendary"] .drop-popup-inner,
+.drop-popup[data-rarity="ancestral"] .drop-popup-inner {
+  animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), drop-border-pulse 2.4s ease-in-out 0.4s infinite;
+}
+
+/* Showcase area: item sprite framed by aura ring */
+.drop-item-showcase {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 16px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 80px;
-  height: 80px;
-  font-size: 56px;
-  margin: 0 auto 12px auto;
 }
-.drop-item .item-name {
-  font-size: 12px;
-  margin-bottom: 8px;
+.drop-aura {
+  position: absolute;
+  inset: -8px;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--aura-color, transparent) 0%, transparent 65%);
+  filter: blur(3px);
+  animation: drop-aura-pulse 2s ease-in-out infinite;
 }
-.drop-item .item-details {
+.drop-aura[data-active="0"] { display: none; }
+.drop-item-frame {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.05), transparent 60%),
+              rgba(0,0,0,0.3);
+  border: 3px solid var(--drop-frame-color, var(--gold));
+  box-shadow: inset 0 0 16px rgba(0,0,0,0.5);
+}
+/* Scale the inner item svg/icon to fill the frame */
+.drop-item .item-icon-big {
+  width: 96px;
+  height: 96px;
+  margin: 0;
+  font-size: 72px;
+  background: transparent;
+}
+.drop-item .item-icon-big svg { width: 100%; height: 100%; }
+
+/* Item identity lines */
+.drop-item-name {
+  font-size: 13px;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  text-shadow: 2px 2px 0 #000;
+}
+.drop-item-meta {
   font-size: 9px;
   color: var(--text-dim);
-  line-height: 1.8;
+  margin-bottom: 10px;
+  letter-spacing: 1px;
 }
-.drop-item .item-affix { color: var(--r-magic); }
+.drop-item-meta span { padding: 0 4px; }
+
+/* Layer chips row (material / element / faction / set / unique) */
+.drop-item-layers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 12px;
+  min-height: 16px; /* avoid layout jump when empty */
+}
+.layer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 8px;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.3);
+  color: var(--text);
+  letter-spacing: 0.5px;
+}
+.layer-chip.layer-uniq {
+  border-color: var(--r-legendary);
+  color: var(--r-legendary);
+  text-shadow: 0 0 6px var(--r-legendary);
+  animation: leg-pulse 2s ease-in-out infinite;
+}
+
+/* Stats grid */
+.drop-item-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+  margin-bottom: 12px;
+  text-align: left;
+  font-size: 9px;
+}
+.drop-stat-base  { color: var(--text); }
+.drop-stat-affix { color: var(--r-magic); }
+
+/* Legendary effect block — visually stronger than tooltip version */
+.drop-item-effect {
+  margin: 4px 0 14px;
+  padding: 10px 12px;
+  border: 2px solid var(--r-legendary);
+  background: linear-gradient(135deg, rgba(255,122,26,0.18), rgba(255,80,30,0.08));
+  text-align: center;
+  font-size: 9px;
+  box-shadow: 0 0 12px rgba(255,122,26,0.3);
+}
+.drop-effect-title { color: var(--r-legendary); font-size: 10px; margin-bottom: 4px; text-shadow: 0 0 6px var(--r-legendary); }
+.drop-effect-desc  { color: var(--text); line-height: 1.6; }
+
 .drop-actions {
   display: flex;
   gap: 8px;
   justify-content: center;
   flex-wrap: wrap;
+}
+
+/* --- Animations --- */
+@keyframes drop-bg-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 1.0; transform: scale(1.05); }
+}
+@keyframes drop-aura-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 1.0; transform: scale(1.08); }
+}
+@keyframes drop-border-pulse {
+  0%, 100% { box-shadow: 0 0 28px var(--drop-frame-glow), inset 0 1px 0 rgba(255,255,255,0.08); }
+  50%      { box-shadow: 0 0 48px var(--drop-frame-glow), 0 0 90px var(--drop-frame-glow), inset 0 1px 0 rgba(255,255,255,0.1); }
+}
+@keyframes drop-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
 }
 
 @keyframes fade-in {
