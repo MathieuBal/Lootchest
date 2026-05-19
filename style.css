@@ -2234,6 +2234,93 @@ button, input, select {
   50%      { filter: brightness(1.2) saturate(1.3); }
 }
 
+/* === Premium inventory frames (phase 4C) === */
+/* Rare+ items get 4 corner glints painted via radial gradients on a ::before
+   layer. Higher rarities pulse and add an outer aura ring (::after) that
+   gently bleeds into adjacent cells for a "premium" feel without overflowing
+   pseudo-elements outside the grid container. */
+.item-icon.r-rare,
+.item-icon.r-epic,
+.item-icon.r-legendary,
+.item-icon.r-ancestral {
+  overflow: visible;
+}
+.item-icon.r-rare::before,
+.item-icon.r-epic::before,
+.item-icon.r-legendary::before,
+.item-icon.r-ancestral::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 0% 0%,   var(--frame-color, transparent) 0%, transparent 14%),
+    radial-gradient(circle at 100% 0%, var(--frame-color, transparent) 0%, transparent 14%),
+    radial-gradient(circle at 0% 100%, var(--frame-color, transparent) 0%, transparent 14%),
+    radial-gradient(circle at 100% 100%, var(--frame-color, transparent) 0%, transparent 14%);
+  opacity: 0.85;
+}
+.item-icon.r-rare      { --frame-color: var(--r-rare);      }
+.item-icon.r-epic      { --frame-color: var(--r-epic);      }
+.item-icon.r-legendary { --frame-color: var(--r-legendary); }
+.item-icon.r-ancestral { --frame-color: var(--r-ancestral); }
+
+/* Animated pulse on the corner glints for legendary+ */
+.item-icon.r-legendary::before,
+.item-icon.r-ancestral::before {
+  animation: frame-corner-pulse 1.8s ease-in-out infinite;
+}
+.item-icon.r-ancestral::before { animation-duration: 1.2s; }
+@keyframes frame-corner-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1.0;  }
+}
+
+/* Outer aura that bleeds slightly into adjacent grid cells (gap is 4-6px;
+   ring extends -3px so it stays mostly within cell padding). */
+.item-icon.r-legendary::after,
+.item-icon.r-ancestral::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(circle, var(--frame-color) 0%, transparent 70%);
+  opacity: 0.35;
+  animation: frame-aura-breath 2.2s ease-in-out infinite;
+}
+.item-icon.r-ancestral::after { animation-duration: 1.5s; opacity: 0.5; }
+@keyframes frame-aura-breath {
+  0%, 100% { transform: scale(0.92); opacity: 0.30; }
+  50%      { transform: scale(1.08); opacity: 0.55; }
+}
+
+/* Unique items — special engraved plate look */
+.item-icon-unique {
+  /* Reserved for unique items; if needed, applied via JS */
+}
+.item-icon:has(.item-unique-chip) {
+  background:
+    linear-gradient(135deg, rgba(255,225,74,0.08), transparent 60%),
+    var(--bg);
+  box-shadow:
+    inset 0 1px 0 rgba(255,225,74,0.3),
+    inset 0 -1px 0 rgba(255,225,74,0.2),
+    0 0 8px rgba(255,225,74,0.4);
+}
+
+/* Ancestral inner pattern — subtle diagonal scratch lines */
+.item-icon.r-ancestral {
+  background-image:
+    repeating-linear-gradient(45deg,
+      transparent 0,
+      transparent 6px,
+      rgba(255,48,80,0.05) 6px,
+      rgba(255,48,80,0.05) 7px),
+    radial-gradient(circle at 50% 50%, rgba(255,48,80,0.08), transparent 80%);
+}
+
 /* Equipment slot — subtle inner glow when occupied */
 .equipment-slot:not(.empty) {
   background:
