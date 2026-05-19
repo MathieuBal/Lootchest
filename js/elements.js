@@ -436,9 +436,10 @@ const ELEMENT_OVERLAYS = {
 };
 
 /**
- * Return the overlay layer ({ layout, palette }) for a given weapon base
- * type and element id, or null if no overlay applies (no element, none,
- * or unsupported weapon type).
+ * Return the overlay layer ({ layout, palette, kind, elementId }) for a
+ * given weapon base type and element id, or null if no overlay applies.
+ * The `kind: 'element-overlay'` flag lets the renderer wrap this layer in
+ * a class-tagged SVG group so it can be animated independently (phase 4F).
  */
 export function getElementOverlayLayer(weaponBaseTypeId, elementId) {
   if (!elementId || elementId === 'none') return null;
@@ -448,5 +449,5 @@ export function getElementOverlayLayer(weaponBaseTypeId, elementId) {
   if (!layout) return null;
   const palette = ELEMENT_OVERLAY_PALETTES[elementId];
   if (!palette) return null;
-  return { layout, palette };
+  return { layout, palette, kind: 'element-overlay', elementId };
 }

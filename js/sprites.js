@@ -576,11 +576,22 @@ export function composedSpriteSVG(layers, sizePx = 64, { hd = false } = {}) {
   if (!layers || layers.length === 0) return '';
   let effectiveLayers = layers;
   if (hd) {
-    effectiveLayers = layers.map(l => ({ layout: scale2x(l.layout), palette: l.palette }));
+    // Preserve `kind` / `elementId` so wrapper groups still tag the layer
+    // after scale2x upscale.
+    effectiveLayers = layers.map(l => ({ ...l, layout: scale2x(l.layout) }));
   }
   const cells = effectiveLayers[0].layout.length;
   const parts = [];
-  for (const layer of effectiveLayers) parts.push(gridToRects(layer.layout, layer.palette));
+  for (const layer of effectiveLayers) {
+    const rects = gridToRects(layer.layout, layer.palette);
+    // Wrap kind-tagged layers in a <g> so CSS can target them independently
+    // (e.g. element-overlay layers get animated flicker per element).
+    if (layer.kind === 'element-overlay' && layer.elementId) {
+      parts.push(`<g class="sprite-overlay sprite-overlay-${layer.elementId}">${rects}</g>`);
+    } else {
+      parts.push(rects);
+    }
+  }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cells} ${cells}" width="${sizePx}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${parts.join('')}</svg>`;
 }
 

@@ -2361,6 +2361,75 @@ button, input, select {
 .drop-popup[data-element="lightning"] .item-icon-big > svg { filter: drop-shadow(0 0 8px rgba(255, 211, 61, 1.0));  }
 .drop-popup[data-element="void"]      .item-icon-big > svg { filter: drop-shadow(0 0 12px rgba(166, 108, 255, 1.0)); }
 
+/* === Animated element overlays on sprites (phase 4F) === */
+/* The element overlay layer is wrapped in <g class="sprite-overlay-X"> by
+   the SVG composer. Each element gets its own visual rhythm so a "Lame
+   Ardente" actually scintille, a "Lame Givrée" twinkle, a "Lame Foudroyante"
+   flashes occasionally, etc. */
+
+/* Fire — quick irregular flicker, brightness + slight saturation pulse */
+.sprite-overlay-fire {
+  animation: overlay-fire 1.2s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes overlay-fire {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  30%      { opacity: 0.7; filter: brightness(1.4); }
+  60%      { opacity: 1; filter: brightness(0.9); }
+  85%      { opacity: 0.85; filter: brightness(1.2); }
+}
+
+/* Frost — slow gentle twinkle, opacity breathes */
+.sprite-overlay-frost {
+  animation: overlay-frost 2.4s ease-in-out infinite;
+}
+@keyframes overlay-frost {
+  0%, 100% { opacity: 0.7; filter: brightness(1); }
+  50%      { opacity: 1; filter: brightness(1.4); }
+}
+
+/* Poison — slow pulse green, slight scale */
+.sprite-overlay-poison {
+  animation: overlay-poison 2.0s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes overlay-poison {
+  0%, 100% { opacity: 0.85; filter: hue-rotate(0deg) brightness(1); }
+  50%      { opacity: 1; filter: hue-rotate(-10deg) brightness(1.2); }
+}
+
+/* Lightning — occasional bright flash, mostly subdued */
+.sprite-overlay-lightning {
+  animation: overlay-lightning 1.6s steps(8, end) infinite;
+}
+@keyframes overlay-lightning {
+  0%, 100%  { opacity: 0.6; filter: brightness(0.9); }
+  10%       { opacity: 1; filter: brightness(1.8); }
+  12%       { opacity: 1; filter: brightness(1); }
+  50%, 70%  { opacity: 0.75; }
+  72%       { opacity: 1; filter: brightness(1.5); }
+  75%       { opacity: 0.8; }
+}
+
+/* Void — ethereal slow drift + opacity wave */
+.sprite-overlay-void {
+  animation: overlay-void 3.5s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes overlay-void {
+  0%, 100% { opacity: 0.7; filter: brightness(1); }
+  50%      { opacity: 1; filter: brightness(1.5) hue-rotate(15deg); }
+}
+
+/* Reduced motion: disable animations for users who prefer less movement */
+@media (prefers-reduced-motion: reduce) {
+  .sprite-overlay-fire,
+  .sprite-overlay-frost,
+  .sprite-overlay-poison,
+  .sprite-overlay-lightning,
+  .sprite-overlay-void { animation: none; }
+}
+
 /* Equipment slot — subtle inner glow when occupied */
 .equipment-slot:not(.empty) {
   background:
