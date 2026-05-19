@@ -39,6 +39,7 @@ import {
   getMonsterEmojiCenter, getCharacterAvatarCenter, getChestCenter,
   setInvSortMode, setInvSearchText, setForgeMode,
 } from './ui.js';
+import { lookupGlossary } from './glossary.js';
 
 // === Init ===
 
@@ -106,6 +107,59 @@ function refreshNextStepHint() {
 
 subscribe(refreshNextStepHint);
 refreshNextStepHint();
+
+// === Glossary inline tooltips ===
+// On hover (desktop) or tap (mobile), show the definition of a .gt term.
+const _gtTip = document.getElementById('glossary-tip');
+let _gtAutoHide = null;
+
+function showGlossaryTip(el) {
+  const term = el.dataset.term;
+  const def = lookupGlossary(term);
+  if (!def) return;
+  _gtTip.innerHTML = `<div class="glossary-tip-title">${el.textContent}</div><div class="glossary-tip-body">${def}</div>`;
+  _gtTip.classList.remove('hidden');
+  // Position below the term, clamped to viewport
+  const r = el.getBoundingClientRect();
+  const ttR = _gtTip.getBoundingClientRect();
+  let left = r.left;
+  let top = r.bottom + 6;
+  if (left + ttR.width > window.innerWidth - 8) left = window.innerWidth - ttR.width - 8;
+  if (top + ttR.height > window.innerHeight - 8) top = r.top - ttR.height - 6;
+  _gtTip.style.left = Math.max(8, left) + 'px';
+  _gtTip.style.top  = Math.max(8, top)  + 'px';
+}
+
+function hideGlossaryTip() {
+  _gtTip.classList.add('hidden');
+  if (_gtAutoHide) { clearTimeout(_gtAutoHide); _gtAutoHide = null; }
+}
+
+// Hover (desktop only — touch uses click below)
+document.body.addEventListener('mouseover', (e) => {
+  if (isTouchDevice()) return;
+  const el = e.target.closest('.gt');
+  if (el) showGlossaryTip(el);
+});
+document.body.addEventListener('mouseout', (e) => {
+  if (isTouchDevice()) return;
+  if (e.target.closest('.gt')) hideGlossaryTip();
+});
+
+// Tap (mobile): show + auto-hide after 4s, or hide on outside tap
+document.body.addEventListener('click', (e) => {
+  const el = e.target.closest('.gt');
+  if (el) {
+    e.stopPropagation();
+    showGlossaryTip(el);
+    if (_gtAutoHide) clearTimeout(_gtAutoHide);
+    _gtAutoHide = setTimeout(hideGlossaryTip, 4500);
+    return;
+  }
+  if (!_gtTip.classList.contains('hidden') && !e.target.closest('#glossary-tip')) {
+    hideGlossaryTip();
+  }
+});
 onBountyComplete(b => {
   const rewardSummary = [`+${b.reward.gold.toLocaleString('fr-FR')} 💰`];
   for (const [orbId, q] of Object.entries(b.reward.orbs)) {
