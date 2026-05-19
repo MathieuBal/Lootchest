@@ -15,37 +15,37 @@ import { RARITY_BY_ID } from './data.js';
 // `minChestTier` gates rare elements so they don't appear early.
 export const ELEMENTS = {
   none: {
-    id: 'none', name: 'Aucun', adjective: '',
+    id: 'none', name: 'Aucun', adjective: '', icon: '', glowColor: null,
     weight: 60, minChestTier: 1,
     statBias: {},
     tags: [],
   },
   fire: {
-    id: 'fire', name: 'Feu', adjective: 'Ardente',
+    id: 'fire', name: 'Feu', adjective: 'Ardente', icon: '🔥', glowColor: '#ff7a30',
     weight: 14, minChestTier: 1,
     statBias: { fireDmg: [4, 12] },
     tags: ['fire', 'burning'],
   },
   frost: {
-    id: 'frost', name: 'Givre', adjective: 'Givrée',
+    id: 'frost', name: 'Givre', adjective: 'Givrée', icon: '❄', glowColor: '#7adcff',
     weight: 12, minChestTier: 2,
     statBias: { frostDmg: [4, 12], speed: [1, 3] },
     tags: ['frost', 'slow'],
   },
   poison: {
-    id: 'poison', name: 'Poison', adjective: 'Vénéneuse',
+    id: 'poison', name: 'Poison', adjective: 'Vénéneuse', icon: '☠', glowColor: '#5ad858',
     weight: 10, minChestTier: 2,
     statBias: { poisonDmg: [5, 12] },
     tags: ['poison', 'organic'],
   },
   lightning: {
-    id: 'lightning', name: 'Foudre', adjective: 'Foudroyante',
+    id: 'lightning', name: 'Foudre', adjective: 'Foudroyante', icon: '⚡', glowColor: '#ffe14a',
     weight: 6, minChestTier: 3,
     statBias: { lightningDmg: [5, 14], crit: [2, 4] },
     tags: ['lightning', 'fast'],
   },
   void: {
-    id: 'void', name: 'Néant', adjective: 'du Néant',
+    id: 'void', name: 'Néant', adjective: 'du Néant', icon: '🌌', glowColor: '#a058ff',
     weight: 3, minChestTier: 4,
     statBias: { voidDmg: [6, 16], crit: [3, 7] },
     tags: ['void', 'rare'],

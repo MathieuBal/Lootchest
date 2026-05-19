@@ -20,6 +20,8 @@ import { SKILLS, getActiveSkills } from './skills.js';
 import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
+import { MATERIALS } from './materials.js';
+import { ELEMENTS } from './elements.js';
 import { getCompositionLayers } from './parts.js';
 
 // === Item icon helpers ===
@@ -30,8 +32,26 @@ export function itemIconHTML(item, { big = false } = {}) {
   const setBadge = item.setId ? setBadgeHTML(item, big) : '';
   const uniqueBadge = item.uniqueId && !item.setId ? '<div class="item-unique-chip" title="Unique">✨</div>' : '';
   const lockBadge = item.locked ? '<div class="item-lock-chip" title="Verrouillé (Alt+clic pour déverrouiller)">🔒</div>' : '';
+  // Material + element badges (bottom corners). Material in BL, element in TL.
+  // Hidden on big mode where we have room for full tooltip.
+  let matBadge = '', elemBadge = '';
+  if (!big) {
+    if (item.material) {
+      const m = MATERIALS[item.material.id];
+      if (m && m.icon) matBadge = `<div class="item-mat-chip" title="${m.name}" style="color:${m.tintColor}">${m.icon}</div>`;
+    }
+    if (item.element && item.element.id !== 'none') {
+      const e = ELEMENTS[item.element.id];
+      if (e && e.icon) elemBadge = `<div class="item-elem-chip" title="${e.name}" style="color:${e.glowColor}">${e.icon}</div>`;
+    }
+  }
+  // Legendary-effect indicator (top-right, replaces unique chip if both — uniques have no effect anyway)
+  let effectBadge = '';
+  if (item.legendaryEffect && !item.uniqueId) {
+    effectBadge = `<div class="item-effect-chip" title="Effet : ${item.legendaryEffect.name}">✦</div>`;
+  }
   const setStyle = item.setId && SETS_BY_ID[item.setId] ? ` style="--set-color: ${SETS_BY_ID[item.setId].color}"` : '';
-  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}${item.setId ? ' item-icon-set' : ''}${item.locked ? ' item-icon-locked' : ''}"${setStyle} data-item-id="${item.id}">${inner}${setBadge}${uniqueBadge}${lockBadge}</div>`;
+  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}${item.setId ? ' item-icon-set' : ''}${item.locked ? ' item-icon-locked' : ''}"${setStyle} data-item-id="${item.id}">${inner}${setBadge}${uniqueBadge}${lockBadge}${matBadge}${elemBadge}${effectBadge}</div>`;
 }
 
 function setBadgeHTML(item, big) {
