@@ -2321,6 +2321,46 @@ button, input, select {
     radial-gradient(circle at 50% 50%, rgba(255,48,80,0.08), transparent 80%);
 }
 
+/* === Elemental ambient glow on items (phase 4D) === */
+/* Each element drops a colored shadow behind the sprite so the ambient
+   light hints at the element even before the player reads the chip. */
+.item-icon[data-element="fire"]      .item-icon-big > svg,
+.item-icon[data-element="fire"]      > svg { filter: drop-shadow(0 0 3px rgba(255, 103, 40, 0.7)); }
+.item-icon[data-element="frost"]     .item-icon-big > svg,
+.item-icon[data-element="frost"]     > svg { filter: drop-shadow(0 0 3px rgba(84, 207, 255, 0.7)); }
+.item-icon[data-element="poison"]    .item-icon-big > svg,
+.item-icon[data-element="poison"]    > svg { filter: drop-shadow(0 0 3px rgba(75, 200, 74, 0.7)); }
+.item-icon[data-element="lightning"] .item-icon-big > svg,
+.item-icon[data-element="lightning"] > svg { filter: drop-shadow(0 0 3px rgba(255, 211, 61, 0.8)); }
+.item-icon[data-element="void"]      .item-icon-big > svg,
+.item-icon[data-element="void"]      > svg { filter: drop-shadow(0 0 4px rgba(166, 108, 255, 0.8)); }
+
+/* Inner background tint also nudges toward the element color. */
+.item-icon[data-element="fire"]      { background-image: radial-gradient(circle at 50% 60%, rgba(255, 103, 40, 0.08), transparent 70%); }
+.item-icon[data-element="frost"]     { background-image: radial-gradient(circle at 50% 60%, rgba(84, 207, 255, 0.08), transparent 70%); }
+.item-icon[data-element="poison"]    { background-image: radial-gradient(circle at 50% 60%, rgba(75, 200, 74, 0.08), transparent 70%); }
+.item-icon[data-element="lightning"] { background-image: radial-gradient(circle at 50% 60%, rgba(255, 211, 61, 0.08), transparent 70%); }
+.item-icon[data-element="void"]      { background-image: radial-gradient(circle at 50% 60%, rgba(166, 108, 255, 0.10), transparent 70%); }
+
+/* Material identity hints (very subtle — material is also in the sprite retint
+   but a small ambient tint reinforces it). */
+.item-icon[data-material="gold"]       { box-shadow: inset 0 0 8px rgba(245, 200, 66, 0.25); }
+.item-icon[data-material="obsidian"]   { box-shadow: inset 0 0 8px rgba(120, 50, 200, 0.25); }
+.item-icon[data-material="crystal"]    { box-shadow: inset 0 0 8px rgba(122, 220, 255, 0.30); }
+.item-icon[data-material="mithril"]    { box-shadow: inset 0 0 8px rgba(168, 208, 240, 0.30); }
+.item-icon[data-material="dragonbone"] { box-shadow: inset 0 0 8px rgba(220, 130, 80, 0.25); }
+/* iron/bronze/steel/silver/bone stay neutral — they're the default look */
+
+/* Drop popup gets stronger versions of these effects */
+.drop-item .item-icon-big {
+  /* Elemental glow is more pronounced at large size */
+}
+.drop-popup[data-element="fire"]      .item-icon-big > svg { filter: drop-shadow(0 0 8px rgba(255, 103, 40, 0.9));  }
+.drop-popup[data-element="frost"]     .item-icon-big > svg { filter: drop-shadow(0 0 8px rgba(84, 207, 255, 0.9));  }
+.drop-popup[data-element="poison"]    .item-icon-big > svg { filter: drop-shadow(0 0 8px rgba(75, 200, 74, 0.9));   }
+.drop-popup[data-element="lightning"] .item-icon-big > svg { filter: drop-shadow(0 0 8px rgba(255, 211, 61, 1.0));  }
+.drop-popup[data-element="void"]      .item-icon-big > svg { filter: drop-shadow(0 0 12px rgba(166, 108, 255, 1.0)); }
+
 /* Equipment slot — subtle inner glow when occupied */
 .equipment-slot:not(.empty) {
   background:

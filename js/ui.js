@@ -51,7 +51,12 @@ export function itemIconHTML(item, { big = false } = {}) {
     effectBadge = `<div class="item-effect-chip" title="Effet : ${item.legendaryEffect.name}">✦</div>`;
   }
   const setStyle = item.setId && SETS_BY_ID[item.setId] ? ` style="--set-color: ${SETS_BY_ID[item.setId].color}"` : '';
-  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}${item.setId ? ' item-icon-set' : ''}${item.locked ? ' item-icon-locked' : ''}"${setStyle} data-item-id="${item.id}">${inner}${setBadge}${uniqueBadge}${lockBadge}${matBadge}${elemBadge}${effectBadge}</div>`;
+  // data-element + data-material drive CSS filter effects (glow, drop-shadow)
+  // so an item's elemental and material identity shows through ambient lighting
+  // even before the player reads the chip.
+  const elemAttr = (item.element && item.element.id !== 'none') ? ` data-element="${item.element.id}"` : '';
+  const matAttr  = item.material ? ` data-material="${item.material.id}"` : '';
+  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}${item.setId ? ' item-icon-set' : ''}${item.locked ? ' item-icon-locked' : ''}"${setStyle}${elemAttr}${matAttr} data-item-id="${item.id}">${inner}${setBadge}${uniqueBadge}${lockBadge}${matBadge}${elemBadge}${effectBadge}</div>`;
 }
 
 function setBadgeHTML(item, big) {
@@ -63,7 +68,7 @@ function setBadgeHTML(item, big) {
 
 function itemVisualHTML(item, big = false) {
   if (item.parts) {
-    const layers = getCompositionLayers(item.baseTypeId, item.parts, item.material?.id);
+    const layers = getCompositionLayers(item.baseTypeId, item.parts, item.material?.id, item.element?.id);
     return composedSpriteSVG(layers, big ? 64 : 40);
   }
   return item.emoji || '❔';

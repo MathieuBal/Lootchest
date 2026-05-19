@@ -9,6 +9,7 @@
 // `roles` are rendered unchanged.
 
 import { applyMaterialToPalette } from './materials.js';
+import { getElementOverlayLayer } from './elements.js';
 
 // === Auto-infer metal roles from a palette by sorting colors by luminance.
 // Darkest → outline, brightest → highlight. Used to bulk-annotate every
@@ -3191,7 +3192,10 @@ export function rollWeaponParts(weaponBaseTypeId, chestTier, statMult) {
 //
 // `materialId` (optional, phase 4A) retints any variant whose `roles` field
 // maps palette codes to render roles. Non-marked variants render unchanged.
-export function getCompositionLayers(weaponBaseTypeId, parts, materialId = null) {
+// `elementId` (optional, phase 4D) appends a sparse overlay layer with the
+// element's signature pixels (embers for fire, crystals for frost, etc.) so
+// elemental items LOOK elemental, not just labeled.
+export function getCompositionLayers(weaponBaseTypeId, parts, materialId = null, elementId = null) {
   const def = WEAPON_PARTS[weaponBaseTypeId];
   if (!def || !Array.isArray(parts)) return [];
   const variantById = {};
@@ -3214,6 +3218,9 @@ export function getCompositionLayers(weaponBaseTypeId, parts, materialId = null)
     const palette = applyMaterialToPalette(v.palette, v.roles, materialId);
     layers.push({ layout: v.layout, palette });
   }
+  // Element overlay layer (drawn last so its signature pixels stay on top).
+  const elementOverlay = getElementOverlayLayer(weaponBaseTypeId, elementId);
+  if (elementOverlay) layers.push(elementOverlay);
   return layers;
 }
 
