@@ -33,6 +33,7 @@ export const state = {
   ui: {
     leftTab: 'chest',     // 'chest' | 'dungeon'
     muted: false,
+    hasSeenWelcome: false, // first-visit tutorial flag
   },
   settings: {
     fastCombat: false,    // skip animations during fights
@@ -120,8 +121,12 @@ export function replaceState(newState) {
   }
   if (!state.combat) state.combat = { currentFloor: 1, highestUnlocked: 1, kills: 0, deaths: 0, bossKills: 0 };
   if (!state.pity) state.pity = { sinceLegendary: 0 };
-  if (!state.ui) state.ui = { leftTab: 'chest', muted: false };
+  if (!state.ui) state.ui = { leftTab: 'chest', muted: false, hasSeenWelcome: false };
   if (state.ui.muted === undefined) state.ui.muted = false;
+  if (state.ui.hasSeenWelcome === undefined) {
+    // Existing saves: skip welcome if they already opened anything
+    state.ui.hasSeenWelcome = state.opened > 0;
+  }
   if (!state.settings) state.settings = {};
   const defaultSettings = { fastCombat: false, reducedParticles: false, confirmAscend: true, confirmDestructiveSell: true, hardMode: false };
   for (const [k, v] of Object.entries(defaultSettings)) {

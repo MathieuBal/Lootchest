@@ -29,9 +29,12 @@
 html, body {
   margin: 0;
   padding: 0;
+  /* Layered background: vignette + radial accents + pixel grain + base color */
   background:
+    radial-gradient(ellipse at 50% 100%, transparent 50%, rgba(0,0,0,0.4) 100%),
     radial-gradient(circle at 20% 10%, #2a1c3a 0%, transparent 40%),
     radial-gradient(circle at 80% 90%, #1a2c3a 0%, transparent 40%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='4' height='4'><rect width='1' height='1' fill='%23ffffff' opacity='0.025'/></svg>"),
     var(--bg);
   color: var(--text);
   font-family: 'Press Start 2P', monospace;
@@ -44,6 +47,7 @@ html, body {
 button, input, select {
   font-family: inherit;
   font-size: inherit;
+  touch-action: manipulation; /* removes 300ms tap delay on mobile */
 }
 
 /* === HUD === */
@@ -120,7 +124,35 @@ button, input, select {
   50%      { box-shadow: 0 0 10px rgba(106,204,106,0.7); }
 }
 
-.hud-actions { display: flex; gap: 6px; }
+.hud-actions { display: flex; gap: 6px; align-items: center; }
+
+/* === HUD Dropdown Menu === */
+.hud-menu { position: relative; }
+.hud-menu-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--bg-panel);
+  border: 2px solid var(--border);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 150;
+  min-width: 180px;
+  box-shadow: 4px 4px 0 #000;
+  animation: menu-pop 120ms ease-out;
+}
+.hud-menu-list.hidden { display: none; }
+.hud-menu-list .btn {
+  width: 100%;
+  justify-content: flex-start;
+  white-space: nowrap;
+}
+@keyframes menu-pop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* === Buttons === */
 .btn {
@@ -131,6 +163,11 @@ button, input, select {
   cursor: pointer;
   transition: transform 80ms, background 80ms, border-color 120ms, box-shadow 80ms;
   box-shadow: 3px 3px 0 #000, inset 0 1px 0 rgba(255,255,255,0.06);
+  min-height: 36px;
+  touch-action: manipulation;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .btn:hover:not(:disabled) {
   background: linear-gradient(180deg, #4a3a60 0%, #2a2238 100%);
@@ -163,7 +200,7 @@ button, input, select {
   border-color: #c0405a;
 }
 .btn-danger:hover:not(:disabled) { background: #c0405a; }
-.btn-small { padding: 6px 10px; font-size: 9px; box-shadow: 2px 2px 0 #000; }
+.btn-small { padding: 6px 10px; font-size: 9px; box-shadow: 2px 2px 0 #000; min-height: 32px; }
 .btn-big { padding: 16px 24px; font-size: 12px; width: 100%; }
 
 /* === Layout === */
@@ -226,6 +263,10 @@ button, input, select {
   font-size: 10px;
   position: relative;
   bottom: -2px;
+  min-height: 38px;
+  touch-action: manipulation;
+  display: inline-flex;
+  align-items: center;
 }
 .tab:hover:not(.active) { background: var(--border); color: var(--text); }
 .tab.active {
@@ -291,6 +332,28 @@ button, input, select {
 }
 .chest-emoji.shake {
   animation: shake 350ms;
+}
+
+/* === Tier auras — static colored halo around higher-tier chests === */
+/* Stacked drop-shadows: base black offset shadow + tier-themed colored glow */
+.chest-emoji[data-tier="3"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 6px rgba(245,200,66,0.4)); }
+.chest-emoji[data-tier="4"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 8px rgba(179,91,214,0.5)); }
+.chest-emoji[data-tier="5"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 10px rgba(232,72,88,0.6)); }
+.chest-emoji[data-tier="6"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 12px rgba(64,128,232,0.7)); }
+.chest-emoji[data-tier="7"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 14px rgba(160,88,255,0.7)); }
+.chest-emoji[data-tier="8"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 16px rgba(255,255,255,0.5)); }
+.chest-emoji[data-tier="9"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 14px rgba(74,188,90,0.7)); }
+.chest-emoji[data-tier="10"] { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 18px rgba(255,225,74,0.8)); }
+
+/* "Ready" state — chest is openable (≥1 key). Subtle warm box-shadow pulse.
+   Uses box-shadow not transform so it doesn't conflict with the inner svg
+   chest-idle wobble. */
+.chest-emoji.chest-ready {
+  animation: chest-ready-pulse 2.2s ease-in-out infinite;
+}
+@keyframes chest-ready-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(245, 200, 66, 0); }
+  50%      { box-shadow: 0 0 18px rgba(245, 200, 66, 0.35); }
 }
 .chest-tier-label {
   color: var(--text-dim);
@@ -499,6 +562,24 @@ button, input, select {
 .monster-emoji {
   font-size: 56px;
   margin-bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+/* When a boss sprite is rendered (SVG inside), kill the text font-size so
+   the SVG controls its own dimensions, and add a hostile drop-shadow. */
+.monster-emoji.monster-sprite {
+  font-size: 0;
+  filter: drop-shadow(2px 4px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 8px rgba(255,80,80,0.35));
+  animation: boss-idle 3s ease-in-out infinite;
+}
+.monster-emoji.monster-sprite svg {
+  display: block;
+}
+@keyframes boss-idle {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-2px) scale(1.02); }
 }
 .monster-name {
   font-size: 11px;
@@ -862,6 +943,9 @@ button, input, select {
   cursor: pointer;
   position: relative;
   transition: transform 80ms;
+  touch-action: manipulation;
+  min-width: 48px; /* minimum tap target */
+  min-height: 48px;
 }
 .item-icon:hover {
   transform: scale(1.08);
@@ -1599,7 +1683,35 @@ button, input, select {
 /* === Monster card during combat === */
 .monster-card.combat .monster-difficulty { display: none; }
 
-/* === Responsive === */
+/* =====================================================
+   RESPONSIVE DESIGN — mobile-friendly overhaul
+   ===================================================== */
+
+/* Suppress hover effects on touch devices to avoid stuck :hover states */
+@media (hover: none) {
+  .btn:hover:not(:disabled),
+  .btn-primary:hover:not(:disabled),
+  .btn-gold:hover:not(:disabled),
+  .btn-danger:hover:not(:disabled),
+  .btn-loop:not(:disabled):hover {
+    transform: none;
+    box-shadow: 3px 3px 0 #000, inset 0 1px 0 rgba(255,255,255,0.06);
+    background: inherit;
+    border-color: inherit;
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--accent); }
+  .btn-gold:hover:not(:disabled) { background: #a07820; color: #fff; }
+  .btn-danger:hover:not(:disabled) { background: #7a2030; }
+  .tab:hover:not(.active) { background: var(--bg-panel-light); color: var(--text-dim); }
+  .item-icon:hover { transform: none; z-index: auto; }
+  .equipment-slot:hover { border-color: var(--border); }
+  .hud-stat-btn:hover { background: var(--bg-panel-light); border-color: var(--border); }
+  .mc-row:hover:not(.disabled) { border-color: var(--border); background: inherit; }
+  .settings-row:hover { border-color: var(--border); }
+  .autosell-mode:hover { border-color: var(--border); }
+}
+
+/* Large tablets and small desktops (800px) */
 @media (max-width: 800px) {
   .layout { grid-template-columns: 1fr; }
   .hud-title { font-size: 11px; }
@@ -1619,6 +1731,15 @@ button, input, select {
   .drop-popup-inner { padding: 14px; min-width: 0; }
   .drop-item .item-icon-big { width: 60px; height: 60px; font-size: 42px; }
   .toast-container { right: 6px; top: 60px; max-width: 70vw; }
+  /* Fix large minmax grids */
+  .skills-grid { grid-template-columns: 1fr; }
+  .talents-grid { grid-template-columns: 1fr; }
+  .breakdown-body { grid-template-columns: 1fr 1fr; }
+  .codex-grid { grid-template-columns: 1fr 1fr; }
+  /* Modal sizing — reduce outer padding so inner can fill width without overflow */
+  .modal { padding: 8px; }
+  .modal-inner { width: 100%; max-width: none; }
+  .modal-wide  { max-width: none; width: 100%; }
 }
 /* === Empty states === */
 .empty-state {
@@ -1696,8 +1817,483 @@ button, input, select {
 .breakdown-stat-empty { font-size: 8px; color: var(--text-dim); font-style: italic; }
 .breakdown-empty { opacity: 0.4; }
 
+/* Phones (600px) */
+@media (max-width: 600px) {
+  body { font-size: 8.5px; }
+  .hud { padding: 8px 10px; gap: 8px; }
+  .hud-stat { padding: 5px 8px; }
+  .panel { padding: 8px; }
+  .panel-title { font-size: 10px; margin-bottom: 10px; }
+  .layout { gap: 10px; padding: 10px; }
+  .tabs { gap: 2px; flex-wrap: wrap; }
+  .tab { padding: 6px 8px; font-size: 9px; min-height: 36px; }
+  /* Inventory: 4 columns on narrow phones */
+  .inventory-grid { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 4px; padding: 6px; }
+  .forge-inventory { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 4px; }
+  .item-icon { font-size: 24px; min-width: 44px; min-height: 44px; }
+  /* Full-width modals on phones */
+  .modal-inner { width: 100vw; max-width: none; border-left: none; border-right: none; }
+  .modal-wide  { width: 100vw; max-width: none; border-left: none; border-right: none; }
+  .modal { padding: 0; }
+  .breakdown-body { grid-template-columns: 1fr; }
+  /* Equipment grid: shrink labels */
+  .equipment-slot .slot-label { font-size: 7px; }
+  /* Combat log wider */
+  .combat-log { max-height: 120px; }
+  /* Tooltip: position at bottom on small screens */
+  .tooltip { max-width: calc(100vw - 16px); }
+  /* HUD: stack title + stats + actions vertically */
+  .hud { flex-direction: column; align-items: stretch; }
+  .hud-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+  .hud-stats { width: 100%; justify-content: flex-start; }
+}
+
+/* Small phones (480px) */
 @media (max-width: 480px) {
   .hud-title { font-size: 9px; letter-spacing: 1px; }
-  .tab { padding: 6px 8px; font-size: 9px; }
   .btn-big { padding: 12px 16px; font-size: 10px; }
+  /* Touch targets: force 44px min on coarse pointer */
+  .btn, .btn-big { min-height: 44px; }
+  .tab { min-height: 44px; }
+  .hud-stat { min-height: 40px; }
+  .item-icon { min-width: 44px; min-height: 44px; }
+}
+
+/* Landscape mode on phones */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  .hud { padding: 6px 12px; }
+  .hud-title { font-size: 9px; }
+  .chest-visual { padding: 12px 0; }
+  .chest-emoji svg { width: 60px; height: 60px; }
+  .character-avatar svg { width: 50px; height: 50px; }
+  .layout { gap: 8px; padding: 8px; }
+  .panel-title { margin-bottom: 8px; }
+  .modal-inner { max-height: 90vh; }
+}
+
+/* Extra-small phones (360px and below) */
+@media (max-width: 360px) {
+  body { font-size: 8px; }
+  .hud-title { font-size: 8px; }
+  .tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .tab { white-space: nowrap; flex-shrink: 0; padding: 6px 6px; font-size: 8px; }
+  .inventory-grid { grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); }
+  .panel { padding: 6px; }
+}
+
+/* iPhone notch & home indicator safe areas */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .hud { padding-top: max(14px, env(safe-area-inset-top)); }
+  body { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* =====================================================
+   VISUAL POLISH — HUD differentiation, panel decoration,
+   tab glow, depth accents. Additive, no layout changes.
+   ===================================================== */
+
+/* HUD stat cards — color-coded by type */
+.hud-stat-gold {
+  background: linear-gradient(135deg, #3a2c10, var(--bg-panel-light)) !important;
+  border-color: #c89020 !important;
+  color: #ffd060;
+}
+.hud-stat-tier {
+  background: linear-gradient(135deg, #2c1838, var(--bg-panel-light)) !important;
+  border-color: #6a4880 !important;
+}
+.hud-stat-power {
+  background: linear-gradient(135deg, #2a1838, var(--bg-panel-light)) !important;
+  border-color: #8a4ac0 !important;
+  color: #d4a3ff;
+}
+.hud-stat-power:hover { box-shadow: 0 0 8px rgba(179, 91, 214, 0.4); }
+.hud-stat-opened {
+  background: linear-gradient(135deg, #1a2a1c, var(--bg-panel-light)) !important;
+  border-color: #4a8a5a !important;
+  color: #a0e0a8;
+}
+/* Subtle hover lift on all HUD stat buttons */
+.hud-stat-btn { transition: transform 80ms, box-shadow 80ms; }
+@media (hover: hover) {
+  .hud-stat-btn:hover { transform: translate(-1px, -1px); }
+}
+
+/* HUD title — more pop */
+.hud-title {
+  position: relative;
+  text-shadow:
+    2px 2px 0 #000,
+    0 0 12px rgba(245, 200, 66, 0.4);
+}
+
+/* Panel title decoration — left accent bar + subtle gradient underlay */
+.panel-title {
+  position: relative;
+  padding-left: 14px;
+  background: linear-gradient(90deg,
+    rgba(245, 200, 66, 0.10) 0%,
+    transparent 50%);
+}
+.panel-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 12px;
+  width: 4px;
+  background: var(--gold);
+  box-shadow: 0 0 6px rgba(245, 200, 66, 0.6);
+}
+
+/* Active tab — pulse glow under it */
+.tab.active {
+  box-shadow: 0 -2px 0 rgba(245, 200, 66, 0.6) inset,
+              0 0 12px rgba(245, 200, 66, 0.25);
+}
+.tab.active::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -2px;
+  height: 2px;
+  background: var(--gold);
+  box-shadow: 0 0 8px var(--gold);
+}
+
+/* Section dividers — decorative gradient line */
+.panel hr,
+.section-divider {
+  border: none;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--border) 20%,
+    var(--gold) 50%,
+    var(--border) 80%,
+    transparent 100%);
+  margin: 14px 0;
+  opacity: 0.5;
+}
+
+/* Item icon — subtle inner glow on hover, lifted shadow on rare+ */
+.item-icon.r-rare,
+.item-icon.r-epic,
+.item-icon.r-legendary,
+.item-icon.r-ancestral {
+  box-shadow:
+    inset 0 0 12px rgba(255,225,74,0.4),
+    0 0 6px rgba(255,225,74,0.3),
+    2px 2px 0 rgba(0,0,0,0.5);
+}
+.item-icon.r-legendary {
+  box-shadow:
+    inset 0 0 14px rgba(255,122,26,0.4),
+    0 0 8px rgba(255,122,26,0.4),
+    2px 2px 0 rgba(0,0,0,0.5);
+  animation: legendaryFlicker 3s ease-in-out infinite;
+}
+.item-icon.r-ancestral {
+  box-shadow:
+    inset 0 0 16px rgba(255,48,80,0.4),
+    0 0 10px rgba(255,48,80,0.5),
+    2px 2px 0 rgba(0,0,0,0.5);
+  animation: ancestralFlicker 2.5s ease-in-out infinite;
+}
+@keyframes legendaryFlicker {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.15); }
+}
+@keyframes ancestralFlicker {
+  0%, 100% { filter: brightness(1) saturate(1); }
+  50%      { filter: brightness(1.2) saturate(1.3); }
+}
+
+/* Equipment slot — subtle inner glow when occupied */
+.equipment-slot:not(.empty) {
+  background:
+    radial-gradient(circle at 50% 30%, rgba(245,200,66,0.06), transparent 60%),
+    var(--bg);
+}
+
+/* Chest visual — softer ambient glow */
+.chest-visual {
+  box-shadow:
+    inset 0 0 30px rgba(0,0,0,0.5),
+    inset 0 4px 0 rgba(255,255,255,0.03);
+}
+
+/* Drop popup — celebration glow per rarity */
+.drop-popup-inner {
+  position: relative;
+}
+
+/* Combat log — terminal feel */
+.combat-log {
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.4), transparent),
+    var(--bg);
+}
+
+/* Modal header — accent strip (only add gradient, base style stays) */
+.modal-header {
+  background: linear-gradient(90deg,
+    rgba(245, 200, 66, 0.08) 0%,
+    transparent 60%);
+}
+
+/* Tier-themed colors for the tier stat (changes per tier via JS class) */
+.hud-stat-tier[data-tier="6"]  { border-color: #4080e8 !important; color: #80c0ff; }
+.hud-stat-tier[data-tier="7"]  { border-color: #a058ff !important; color: #d8a8ff; }
+.hud-stat-tier[data-tier="8"]  { border-color: #c0c0d8 !important; color: #ffffff; }
+.hud-stat-tier[data-tier="9"]  { border-color: #4abc5a !important; color: #a0e8aa; }
+.hud-stat-tier[data-tier="10"] { border-color: var(--gold) !important; color: var(--gold);
+  box-shadow: 0 0 10px rgba(245, 200, 66, 0.5); }
+
+/* === Help modal tip banner === */
+.help-tip {
+  background: linear-gradient(135deg, rgba(245,200,66,0.10), rgba(179,91,214,0.06));
+  border: 2px solid var(--gold);
+  padding: 10px 12px;
+  margin: 0 0 16px;
+  font-size: 9px;
+  line-height: 1.8;
+  color: var(--text);
+}
+
+/* === Glossary inline terms === */
+/* Marked terms (.gt) get a subtle dashed underline + help cursor; hover
+   or tap to see the term's definition in a small floating tooltip. */
+.gt {
+  border-bottom: 1px dashed var(--gold);
+  cursor: help;
+  color: var(--gold);
+  transition: background 80ms;
+  padding: 0 2px;
+}
+@media (hover: hover) {
+  .gt:hover { background: rgba(245, 200, 66, 0.12); }
+}
+
+.glossary-tip {
+  position: fixed;
+  z-index: 9000;
+  background: linear-gradient(180deg, #221a32 0%, #14111c 100%);
+  border: 2px solid var(--gold);
+  padding: 10px 12px;
+  max-width: 260px;
+  font-size: 9px;
+  line-height: 1.7;
+  box-shadow: 4px 4px 0 #000, 0 0 12px rgba(245, 200, 66, 0.3);
+  animation: gt-pop 140ms ease-out;
+}
+.glossary-tip.hidden { display: none; }
+.glossary-tip-title {
+  color: var(--gold);
+  font-size: 10px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+.glossary-tip-body { color: var(--text); }
+@keyframes gt-pop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* === Welcome modal (first visit) === */
+.welcome-modal-inner {
+  text-align: center;
+  max-width: 720px !important;
+}
+.welcome-hero {
+  padding: 20px 0 16px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 18px;
+}
+.welcome-emoji {
+  font-size: 38px;
+  letter-spacing: 4px;
+  margin-bottom: 10px;
+  filter: drop-shadow(2px 2px 0 #000);
+}
+.welcome-title {
+  font-size: 16px;
+  color: var(--gold);
+  margin: 0 0 8px;
+  text-shadow: 2px 2px 0 #000;
+  letter-spacing: 2px;
+}
+.welcome-tagline {
+  color: var(--text-dim);
+  font-size: 9px;
+  margin: 0;
+  line-height: 1.8;
+}
+.welcome-steps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.welcome-step {
+  background: var(--bg-panel-light);
+  border: 2px solid var(--border);
+  padding: 12px;
+  text-align: left;
+  position: relative;
+}
+.welcome-step-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.welcome-step-num {
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #d97aff;
+}
+.welcome-step-emoji {
+  font-size: 22px;
+}
+.welcome-step h3 {
+  margin: 0 0 6px;
+  color: var(--gold);
+  font-size: 10px;
+}
+.welcome-step p {
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.8;
+  color: var(--text);
+}
+.welcome-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.welcome-actions .btn-big {
+  max-width: 380px;
+}
+@media (max-width: 600px) {
+  .welcome-steps { grid-template-columns: 1fr; gap: 8px; }
+  .welcome-title { font-size: 13px; }
+  .welcome-emoji { font-size: 30px; }
+}
+
+/* === Next-step pulse indicator === */
+/* Applied via JS to whatever element the user should interact with next */
+.next-step-hint {
+  position: relative;
+  animation: nextStepPulse 1.8s infinite ease-in-out;
+  z-index: 1;
+}
+.next-step-hint::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--gold);
+  pointer-events: none;
+  animation: nextStepGlow 1.8s infinite ease-in-out;
+  z-index: -1;
+}
+@keyframes nextStepPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.03); }
+}
+@keyframes nextStepGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 200, 66, 0.6); opacity: 0.9; }
+  50%      { box-shadow: 0 0 14px 4px rgba(245, 200, 66, 0.5); opacity: 1; }
+}
+
+/* === Empty state CTA === */
+.empty-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  margin-top: 8px;
+  background: linear-gradient(180deg, var(--accent) 0%, #8a3aa8 100%);
+  border: 2px solid #d97aff;
+  color: #fff;
+  font-size: 9px;
+  text-decoration: none;
+  box-shadow: 3px 3px 0 #000;
+}
+
+/* === Mobile Action Sheet === */
+/* z-index sits above all modal/popup/tooltip layers (max was 250 for toasts) */
+.action-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+}
+.action-sheet.hidden { display: none; pointer-events: none; }
+
+.action-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+}
+
+.action-sheet-inner {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-panel);
+  border-top: 4px solid var(--border);
+  padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: sheetSlideUp 180ms ease-out;
+}
+
+@keyframes sheetSlideUp {
+  from { transform: translateY(60px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.action-sheet-item-info {
+  overflow-y: auto;
+  max-height: 45vh;
+}
+
+.action-sheet-sep {
+  border: none;
+  border-top: 2px solid var(--border);
+  margin: 2px 0;
+}
+
+.action-sheet-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.action-sheet-buttons .btn,
+#action-cancel {
+  min-height: 48px;
+  font-size: 9px;
+}
+
+/* On desktop the action sheet is hidden by default — only JS shows it on touch */
+@media (hover: hover) and (pointer: fine) {
+  .action-sheet { display: none !important; }
 }

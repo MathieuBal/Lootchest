@@ -86,6 +86,7 @@ export function resolveFight(monster) {
   const setEffectIds = new Set(activeSetEffects().map(e => e.id));
   let phoenixUsed = false;       // phoenix_rebirth fires only once per combat
   let shadowDodgeCharge = false; // shadow_strike: next attack after dodge guarantees crit
+  let demonPactReady = setEffectIds.has('demon_pact'); // first attack of combat hits ×3
 
   function runHook(hookName, ctx) {
     const results = [];
@@ -107,6 +108,14 @@ export function resolveFight(monster) {
   const mechanic = monster.mechanic;
   while (turns < maxTurns) {
     turns++;
+
+    // Set effect: druid_growth → heal 20% max HP every 4 turns
+    if (setEffectIds.has('druid_growth') && turns > 1 && (turns % 4) === 0 && pHp > 0 && pHp < playerMaxHp) {
+      const heal = Math.max(1, Math.round(playerMaxHp * 0.20));
+      const before = pHp;
+      pHp = Math.min(playerMaxHp, pHp + heal);
+      events.push({ type: 'set_heal', amount: pHp - before, emoji: '🌿', playerHp: pHp, monsterHp: mHp });
+    }
 
     // Boss mechanic: triggers at turn start (regen / burn / shield / enrage / phaseShift)
     let monsterDmgMod = 1;
@@ -175,6 +184,12 @@ export function resolveFight(monster) {
       extraMult *= 2;
       mults.push({ emoji: '🐉', label: 'Souffle dragon' });
     }
+    // Set effect: demon_pact → first hit of combat does triple damage
+    if (demonPactReady) {
+      demonPactReady = false;
+      extraMult *= 3;
+      mults.push({ emoji: '👹', label: 'Pacte démoniaque' });
+    }
     const isCrit = forceCrit || Math.random() < critChance;
     let hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + fireBonus * Math.random()) * extraMult);
     if (monsterShielded) hit = 0;
@@ -205,6 +220,11 @@ export function resolveFight(monster) {
     if (!dodged && setEffectIds.has('titan_wall') && Math.random() < 0.15) {
       dodged = true;
       events.push({ type: 'set_dodge', emoji: '🛡', playerHp: pHp, monsterHp: mHp });
+    }
+    // Set effect: wanderer_haste → 25% pure dodge
+    if (!dodged && setEffectIds.has('wanderer_haste') && Math.random() < 0.25) {
+      dodged = true;
+      events.push({ type: 'set_dodge', emoji: '🧭', playerHp: pHp, monsterHp: mHp });
     }
     if (dodged) {
       if (setEffectIds.has('shadow_strike')) shadowDodgeCharge = true;

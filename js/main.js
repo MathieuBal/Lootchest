@@ -32,13 +32,14 @@ import {
 import {
   renderAll, showDropPopup, hideDropPopup, getCurrentDrop,
   flashRarity, startCooldownAnim, setOpenButtonEnabled,
-  showTooltip, moveTooltip, hideTooltip,
+  showTooltip, hideTooltip, itemDetailsHTML,
   setActiveTab, appendCombatLog,
   showModal, hideModal, isModalOpen, showToast, setForgeSelected, getForgeSelectedId,
   showCombatBars, hideCombatBars, updateMonsterHp, updatePlayerHp,
   getMonsterEmojiCenter, getCharacterAvatarCenter, getChestCenter,
   setInvSortMode, setInvSearchText, setForgeMode,
 } from './ui.js';
+import { lookupGlossary } from './glossary.js';
 
 // === Init ===
 
@@ -60,6 +61,105 @@ setActiveTab(state.ui?.leftTab || 'chest');
 checkAchievements();
 // Initialise bounty board if empty
 refreshBoardIfEmpty();
+
+// Show welcome modal on very first visit
+function dismissWelcome() {
+  if (state.ui.hasSeenWelcome) return;
+  state.ui.hasSeenWelcome = true;
+  hideModal('welcome-modal');
+  notify();
+  refreshNextStepHint();
+}
+if (!state.ui.hasSeenWelcome) {
+  showModal('welcome-modal');
+}
+document.getElementById('btn-welcome-start').addEventListener('click', () => {
+  dismissWelcome();
+  soundClick();
+});
+// Backdrop click also dismisses (sets the flag so it doesn't reappear)
+document.getElementById('welcome-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'welcome-modal') dismissWelcome();
+});
+
+// === Next-step hint indicator ===
+// Highlights ONE element the new player should interact with, based on
+// game progression. Removes itself once the user has clearly made progress.
+function refreshNextStepHint() {
+  document.querySelectorAll('.next-step-hint').forEach(el => el.classList.remove('next-step-hint'));
+  // Don't hint while the welcome modal is open
+  if (isModalOpen('welcome-modal')) return;
+  const opened = state.opened || 0;
+  const hasItems = state.inventory.length > 0;
+  const anyEquipped = Object.values(state.equipment).some(Boolean);
+  const kills = state.combat?.kills || 0;
+
+  let target = null;
+  if (opened === 0 && (state.keys || 0) > 0) {
+    target = document.getElementById('btn-open');             // → ouvrir 1er coffre
+  } else if (hasItems && !anyEquipped) {
+    target = document.querySelector('#inventory-grid [data-item-id]'); // → équiper
+  } else if (anyEquipped && kills === 0) {
+    target = document.querySelector('.tab[data-tab="dungeon"]'); // → aller au donjon
+  }
+  if (target) target.classList.add('next-step-hint');
+}
+
+subscribe(refreshNextStepHint);
+refreshNextStepHint();
+
+// === Glossary inline tooltips ===
+// On hover (desktop) or tap (mobile), show the definition of a .gt term.
+const _gtTip = document.getElementById('glossary-tip');
+let _gtAutoHide = null;
+
+function showGlossaryTip(el) {
+  const term = el.dataset.term;
+  const def = lookupGlossary(term);
+  if (!def) return;
+  _gtTip.innerHTML = `<div class="glossary-tip-title">${el.textContent}</div><div class="glossary-tip-body">${def}</div>`;
+  _gtTip.classList.remove('hidden');
+  // Position below the term, clamped to viewport
+  const r = el.getBoundingClientRect();
+  const ttR = _gtTip.getBoundingClientRect();
+  let left = r.left;
+  let top = r.bottom + 6;
+  if (left + ttR.width > window.innerWidth - 8) left = window.innerWidth - ttR.width - 8;
+  if (top + ttR.height > window.innerHeight - 8) top = r.top - ttR.height - 6;
+  _gtTip.style.left = Math.max(8, left) + 'px';
+  _gtTip.style.top  = Math.max(8, top)  + 'px';
+}
+
+function hideGlossaryTip() {
+  _gtTip.classList.add('hidden');
+  if (_gtAutoHide) { clearTimeout(_gtAutoHide); _gtAutoHide = null; }
+}
+
+// Hover (desktop only — touch uses click below)
+document.body.addEventListener('mouseover', (e) => {
+  if (isTouchDevice()) return;
+  const el = e.target.closest('.gt');
+  if (el) showGlossaryTip(el);
+});
+document.body.addEventListener('mouseout', (e) => {
+  if (isTouchDevice()) return;
+  if (e.target.closest('.gt')) hideGlossaryTip();
+});
+
+// Tap (mobile): show + auto-hide after 4s, or hide on outside tap
+document.body.addEventListener('click', (e) => {
+  const el = e.target.closest('.gt');
+  if (el) {
+    e.stopPropagation();
+    showGlossaryTip(el);
+    if (_gtAutoHide) clearTimeout(_gtAutoHide);
+    _gtAutoHide = setTimeout(hideGlossaryTip, 4500);
+    return;
+  }
+  if (!_gtTip.classList.contains('hidden') && !e.target.closest('#glossary-tip')) {
+    hideGlossaryTip();
+  }
+});
 onBountyComplete(b => {
   const rewardSummary = [`+${b.reward.gold.toLocaleString('fr-FR')} 💰`];
   for (const [orbId, q] of Object.entries(b.reward.orbs)) {
@@ -93,6 +193,93 @@ function findItem(id) {
       || Object.values(state.equipment).find(i => i && i.id === id)
       || null;
 }
+
+// === Mobile detection ===
+// Coarse pointer = touch device (phone/tablet). Use to branch behavior.
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches;
+
+// === Mobile Action Sheet ===
+// On touch, replaces modifier-key interactions (Shift/Ctrl/Alt+click) with a
+// bottom sheet that surfaces all item actions in large, tappable buttons.
+
+let _sheetItem = null;
+let _sheetSlot = null; // non-null when opened from an equipped slot
+
+function showItemActionSheet(item, fromSlot = null) {
+  _sheetItem = item;
+  _sheetSlot = fromSlot;
+
+  const sheet = document.getElementById('action-sheet');
+  sheet.querySelector('.action-sheet-item-info').innerHTML = itemDetailsHTML(item);
+
+  const equipBtn = document.getElementById('action-equip');
+  equipBtn.textContent = fromSlot ? 'Déséquiper' : 'Équiper';
+
+  const lockBtn = document.getElementById('action-lock');
+  lockBtn.textContent = item.locked ? '🔓 Déverrouiller' : '🔒 Verrouiller';
+
+  const sellBtn    = document.getElementById('action-sell');
+  const salvageBtn = document.getElementById('action-salvage');
+  sellBtn.disabled    = !!item.locked;
+  salvageBtn.disabled = !!item.locked;
+
+  // Hide equip button for accessories that aren't directly equippable via the sheet
+  // (all item types are equippable, so show it always)
+  equipBtn.style.display = '';
+
+  sheet.classList.remove('hidden');
+}
+
+function hideActionSheet() {
+  document.getElementById('action-sheet').classList.add('hidden');
+  _sheetItem = null;
+  _sheetSlot = null;
+}
+
+document.getElementById('action-sheet').querySelector('.action-sheet-backdrop')
+  .addEventListener('click', hideActionSheet);
+
+document.getElementById('action-cancel').addEventListener('click', hideActionSheet);
+
+document.getElementById('action-equip').addEventListener('click', () => {
+  if (!_sheetItem) return;
+  if (_sheetSlot) {
+    unequipSlot(_sheetSlot);
+  } else {
+    equipItem(_sheetItem);
+    soundClick();
+  }
+  hideActionSheet();
+});
+
+document.getElementById('action-sell').addEventListener('click', () => {
+  if (!_sheetItem) return;
+  const earned = sellItem(_sheetItem);
+  if (earned > 0) soundCoin();
+  hideActionSheet();
+});
+
+document.getElementById('action-salvage').addEventListener('click', () => {
+  if (!_sheetItem) return;
+  const qty = salvageItem(_sheetItem);
+  if (qty > 0) soundForge();
+  hideActionSheet();
+});
+
+document.getElementById('action-lock').addEventListener('click', () => {
+  if (!_sheetItem) return;
+  const locked = toggleLockItem(_sheetItem.id);
+  soundClick();
+  document.getElementById('action-lock').textContent = locked ? '🔓 Déverrouiller' : '🔒 Verrouiller';
+  document.getElementById('action-sell').disabled    = locked;
+  document.getElementById('action-salvage').disabled = locked;
+  // Refresh item info display
+  const fresh = findItem(_sheetItem.id);
+  if (fresh) {
+    _sheetItem = fresh;
+    document.querySelector('#action-sheet .action-sheet-item-info').innerHTML = itemDetailsHTML(fresh);
+  }
+});
 
 // === Open chest ===
 
@@ -305,6 +492,10 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
       updatePlayerHp(ev.playerHp, playerMaxHp);
       const c = getCharacterAvatarCenter();
       floatingText(`${ev.emoji} +${ev.amount}`, c.x, c.y - 30, '#5acc6a');
+    } else if (ev.type === 'set_heal') {
+      updatePlayerHp(ev.playerHp, playerMaxHp);
+      const c = getCharacterAvatarCenter();
+      floatingText(`${ev.emoji} +${ev.amount}`, c.x, c.y - 30, '#7adc4a');
     } else if (ev.type === 'set_freeze') {
       const c = getMonsterEmojiCenter();
       floatingText(`${ev.emoji} GEL`, c.x, c.y, '#5ad8e8');
@@ -434,13 +625,23 @@ document.getElementById('autosell-grid').addEventListener('click', (e) => {
   }
 });
 
-// === Inventory: click on item = sell with shift, equip otherwise ===
+// === Inventory: click on item ===
+// Desktop: click=equip, Shift+click=sell, Ctrl+click=salvage, Alt+click=lock
+// Mobile (touch): click opens action sheet with all options
 
 document.getElementById('inventory-grid').addEventListener('click', (e) => {
   const icon = e.target.closest('[data-item-id]');
   if (!icon) return;
   const item = findItem(icon.dataset.itemId);
   if (!item) return;
+
+  // On touch devices, open action sheet for all interactions
+  if (isTouchDevice() && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    showItemActionSheet(item);
+    return;
+  }
+
+  // Desktop modifier-key interactions
   if (e.altKey) {
     const locked = toggleLockItem(item.id);
     soundClick();
@@ -471,14 +672,20 @@ document.getElementById('inventory-grid').addEventListener('click', (e) => {
   }
 });
 
-// === Equipment: click on equipped slot = unequip ===
+// === Equipment: click on equipped slot ===
+// Desktop: click = unequip
+// Mobile: click = action sheet (shows item details + unequip/sell/salvage buttons)
 
 document.getElementById('equipment-grid').addEventListener('click', (e) => {
   const slotEl = e.target.closest('.equipment-slot');
   if (!slotEl) return;
   const slotId = slotEl.dataset.slotId;
   if (!slotId) return;
-  if (state.equipment[slotId]) {
+  const equipped = state.equipment[slotId];
+  if (!equipped) return;
+  if (isTouchDevice()) {
+    showItemActionSheet(equipped, slotId);
+  } else {
     unequipSlot(slotId);
   }
 });
@@ -537,9 +744,11 @@ document.getElementById('btn-salvage-filter').addEventListener('click', () => {
   }
 });
 
-// === Tooltip on hover (delegation) ===
+// === Tooltip on hover (desktop only — mobile uses action sheet) ===
 
 document.body.addEventListener('mousemove', (e) => {
+  // Skip on touch/coarse-pointer devices; action sheet handles item info there
+  if (isTouchDevice()) return;
   const icon = e.target.closest('[data-item-id]');
   if (icon) {
     const item = findItem(icon.dataset.itemId);
@@ -678,9 +887,42 @@ document.getElementById('btn-mute').addEventListener('click', () => {
   if (!m) soundClick(); // confirm unmute
 });
 
+// === HUD dropdown menu (Aide / Son / Paramètres / Export / Import / Reset) ===
+const _hudMenu     = document.getElementById('hud-menu-list');
+const _hudMenuBtn  = document.getElementById('btn-menu');
+
+function toggleHudMenu(open) {
+  const shouldOpen = open ?? _hudMenu.classList.contains('hidden');
+  _hudMenu.classList.toggle('hidden', !shouldOpen);
+  _hudMenuBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+}
+
+_hudMenuBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleHudMenu();
+  soundClick();
+});
+
+// Click any menu item → close menu (each button keeps its own behavior)
+_hudMenu.addEventListener('click', () => toggleHudMenu(false));
+
+// Click outside → close menu
+document.addEventListener('click', (e) => {
+  if (_hudMenu.classList.contains('hidden')) return;
+  if (e.target.closest('.hud-menu')) return;
+  toggleHudMenu(false);
+});
+
 // Help modal
 document.getElementById('btn-help').addEventListener('click', () => {
   showModal('help-modal');
+});
+// "Revoir l'intro" inside the help modal → re-show the welcome flow
+document.getElementById('btn-replay-welcome').addEventListener('click', () => {
+  hideModal('help-modal');
+  state.ui.hasSeenWelcome = false;
+  showModal('welcome-modal');
+  soundClick();
 });
 
 // Settings modal
@@ -796,6 +1038,7 @@ document.addEventListener('keydown', (e) => {
       hideDropPopup();
       return;
     }
+    if (isModalOpen('welcome-modal')) { dismissWelcome(); return; }
     const modals = ['forge-modal','achievements-modal','help-modal','talents-modal','codex-modal','skills-modal','bounties-modal','settings-modal','stats-breakdown-modal'];
     for (const id of modals) {
       if (isModalOpen(id)) { hideModal(id); return; }
@@ -804,7 +1047,7 @@ document.addEventListener('keydown', (e) => {
   }
 
   // Block all other shortcuts when a modal is open
-  const anyModal = ['forge-modal','achievements-modal','help-modal','talents-modal','codex-modal','skills-modal','bounties-modal','settings-modal','stats-breakdown-modal']
+  const anyModal = ['forge-modal','achievements-modal','help-modal','talents-modal','codex-modal','skills-modal','bounties-modal','settings-modal','stats-breakdown-modal','welcome-modal']
     .some(id => isModalOpen(id));
   if (anyModal) return;
 

@@ -473,6 +473,114 @@ export const UNIQUE_LEGENDARIES = [
       { id: 'crit', stat: 'crit',     label: 'Crit',       value: 18, percent: true },
     ],
   },
+  // === Wave 2 (uniques élargis) ===
+  {
+    id: 'glacial_edge', slot: 'weapon', baseTypeId: 'sword', emoji: '🥶',
+    name: 'Tranche-Glacier',
+    flavor: 'L\'air gèle là où elle passe.',
+    baseStatBonus: { damage: 18 },
+    fixedAffixes: [
+      { id: 'dmg',  stat: 'damage', label: 'Dégâts',  value: 22, percent: false },
+      { id: 'spd',  stat: 'speed',  label: 'Vitesse', value: 18, percent: true  },
+      { id: 'crit', stat: 'crit',   label: 'Crit',    value: 22, percent: true  },
+    ],
+  },
+  {
+    id: 'star_staff', slot: 'weapon', baseTypeId: 'wand', emoji: '✨',
+    name: 'Bâton des Étoiles Mortes',
+    flavor: 'Chaque incantation aspire un peu plus la nuit.',
+    baseStatBonus: { damage: 15 },
+    fixedAffixes: [
+      { id: 'fire', stat: 'fireDmg', label: 'Dégâts feu', value: 50, percent: true  },
+      { id: 'crit', stat: 'crit',    label: 'Crit',       value: 30, percent: true  },
+      { id: 'dmg',  stat: 'damage',  label: 'Dégâts',     value: 12, percent: false },
+    ],
+  },
+  {
+    id: 'rampart_helm', slot: 'helmet', baseTypeId: 'helm', emoji: '🛡',
+    name: 'Heaume du Rempart',
+    flavor: 'Forgé pour les sièges qui ne finissent jamais.',
+    baseStatBonus: { armor: 30, vitality: 35 },
+    fixedAffixes: [
+      { id: 'arm',  stat: 'armor',    label: 'Armure', value: 30, percent: false },
+      { id: 'vit',  stat: 'vitality', label: 'Vie',    value: 60, percent: false },
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts', value: 10, percent: false },
+    ],
+  },
+  {
+    id: 'mad_diadem', slot: 'helmet', baseTypeId: 'crown', emoji: '😈',
+    name: 'Diadème du Magicien Fou',
+    flavor: 'La folie aiguise l\'esprit.',
+    baseStatBonus: { armor: 8 },
+    fixedAffixes: [
+      { id: 'crit', stat: 'crit',     label: 'Crit',       value: 45, percent: true  },
+      { id: 'fire', stat: 'fireDmg',  label: 'Dégâts feu', value: 25, percent: true  },
+      { id: 'spd',  stat: 'speed',    label: 'Vitesse',    value: 12, percent: true  },
+    ],
+  },
+  {
+    id: 'wanderer_cloak', slot: 'armor', baseTypeId: 'robe', emoji: '🧥',
+    name: 'Manteau du Vagabond Sans Nom',
+    flavor: 'Ses poches débordent toujours, on ne sait jamais de quoi.',
+    baseStatBonus: { armor: 12, vitality: 18 },
+    fixedAffixes: [
+      { id: 'gold', stat: 'goldFind', label: 'Or trouvé', value: 45, percent: true  },
+      { id: 'spd',  stat: 'speed',    label: 'Vitesse',   value: 22, percent: true  },
+      { id: 'vit',  stat: 'vitality', label: 'Vie',       value: 25, percent: false },
+    ],
+  },
+  {
+    id: 'gladiator_plate', slot: 'armor', baseTypeId: 'plate', emoji: '⚔',
+    name: 'Plastron du Gladiateur',
+    flavor: 'Marqué par mille combats, jamais brisé.',
+    baseStatBonus: { armor: 28, vitality: 25 },
+    fixedAffixes: [
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts', value: 22, percent: false },
+      { id: 'arm',  stat: 'armor',    label: 'Armure', value: 22, percent: false },
+      { id: 'crit', stat: 'crit',     label: 'Crit',   value: 18, percent: true  },
+    ],
+  },
+  {
+    id: 'demon_seal', slot: 'ring', baseTypeId: 'signet', emoji: '👹',
+    name: 'Sceau du Démon Lié',
+    flavor: 'Le pacte n\'est jamais à sens unique.',
+    fixedAffixes: [
+      { id: 'fire', stat: 'fireDmg', label: 'Dégâts feu', value: 35, percent: true  },
+      { id: 'dmg',  stat: 'damage',  label: 'Dégâts',     value: 15, percent: false },
+      { id: 'crit', stat: 'crit',    label: 'Crit',       value: 20, percent: true  },
+    ],
+  },
+  {
+    id: 'dawn_ring', slot: 'ring', baseTypeId: 'band', emoji: '🌅',
+    name: 'Bague de l\'Aube',
+    flavor: 'Quand elle scintille, la nuit recule.',
+    fixedAffixes: [
+      { id: 'vit',  stat: 'vitality', label: 'Vie',     value: 50, percent: false },
+      { id: 'arm',  stat: 'armor',    label: 'Armure',  value: 10, percent: false },
+      { id: 'gold', stat: 'goldFind', label: 'Or',      value: 20, percent: true  },
+    ],
+  },
+  {
+    id: 'sage_talisman', slot: 'amulet', baseTypeId: 'talisman', emoji: '🧿',
+    name: 'Talisman du Sage Éveillé',
+    flavor: 'Vide ton esprit ; remplis ta lame.',
+    fixedAffixes: [
+      { id: 'crit', stat: 'crit',    label: 'Crit',       value: 40, percent: true  },
+      { id: 'dmg',  stat: 'damage',  label: 'Dégâts',     value: 18, percent: false },
+      { id: 'spd',  stat: 'speed',   label: 'Vitesse',    value: 15, percent: true  },
+    ],
+  },
+  {
+    id: 'marauder_targe', slot: 'shield', baseTypeId: 'tower', emoji: '🗡',
+    name: 'Targe du Maraudeur',
+    flavor: 'Une armure qui frappe, c\'est aussi une arme.',
+    baseStatBonus: { armor: 18, vitality: 20 },
+    fixedAffixes: [
+      { id: 'arm',  stat: 'armor',    label: 'Armure',  value: 20, percent: false },
+      { id: 'dmg',  stat: 'damage',   label: 'Dégâts',  value: 25, percent: false },
+      { id: 'crit', stat: 'crit',     label: 'Crit',    value: 15, percent: true  },
+    ],
+  },
 ];
 
 // === Sets (themed item collections with bonuses at 2/3/4 pieces + 4-piece unique effects) ===
@@ -574,6 +682,54 @@ export const SETS = [
     },
     effect: { id: 'lich_drain', name: 'Drain de vie',
               desc: '10% des dégâts infligés te soignent' },
+  },
+  {
+    id: 'druid', name: 'Druide', color: '#4caa3a',
+    pieces: {
+      helmet: { baseTypeId: 'crown',   emoji: '🌿', name: 'Couronne de Lierre' },
+      armor:  { baseTypeId: 'robe',    emoji: '🥋', name: 'Robe Sylvestre' },
+      weapon: { baseTypeId: 'wand',    emoji: '🪄', name: 'Bâton du Bosquet' },
+      amulet: { baseTypeId: 'pendant', emoji: '🍀', name: 'Pendentif Sauvage' },
+    },
+    bonuses: {
+      2: [{ stat: 'vitality', value: 70, percent: false, label: 'Vie' }],
+      3: [{ stat: 'speed',    value: 30, percent: true,  label: 'Vitesse' }],
+      4: [{ stat: 'goldFind', value: 40, percent: true,  label: 'Or trouvé' }],
+    },
+    effect: { id: 'druid_growth', name: 'Croissance',
+              desc: 'Tous les 4 tours, soigne 20% de tes PV max' },
+  },
+  {
+    id: 'demon', name: 'Démoniaque', color: '#d0203a',
+    pieces: {
+      helmet: { baseTypeId: 'helm',   emoji: '😈', name: 'Heaume Démoniaque' },
+      armor:  { baseTypeId: 'plate',  emoji: '🩸', name: 'Plastron Démoniaque' },
+      weapon: { baseTypeId: 'sword',  emoji: '🔥', name: 'Lame Démoniaque' },
+      ring:   { baseTypeId: 'signet', emoji: '👹', name: 'Anneau Démoniaque' },
+    },
+    bonuses: {
+      2: [{ stat: 'damage',  value: 30, percent: false, label: 'Dégâts' }],
+      3: [{ stat: 'fireDmg', value: 50, percent: true,  label: 'Dégâts feu' }],
+      4: [{ stat: 'crit',    value: 45, percent: true,  label: 'Crit' }],
+    },
+    effect: { id: 'demon_pact', name: 'Pacte démoniaque',
+              desc: 'Le premier coup d\'un combat inflige le triple des dégâts' },
+  },
+  {
+    id: 'wanderer', name: 'Voyageur', color: '#5aa8e8',
+    pieces: {
+      armor:  { baseTypeId: 'robe',    emoji: '🧥', name: 'Cape du Voyageur' },
+      shield: { baseTypeId: 'tower',   emoji: '🧭', name: 'Pavois du Voyageur' },
+      ring:   { baseTypeId: 'band',    emoji: '💍', name: 'Anneau du Voyageur' },
+      amulet: { baseTypeId: 'talisman', emoji: '🗺', name: 'Talisman du Voyageur' },
+    },
+    bonuses: {
+      2: [{ stat: 'speed',    value: 35, percent: true,  label: 'Vitesse' }],
+      3: [{ stat: 'goldFind', value: 50, percent: true,  label: 'Or trouvé' }],
+      4: [{ stat: 'vitality', value: 60, percent: false, label: 'Vie' }],
+    },
+    effect: { id: 'wanderer_haste', name: 'Pas du Voyageur',
+              desc: '25% de chance d\'esquiver chaque attaque ennemie' },
   },
 ];
 

@@ -18,7 +18,7 @@ import { SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, TALENT_CATEGORIES, TALENT_MAST
 import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talents.js';
 import { SKILLS, getActiveSkills } from './skills.js';
 import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
-import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG } from './sprites.js';
+import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { getCompositionLayers } from './parts.js';
 
 // === Item icon helpers ===
@@ -140,8 +140,12 @@ function renderHUD() {
     const statEl = document.getElementById('hud-keys-stat');
     if (statEl) statEl.classList.toggle('hud-keys-empty', (state.keys || 0) === 0);
   }
-  document.getElementById('hud-tier').textContent = tier.tier;
+  const tierEl = document.getElementById('hud-tier');
+  tierEl.textContent = tier.tier;
   document.getElementById('hud-tier-name').textContent = tier.name;
+  // Propagate tier number to the parent badge so CSS can theme it (T6+ get colored)
+  const tierStat = tierEl.closest('.hud-stat-tier');
+  if (tierStat) tierStat.dataset.tier = tier.tier;
   document.getElementById('hud-opened').textContent = state.opened.toLocaleString('fr-FR');
   document.getElementById('hud-power').textContent = computePower(computeStats()).toLocaleString('fr-FR');
   const ap = getAchievementProgress();
@@ -355,6 +359,10 @@ function renderChest() {
   // Render pixel-art chest sprite (replaces emoji)
   const chestEl = document.getElementById('chest-emoji');
   chestEl.innerHTML = chestSpriteSVG(tier.tier, 96);
+  // data-tier drives CSS aura per tier (T6+ get colored halos)
+  chestEl.dataset.tier = tier.tier;
+  // "ready" pulse when the player has at least one key
+  chestEl.classList.toggle('chest-ready', (state.keys || 0) > 0);
   document.getElementById('chest-tier-label').textContent = `Tier ${tier.tier} — ${tier.name}`;
 
   if (next) {
@@ -437,7 +445,15 @@ function renderDungeon() {
   card.classList.toggle('elite', !!monster.isElite);
   // Apply biome background to the monster card
   card.style.background = biome.bgGradient;
-  document.getElementById('monster-emoji').textContent = monster.emoji;
+  // Use pixel-art boss sprite when available, fall back to emoji otherwise
+  const monsterEl = document.getElementById('monster-emoji');
+  if (monster.isBoss && hasBossSprite(monster.name)) {
+    monsterEl.innerHTML = bossSpriteSVG(monster.name, 96);
+    monsterEl.classList.add('monster-sprite');
+  } else {
+    monsterEl.textContent = monster.emoji;
+    monsterEl.classList.remove('monster-sprite');
+  }
   document.getElementById('monster-name').innerHTML = monster.isElite
     ? `${monster.eliteIcon || '⭐'} <span class="monster-name-elite">${monster.name}</span>`
     : monster.name;
@@ -645,7 +661,11 @@ function renderInventory() {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
     if (state.inventory.length === 0) {
-      empty.innerHTML = '<div class="empty-icon">📭</div><div class="empty-title">Inventaire vide</div><div class="empty-desc">Ouvre des coffres ou combats des monstres pour looter du matos.</div>';
+      const hasKeys = (state.keys || 0) > 0;
+      const hint = hasKeys
+        ? 'Tu as des clés 🗝 — ouvre ton premier coffre dans l\'onglet 📦 Coffre.'
+        : 'Plus de clés. Va au 🗝 Donjon pour en farmer (drop sur monstres tués).';
+      empty.innerHTML = `<div class="empty-icon">📭</div><div class="empty-title">Inventaire vide</div><div class="empty-desc">${hint}</div>`;
     } else {
       empty.innerHTML = `<div class="empty-icon">🔍</div><div class="empty-title">Aucun résultat</div><div class="empty-desc">Aucun item ne correspond à "${invSearchText}".</div>`;
     }
@@ -670,11 +690,6 @@ export function showTooltip(item, x, y) {
   const tt = tooltipEl();
   tt.innerHTML = itemDetailsHTML(item);
   tt.classList.remove('hidden');
-  positionTooltip(x, y);
-}
-
-export function moveTooltip(x, y) {
-  if (tooltipEl().classList.contains('hidden')) return;
   positionTooltip(x, y);
 }
 
