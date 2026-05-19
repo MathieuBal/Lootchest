@@ -1126,6 +1126,31 @@ button, input, select {
 .tooltip .tt-base { color: var(--text); margin-bottom: 4px; }
 .tooltip .tt-affix { color: var(--r-magic); }
 
+/* === Item composition breakdown (statSources) === */
+.tt-sources-title {
+  font-size: 8px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.tt-source {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 4px 6px;
+  margin-bottom: 3px;
+  border-left: 2px solid var(--border);
+  font-size: 8px;
+}
+.tt-src-name { color: var(--text); font-weight: bold; }
+.tt-src-q    { color: var(--gold); font-family: monospace; letter-spacing: -1px; }
+.tt-src-stats { grid-column: 1 / -1; color: var(--text-dim); margin-top: 2px; }
+
 /* === Affix prefix/suffix badges === */
 .affix-type {
   display: inline-block;

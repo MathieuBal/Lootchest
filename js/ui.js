@@ -87,6 +87,26 @@ function affixTypeBadge(aff) {
   return '';
 }
 
+// Breakdown of base-stat origins (parts, and later: material/element/faction).
+// Reads `item.statSources` which is populated by rollWeaponParts for composed
+// items. Each source lists the stats it contributed. Hidden if absent (legacy
+// items, non-composed items, uniques).
+function sourcesHTML(item) {
+  if (!item.statSources || item.statSources.length === 0) return '';
+  const SOURCE_ICON = { part: '🧩', material: '🔩', element: '✨', faction: '🏷', condition: '🌀' };
+  const rows = item.statSources.map(src => {
+    const icon = SOURCE_ICON[src.sourceType] || '◆';
+    const stats = Object.entries(src.stats)
+      .map(([k, v]) => `+${v} ${statLabel(k)}`)
+      .join(' · ');
+    // d20 quality bar (▓ filled / ░ empty), 5 segments
+    const q = Math.round((src.quality || 0) * 5);
+    const bar = '▓'.repeat(q) + '░'.repeat(5 - q);
+    return `<div class="tt-source"><span class="tt-src-name">${icon} ${src.label}</span><span class="tt-src-q" title="Qualité du roll">${bar}</span><div class="tt-src-stats">${stats}</div></div>`;
+  }).join('');
+  return `<div class="tt-sources-title">Composition</div>${rows}`;
+}
+
 export function itemDetailsHTML(item) {
   const r = RARITY_BY_ID[item.rarity];
   const slot = SLOT_BY_ID[item.slot];
@@ -110,6 +130,7 @@ export function itemDetailsHTML(item) {
     ${setBlock}
     ${baseLines}
     ${affixLines}
+    ${sourcesHTML(item)}
     ${flavor}
     <div class="tt-power">⚡ Puissance : ${power.toLocaleString('fr-FR')}</div>
     <div class="tt-value">💰 ${item.goldValue} or · 💎 ${shardYield(item)} ${r.name}</div>

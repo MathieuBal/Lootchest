@@ -161,9 +161,10 @@ export function rebuildItemAffixesAndStats(item) {
   // Composed weapons: re-roll parts to scale with new tier/rarity.
   if (item.parts && hasCompositionFor(item.baseTypeId)) {
     const statMult = RARITY_BY_ID[item.rarity].statMult;
-    const { parts, baseStats } = rollWeaponParts(item.baseTypeId, item.chestTier, statMult);
+    const { parts, baseStats, statSources } = rollWeaponParts(item.baseTypeId, item.chestTier, statMult);
     item.parts = parts;
     item.baseStats = baseStats;
+    item.statSources = statSources;
   } else {
     item.baseStats = scaleBaseStats(baseType.baseStats, item.chestTier, item.rarity);
   }
@@ -217,7 +218,7 @@ function buildRegularItem(chestTier, rarity) {
   // Composed item path: any base type registered in WEAPON_PARTS (weapons + armor).
   if (hasCompositionFor(baseType.id)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
-    const { parts, baseStats } = rollWeaponParts(baseType.id, chestTier, statMult);
+    const { parts, baseStats, statSources } = rollWeaponParts(baseType.id, chestTier, statMult);
     const affixes = rollAffixes(rarity, chestTier);
     return {
       id: nextId(),
@@ -231,6 +232,7 @@ function buildRegularItem(chestTier, rarity) {
       goldValue: computeGoldValue(rarity, chestTier),
       chestTier,
       parts,
+      statSources,
     };
   }
 
@@ -317,6 +319,7 @@ function buildSetPiece(chestTier, rarity) {
       setId: set.id,
       setName: set.name,
       parts: rolled.parts,
+      statSources: rolled.statSources,
     };
   }
 
