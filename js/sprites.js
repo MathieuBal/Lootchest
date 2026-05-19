@@ -230,8 +230,12 @@ const CHARACTER_PALETTE = {
 };
 
 // === CHEST 64×64 ===
+// Each tier (1-10) gets a unique decoration overlay on top of a shared
+// base chest silhouette. Decoration colors come from per-tier palette keys
+// X (bright accent), Y (mid accent), Z (dim accent), so the same overlay
+// renders gold for T3, red for T5, white-blue for T6 Stellar, etc.
 
-function buildChestLayout() {
+function buildBaseChestCanvas() {
   const c = makeCanvas(64, 64);
 
   // Body (lower box)
@@ -253,11 +257,8 @@ function buildChestLayout() {
   vline(c, 43, 30, 53, 'H');
 
   // Lid (top section)
-  // Outer arc
   ellipse(c, 32, 28, 24, 14, 'B');
-  // Clip top half (lid is bottom half of the arc; cover the bottom)
-  rect(c, 0, 28, 64, 4, '.'); // wipe overlap
-  // Redraw lid as half-ellipse via direct calls (top half only)
+  rect(c, 0, 28, 64, 4, '.');
   for (let yy = 8; yy <= 28; yy++) {
     for (let xx = 8; xx <= 56; xx++) {
       const dx = (xx - 32 + 0.5) / 24.5;
@@ -293,7 +294,6 @@ function buildChestLayout() {
   // Hinges/metal bands across lid base
   rect(c, 10, 28, 44, 2, 'M');
   hline(c, 10, 53, 30, 'h');
-  // Hinge plates left/right
   rect(c, 12, 26, 4, 4, 'M');
   rect(c, 48, 26, 4, 4, 'M');
   px(c, 13, 27, 'h'); px(c, 14, 27, 'h');
@@ -303,14 +303,11 @@ function buildChestLayout() {
   // Lock plate (centered)
   rect(c, 27, 36, 10, 12, 'M');
   rect(c, 28, 37, 8, 10, 'h');
-  // Lock plate corners outlined
   px(c, 27, 36, 'o'); px(c, 36, 36, 'o');
   px(c, 27, 47, 'o'); px(c, 36, 47, 'o');
-  // Keyhole (round + slot)
   ellipse(c, 32, 41, 2, 2, 'k');
   rect(c, 31, 42, 3, 4, 'k');
-  px(c, 32, 41, 'r'); // gold reflection in keyhole
-  // Lock screws
+  px(c, 32, 41, 'r');
   px(c, 29, 38, 'r'); px(c, 34, 38, 'r');
   px(c, 29, 46, 'r'); px(c, 34, 46, 'r');
 
@@ -318,26 +315,164 @@ function buildChestLayout() {
   hline(c, 10, 53, 56, 'o');
   hline(c, 11, 53, 57, 'c');
 
-  // Outline the whole sprite
-  outline(c, 'o');
+  return c;
+}
 
+// === DECORATION STAMPS — small reusable pixel shapes ===
+
+// 4-pixel diamond gem with white center
+function stampGem(c, cx, cy) {
+  px(c, cx,   cy-1, 'X');
+  px(c, cx-1, cy,   'Y'); px(c, cx, cy, 'X'); px(c, cx+1, cy, 'Y');
+  px(c, cx,   cy+1, 'Y');
+}
+
+// 5-pixel star
+function stampStar(c, cx, cy) {
+  px(c, cx,   cy-1, 'X');
+  px(c, cx-1, cy,   'Y'); px(c, cx, cy, 'X'); px(c, cx+1, cy, 'Y');
+  px(c, cx,   cy+1, 'Y');
+}
+
+// 3×3 rune (cross pattern)
+function stampRune(c, cx, cy) {
+  px(c, cx,   cy-1, 'X');
+  px(c, cx-1, cy,   'X'); px(c, cx, cy, 'Y'); px(c, cx+1, cy, 'X');
+  px(c, cx,   cy+1, 'X');
+}
+
+// 2×2 sparkle dot
+function stampSparkle(c, cx, cy) {
+  px(c, cx, cy, 'X'); px(c, cx+1, cy, 'Y');
+  px(c, cx, cy+1, 'Y'); px(c, cx+1, cy+1, 'Z');
+}
+
+// Crown silhouette (5 pixels wide) above the chest
+function stampCrown(c, cx, cy) {
+  // 3 spikes
+  px(c, cx-2, cy-1, 'X');
+  px(c, cx,   cy-2, 'X');
+  px(c, cx+2, cy-1, 'X');
+  // base
+  hline(c, cx-2, cx+2, cy, 'Y');
+}
+
+function cloneCanvas(c) {
+  return { w: c.w, h: c.h, grid: c.grid.map(r => r.slice()) };
+}
+
+// Apply tier-specific decorations to a (cloned) base canvas
+function applyTierDecoration(c, tier) {
+  switch (tier) {
+    case 2: // Fer — extra horizontal metal bands
+      hline(c, 12, 51, 36, 'M');
+      hline(c, 12, 51, 37, 'h');
+      hline(c, 12, 51, 48, 'M');
+      hline(c, 12, 51, 49, 'h');
+      break;
+    case 3: // Or — gem on lid + corner sparkles
+      stampGem(c, 32, 18);
+      stampSparkle(c, 18, 14);
+      stampSparkle(c, 44, 14);
+      break;
+    case 4: // Mythique — 4 runes on lid (purple)
+      stampRune(c, 22, 18);
+      stampRune(c, 42, 18);
+      stampRune(c, 32, 12);
+      break;
+    case 5: // Ancestral — large red gem in lock + spikes on lid top
+      // Bigger gem (3 wide)
+      px(c, 31, 40, 'Y'); px(c, 32, 40, 'X'); px(c, 33, 40, 'Y');
+      px(c, 31, 41, 'X'); px(c, 32, 41, 'X'); px(c, 33, 41, 'X');
+      px(c, 31, 42, 'Y'); px(c, 32, 42, 'Y'); px(c, 33, 42, 'Y');
+      // Lid spikes (top edge)
+      px(c, 24, 8, 'X'); px(c, 32, 7, 'X'); px(c, 40, 8, 'X');
+      break;
+    case 6: // Stellaire — 4 stars on lid + 1 bright on top
+      stampStar(c, 18, 18);
+      stampStar(c, 46, 18);
+      stampStar(c, 26, 14);
+      stampStar(c, 38, 14);
+      stampSparkle(c, 32, 10);
+      break;
+    case 7: // Cosmique — swirling rune cluster
+      stampRune(c, 32, 16);
+      stampSparkle(c, 22, 14);
+      stampSparkle(c, 42, 14);
+      stampSparkle(c, 18, 20);
+      stampSparkle(c, 44, 20);
+      break;
+    case 8: // Vide — dark void glyph (uses Z dim accent)
+      px(c, 32, 14, 'Z'); px(c, 30, 16, 'Z'); px(c, 34, 16, 'Z');
+      px(c, 28, 18, 'Z'); px(c, 36, 18, 'Z');
+      px(c, 30, 20, 'Z'); px(c, 34, 20, 'Z'); px(c, 32, 22, 'Z');
+      // Hollow eye
+      px(c, 31, 13, 'X'); px(c, 33, 13, 'X');
+      break;
+    case 9: // Primordial — leaves on the corners + vine
+      // Left leaf
+      px(c, 11, 24, 'Y'); px(c, 12, 23, 'X'); px(c, 13, 24, 'Y');
+      px(c, 12, 25, 'Z');
+      // Right leaf
+      px(c, 51, 24, 'Y'); px(c, 52, 23, 'X'); px(c, 53, 24, 'Y');
+      px(c, 52, 25, 'Z');
+      // Top vine
+      px(c, 28, 12, 'X'); px(c, 30, 11, 'Y'); px(c, 32, 10, 'X');
+      px(c, 34, 11, 'Y'); px(c, 36, 12, 'X');
+      break;
+    case 10: // Divin — crown + halo dots
+      stampCrown(c, 32, 9);
+      // Halo sparkles around the chest
+      stampSparkle(c, 8, 14);
+      stampSparkle(c, 54, 14);
+      stampSparkle(c, 6, 30);
+      stampSparkle(c, 56, 30);
+      stampSparkle(c, 8, 48);
+      stampSparkle(c, 54, 48);
+      // Center jewel on lid
+      stampGem(c, 32, 18);
+      break;
+    // T1 (Bois) gets no decoration — keeps the classic look
+  }
+}
+
+function buildChestLayoutForTier(tier) {
+  const c = cloneCanvas(BASE_CHEST_CANVAS);
+  applyTierDecoration(c, tier);
+  outline(c, 'o');
   return canvasToLayout(c);
 }
 
-const CHEST_LAYOUT = buildChestLayout();
+const BASE_CHEST_CANVAS = buildBaseChestCanvas();
+const CHEST_LAYOUTS_BY_TIER = {};
+for (let t = 1; t <= 10; t++) {
+  CHEST_LAYOUTS_BY_TIER[t] = buildChestLayoutForTier(t);
+}
+// Keep CHEST_LAYOUT as the T1 default for backwards compatibility / debugging
+const CHEST_LAYOUT = CHEST_LAYOUTS_BY_TIER[1];
 
-// Tier palettes — each tier has its own color scheme.
+// Tier palettes — base colors per tier + X/Y/Z accent triplet for decorations.
 const CHEST_PALETTES = {
-  1:  { o: '#0a0402', B: '#5a3018', L: '#8a5028', H: '#c8804a', C: '#7a4828', c: '#3a1d0c', M: '#3a2010', h: '#c89020', k: '#0a0404', r: '#f5c842' }, // Bois
-  2:  { o: '#050508', B: '#3a3a4a', L: '#5a5a6a', H: '#9090a8', C: '#4a4a5a', c: '#1a1a24', M: '#1a1a24', h: '#b0b0c8', k: '#080810', r: '#f5c842' }, // Fer
-  3:  { o: '#2a1808', B: '#a07820', L: '#d8a838', H: '#fff080', C: '#b88828', c: '#5a3818', M: '#3a2008', h: '#fff080', k: '#1a0e04', r: '#fff8c8' }, // Or
-  4:  { o: '#0a0218', B: '#3818a0', L: '#5828b8', H: '#a058ff', C: '#5028a0', c: '#1a0848', M: '#180838', h: '#c890ff', k: '#080418', r: '#ffe14a' }, // Mythique
-  5:  { o: '#0a0204', B: '#7a1828', L: '#a82038', H: '#e84858', C: '#982030', c: '#380408', M: '#280408', h: '#ff7888', k: '#0a0204', r: '#ffe14a' }, // Ancestral
-  6:  { o: '#020418', B: '#0a2068', L: '#1850a8', H: '#4080e8', C: '#103088', c: '#04123a', M: '#04081a', h: '#7abaff', k: '#020414', r: '#ffe14a' }, // Stellaire
-  7:  { o: '#040214', B: '#280f80', L: '#5028b8', H: '#a058ff', C: '#3818a0', c: '#10044a', M: '#080418', h: '#e0a0ff', k: '#040214', r: '#ffe14a' }, // Cosmique
-  8:  { o: '#000000', B: '#1a1a28', L: '#3a3a4a', H: '#7a7a98', C: '#2a2a3a', c: '#08080f', M: '#000000', h: '#c0c0d8', k: '#000000', r: '#ffe14a' }, // Vide
-  9:  { o: '#020a04', B: '#0a4018', L: '#1a6a28', H: '#4abc5a', C: '#1a5a28', c: '#0a2814', M: '#040810', h: '#a0e8aa', k: '#020a04', r: '#ffe14a' }, // Primordial
-  10: { o: '#1a1208', B: '#8a6818', L: '#c89020', H: '#ffe14a', C: '#a07818', c: '#5a4010', M: '#5a4018', h: '#fff8c8', k: '#1a1208', r: '#fff8c8' }, // Divin
+  1:  { o: '#0a0402', B: '#5a3018', L: '#8a5028', H: '#c8804a', C: '#7a4828', c: '#3a1d0c', M: '#3a2010', h: '#c89020', k: '#0a0404', r: '#f5c842',
+        X: '#ffe8a0', Y: '#c89020', Z: '#7a4818' }, // Bois
+  2:  { o: '#050508', B: '#3a3a4a', L: '#5a5a6a', H: '#9090a8', C: '#4a4a5a', c: '#1a1a24', M: '#1a1a24', h: '#b0b0c8', k: '#080810', r: '#f5c842',
+        X: '#e0e0f0', Y: '#9090a8', Z: '#4a4a5a' }, // Fer
+  3:  { o: '#2a1808', B: '#a07820', L: '#d8a838', H: '#fff080', C: '#b88828', c: '#5a3818', M: '#3a2008', h: '#fff080', k: '#1a0e04', r: '#fff8c8',
+        X: '#fffae0', Y: '#fff080', Z: '#c89020' }, // Or
+  4:  { o: '#0a0218', B: '#3818a0', L: '#5828b8', H: '#a058ff', C: '#5028a0', c: '#1a0848', M: '#180838', h: '#c890ff', k: '#080418', r: '#ffe14a',
+        X: '#ffaaff', Y: '#c060ff', Z: '#6020a0' }, // Mythique
+  5:  { o: '#0a0204', B: '#7a1828', L: '#a82038', H: '#e84858', C: '#982030', c: '#380408', M: '#280408', h: '#ff7888', k: '#0a0204', r: '#ffe14a',
+        X: '#ffd8d8', Y: '#ff4858', Z: '#a01828' }, // Ancestral
+  6:  { o: '#020418', B: '#0a2068', L: '#1850a8', H: '#4080e8', C: '#103088', c: '#04123a', M: '#04081a', h: '#7abaff', k: '#020414', r: '#ffe14a',
+        X: '#ffffff', Y: '#a0d0ff', Z: '#3070d0' }, // Stellaire
+  7:  { o: '#040214', B: '#280f80', L: '#5028b8', H: '#a058ff', C: '#3818a0', c: '#10044a', M: '#080418', h: '#e0a0ff', k: '#040214', r: '#ffe14a',
+        X: '#ffd8ff', Y: '#c878ff', Z: '#7028b8' }, // Cosmique
+  8:  { o: '#000000', B: '#1a1a28', L: '#3a3a4a', H: '#7a7a98', C: '#2a2a3a', c: '#08080f', M: '#000000', h: '#c0c0d8', k: '#000000', r: '#ffe14a',
+        X: '#e0e0e8', Y: '#5a5a6a', Z: '#000000' }, // Vide
+  9:  { o: '#020a04', B: '#0a4018', L: '#1a6a28', H: '#4abc5a', C: '#1a5a28', c: '#0a2814', M: '#040810', h: '#a0e8aa', k: '#020a04', r: '#ffe14a',
+        X: '#d0ffd8', Y: '#6acc6a', Z: '#1a6a28' }, // Primordial
+  10: { o: '#1a1208', B: '#8a6818', L: '#c89020', H: '#ffe14a', C: '#a07818', c: '#5a4010', M: '#5a4018', h: '#fff8c8', k: '#1a1208', r: '#fff8c8',
+        X: '#ffffff', Y: '#fff8c8', Z: '#f5c842' }, // Divin
 };
 
 // === RENDER HELPERS ===
@@ -378,10 +513,12 @@ function gridToSVG(layout, palette, sizePx, rectsCache) {
 }
 
 // Cached rects strings — both layout and palette are immutable per sprite.
+// Each chest tier has its own decorated layout AND palette, cached as a
+// single rects string at module load.
 const CHARACTER_RECTS = gridToRects(CHARACTER_LAYOUT, CHARACTER_PALETTE);
 const CHEST_RECTS_BY_TIER = {};
 for (const tier of Object.keys(CHEST_PALETTES)) {
-  CHEST_RECTS_BY_TIER[tier] = gridToRects(CHEST_LAYOUT, CHEST_PALETTES[tier]);
+  CHEST_RECTS_BY_TIER[tier] = gridToRects(CHEST_LAYOUTS_BY_TIER[tier], CHEST_PALETTES[tier]);
 }
 
 // Compose multiple pixel layers ({layout, palette}) onto a single SVG.
@@ -395,8 +532,9 @@ export function composedSpriteSVG(layers, sizePx = 64) {
 }
 
 export function chestSpriteSVG(tier, sizePx = 120) {
+  const layout = CHEST_LAYOUTS_BY_TIER[tier] || CHEST_LAYOUTS_BY_TIER[1];
   const cachedRects = CHEST_RECTS_BY_TIER[tier] || CHEST_RECTS_BY_TIER[1];
-  return gridToSVG(CHEST_LAYOUT, null, sizePx, cachedRects);
+  return gridToSVG(layout, null, sizePx, cachedRects);
 }
 
 export function characterSpriteSVG(sizePx = 120) {

@@ -359,6 +359,10 @@ function renderChest() {
   // Render pixel-art chest sprite (replaces emoji)
   const chestEl = document.getElementById('chest-emoji');
   chestEl.innerHTML = chestSpriteSVG(tier.tier, 96);
+  // data-tier drives CSS aura per tier (T6+ get colored halos)
+  chestEl.dataset.tier = tier.tier;
+  // "ready" pulse when the player has at least one key
+  chestEl.classList.toggle('chest-ready', (state.keys || 0) > 0);
   document.getElementById('chest-tier-label').textContent = `Tier ${tier.tier} — ${tier.name}`;
 
   if (next) {

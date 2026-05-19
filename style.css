@@ -333,6 +333,28 @@ button, input, select {
 .chest-emoji.shake {
   animation: shake 350ms;
 }
+
+/* === Tier auras — static colored halo around higher-tier chests === */
+/* Stacked drop-shadows: base black offset shadow + tier-themed colored glow */
+.chest-emoji[data-tier="3"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 6px rgba(245,200,66,0.4)); }
+.chest-emoji[data-tier="4"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 8px rgba(179,91,214,0.5)); }
+.chest-emoji[data-tier="5"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 10px rgba(232,72,88,0.6)); }
+.chest-emoji[data-tier="6"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 12px rgba(64,128,232,0.7)); }
+.chest-emoji[data-tier="7"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 14px rgba(160,88,255,0.7)); }
+.chest-emoji[data-tier="8"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 16px rgba(255,255,255,0.5)); }
+.chest-emoji[data-tier="9"]  { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 14px rgba(74,188,90,0.7)); }
+.chest-emoji[data-tier="10"] { filter: drop-shadow(4px 6px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 18px rgba(255,225,74,0.8)); }
+
+/* "Ready" state — chest is openable (≥1 key). Subtle warm box-shadow pulse.
+   Uses box-shadow not transform so it doesn't conflict with the inner svg
+   chest-idle wobble. */
+.chest-emoji.chest-ready {
+  animation: chest-ready-pulse 2.2s ease-in-out infinite;
+}
+@keyframes chest-ready-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(245, 200, 66, 0); }
+  50%      { box-shadow: 0 0 18px rgba(245, 200, 66, 0.35); }
+}
 .chest-tier-label {
   color: var(--text-dim);
   font-size: 9px;
