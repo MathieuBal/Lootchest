@@ -771,7 +771,12 @@ export const POWER_WEIGHTS = {
   armor: 1.5,
   vitality: 1.0,
   crit: 3,
+  // All elemental damages share the same weight (they stack identically in combat)
   fireDmg: 1.5,
+  frostDmg: 1.5,
+  voidDmg: 1.5,
+  poisonDmg: 1.5,
+  lightningDmg: 1.5,
   goldFind: 0.5,
   speed: 1.2,
 };

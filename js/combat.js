@@ -77,7 +77,14 @@ export function resolveFight(monster) {
   const playerArmor = (stats.armor || 0);
   const monsterDmg = Math.max(1, monster.damage - playerArmor);
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
-  const fireBonus = (stats.fireDmg || 0) / 100;
+  // All elemental damages stack additively — each is a % damage bonus rolled
+  // 0..max per swing (random multiplier, identical mechanic to fire).
+  const fireBonus    = (stats.fireDmg     || 0) / 100;
+  const frostBonus   = (stats.frostDmg    || 0) / 100;
+  const voidBonus    = (stats.voidDmg     || 0) / 100;
+  const poisonBonus  = (stats.poisonDmg   || 0) / 100;
+  const lightBonus   = (stats.lightningDmg|| 0) / 100;
+  const elemBonus    = fireBonus + frostBonus + voidBonus + poisonBonus + lightBonus;
 
   // Skill context (active skills + per-fight state)
   const { active: activeSkills, states: skillStates } = buildSkillContext();
@@ -191,7 +198,7 @@ export function resolveFight(monster) {
       mults.push({ emoji: '👹', label: 'Pacte démoniaque' });
     }
     const isCrit = forceCrit || Math.random() < critChance;
-    let hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + fireBonus * Math.random()) * extraMult);
+    let hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + elemBonus * Math.random()) * extraMult);
     if (monsterShielded) hit = 0;
     mHp = Math.max(0, mHp - hit);
     events.push({ type: 'player_hit', dmg: hit, isCrit, forceCrit, monsterHp: mHp, playerHp: pHp, mults, blocked: monsterShielded });
@@ -377,8 +384,10 @@ export function predictDifficulty(monster) {
   const playerDmg = Math.max(1, PLAYER_BASE.damage + (stats.damage || 0) - monster.armor);
   const monsterDmg = Math.max(1, monster.damage - (stats.armor || 0));
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
-  const fireBonus = (stats.fireDmg || 0) / 100;
-  const avgDmg = playerDmg * (1 + critChance + fireBonus);
+  // Sum all elemental %damages for difficulty preview (same model as resolveFight)
+  const elemBonus = ((stats.fireDmg || 0) + (stats.frostDmg || 0) + (stats.voidDmg || 0)
+                   + (stats.poisonDmg || 0) + (stats.lightningDmg || 0)) / 100;
+  const avgDmg = playerDmg * (1 + critChance + elemBonus);
   const turnsToKill = Math.ceil(monster.hp / avgDmg);
   const damageTaken = monsterDmg * Math.max(0, turnsToKill - 1);
   const ratio = damageTaken / playerMaxHp;

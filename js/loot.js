@@ -8,6 +8,7 @@ import {
 import { state } from './state.js';
 import { rollWeaponParts, hasCompositionFor, recomputePartStats } from './parts.js';
 import { rollMaterial, rollMaterialStats, materialStatSource, mergeMaterialStats, MATERIALS } from './materials.js';
+import { rollElement, rollElementStats, elementStatSource, mergeElementStats, ELEMENTS } from './elements.js';
 import { rareDropMultiplier, pityReduction } from './talents.js';
 import { trackProgress as bountyTrack } from './bounties.js';
 
@@ -82,38 +83,57 @@ function scaleBaseStats(baseStats, chestTier, rarity) {
   return result;
 }
 
-// Re-derive a material's contribution using its stored d20 (preserves the
-// material's roll quality across rebuilds/rescales). Pushes stats into
-// baseStats and a statSource entry. No-op if the item has no material.
-function applyMaterialContribution(item, baseStats, statSources) {
-  if (!item.material) return;
-  const mat = MATERIALS[item.material.id];
-  if (!mat) return;
+// Re-derive a stored layer's contribution (material or element) using its
+// stored d20. Pushes stats into baseStats and a statSource entry. No-op when
+// the item has no such layer. Same d20-keep semantics as parts: rescaling
+// tier preserves the roll quality.
+function applyLayerContribution(item, layerKey, table, sourceType, baseStats, statSources) {
+  const layer = item[layerKey];
+  if (!layer) return;
+  const def = table[layer.id];
+  if (!def) return;
   const statMult = RARITY_BY_ID[item.rarity].statMult;
-  const d20 = item.material.d20 || 10;
+  const d20 = layer.d20 || 10;
   const t = (d20 - 1) / 19;
   const stats = {};
-  for (const [stat, [min, max]] of Object.entries(mat.statBias || {})) {
+  for (const [stat, [min, max]] of Object.entries(def.statBias || {})) {
     stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * item.chestTier * statMult));
   }
-  mergeMaterialStats(baseStats, stats);
+  for (const [k, v] of Object.entries(stats)) baseStats[k] = (baseStats[k] || 0) + v;
   if (Object.keys(stats).length > 0) {
     statSources.push({
-      sourceType: 'material',
-      sourceId: mat.id,
-      label: mat.name,
+      sourceType,
+      sourceId: def.id,
+      label: def.name,
       stats,
       quality: t,
     });
   }
 }
 
-function makeName(baseType, rarity, material) {
+function applyMaterialContribution(item, baseStats, statSources) {
+  applyLayerContribution(item, 'material', MATERIALS, 'material', baseStats, statSources);
+}
+
+function applyElementContribution(item, baseStats, statSources) {
+  applyLayerContribution(item, 'element', ELEMENTS, 'element', baseStats, statSources);
+}
+
+// Re-apply both identity layers (material + element). Used by every rebuild
+// path so the layers survive operations that re-derive baseStats from parts.
+function applyIdentityLayers(item) {
+  applyMaterialContribution(item, item.baseStats, item.statSources);
+  applyElementContribution(item, item.baseStats, item.statSources);
+}
+
+function makeName(baseType, rarity, material, element) {
   const matSuffix = material ? ` ${material.adjective}` : '';
-  if (rarity === 'common') return `${baseType.name}${matSuffix}`;
-  if (rarity === 'magic') return `${pickRandom(NAME_PREFIXES)} ${baseType.name}${matSuffix}`;
-  // rare+ get prefix + suffix; the material adjective goes between them
-  return `${pickRandom(NAME_PREFIXES)} ${baseType.name}${matSuffix} ${pickRandom(NAME_SUFFIXES)}`;
+  // Element adjective comes RIGHT AFTER the base name (before the material):
+  // "Lame Givrée en Acier du Vainqueur" reads better than "Lame en Acier Givrée".
+  const elemAdj = (element && element.adjective) ? ` ${element.adjective}` : '';
+  if (rarity === 'common') return `${baseType.name}${elemAdj}${matSuffix}`;
+  if (rarity === 'magic')  return `${pickRandom(NAME_PREFIXES)} ${baseType.name}${elemAdj}${matSuffix}`;
+  return `${pickRandom(NAME_PREFIXES)} ${baseType.name}${elemAdj}${matSuffix} ${pickRandom(NAME_SUFFIXES)}`;
 }
 
 function computeGoldValue(rarity, chestTier) {
@@ -194,7 +214,7 @@ export function rebuildItemAffixesAndStats(item) {
     item.baseStats = baseStats;
     item.statSources = statSources;
     // Preserve material identity (don't re-roll which material) but rescale its contribution.
-    applyMaterialContribution(item, item.baseStats, item.statSources);
+    applyIdentityLayers(item);
   } else {
     item.baseStats = scaleBaseStats(baseType.baseStats, item.chestTier, item.rarity);
   }
@@ -203,7 +223,8 @@ export function rebuildItemAffixesAndStats(item) {
   // Regenerate name for regular items only; set/unique names are preserved.
   if (!item.setId && !item.uniqueId) {
     const mat = item.material ? MATERIALS[item.material.id] : null;
-    item.name = makeName(baseType, item.rarity, mat);
+    const elem = item.element ? ELEMENTS[item.element.id] : null;
+    item.name = makeName(baseType, item.rarity, mat, elem);
   }
 }
 
@@ -227,7 +248,7 @@ export function rerollPartValuesOnly(item) {
   item.parts = parts;
   item.baseStats = baseStats;
   item.statSources = statSources;
-  applyMaterialContribution(item, item.baseStats, item.statSources);
+  applyIdentityLayers(item);
 }
 
 // Re-roll parts (which variants are picked) AND their values → visual changes.
@@ -240,7 +261,7 @@ export function rerollPartsAndVisuals(item) {
   item.parts = parts;
   item.baseStats = baseStats;
   item.statSources = statSources;
-  applyMaterialContribution(item, item.baseStats, item.statSources);
+  applyIdentityLayers(item);
 }
 
 // Rescale an item to a new tier WITHOUT touching its identity (same parts
@@ -268,7 +289,7 @@ export function rescaleItemToTier(item, newTier) {
     item.parts = parts;
     item.baseStats = baseStats;
     item.statSources = statSources;
-    applyMaterialContribution(item, item.baseStats, item.statSources);
+    applyIdentityLayers(item);
   } else {
     const baseType = BASE_TYPES[item.slot].find(b => b.id === item.baseTypeId);
     if (baseType) item.baseStats = scaleBaseStats(baseType.baseStats, newTier, item.rarity);
@@ -322,13 +343,16 @@ function buildRegularItem(chestTier, rarity) {
   if (hasCompositionFor(baseType.id)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
     const { parts, baseStats, statSources } = rollWeaponParts(baseType.id, chestTier, statMult);
-    // Material — second identity layer, adds stats + appears in tooltip/name.
+    // Material — second identity layer.
     const material = rollMaterial(chestTier, rarity);
     const matRolled = rollMaterialStats(material, chestTier, statMult);
     mergeMaterialStats(baseStats, matRolled.stats);
-    if (Object.keys(matRolled.stats).length > 0) {
-      statSources.push(materialStatSource(material, matRolled));
-    }
+    if (Object.keys(matRolled.stats).length > 0) statSources.push(materialStatSource(material, matRolled));
+    // Element — third identity layer (often 'none').
+    const element = rollElement(chestTier, rarity);
+    const elemRolled = rollElementStats(element, chestTier, statMult);
+    mergeElementStats(baseStats, elemRolled.stats);
+    if (Object.keys(elemRolled.stats).length > 0) statSources.push(elementStatSource(element, elemRolled));
     const affixes = rollAffixes(rarity, chestTier);
     return {
       id: nextId(),
@@ -336,7 +360,7 @@ function buildRegularItem(chestTier, rarity) {
       baseTypeId: baseType.id,
       emoji: baseType.emoji,
       rarity,
-      name: makeName(baseType, rarity, material),
+      name: makeName(baseType, rarity, material, element),
       baseStats,
       affixes,
       goldValue: computeGoldValue(rarity, chestTier),
@@ -344,6 +368,7 @@ function buildRegularItem(chestTier, rarity) {
       parts,
       statSources,
       material: { id: material.id, name: material.name, d20: matRolled.d20 },
+      element: { id: element.id, name: element.name, d20: elemRolled.d20 },
     };
   }
 
@@ -415,13 +440,19 @@ function buildSetPiece(chestTier, rarity) {
   if (hasCompositionFor(piece.baseTypeId)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
     const rolled = rollWeaponParts(piece.baseTypeId, chestTier, statMult);
-    // Material — set pieces keep their canonical name (the set's identity) but
-    // still benefit from material stat bonuses + tooltip explanation.
+    // Material + element — set pieces keep their canonical name (the set's
+    // identity) but still benefit from these layers' stats + tooltip lines.
     const material = rollMaterial(chestTier, rarity);
     const matRolled = rollMaterialStats(material, chestTier, statMult);
     mergeMaterialStats(rolled.baseStats, matRolled.stats);
     if (Object.keys(matRolled.stats).length > 0) {
       rolled.statSources.push(materialStatSource(material, matRolled));
+    }
+    const element = rollElement(chestTier, rarity);
+    const elemRolled = rollElementStats(element, chestTier, statMult);
+    mergeElementStats(rolled.baseStats, elemRolled.stats);
+    if (Object.keys(elemRolled.stats).length > 0) {
+      rolled.statSources.push(elementStatSource(element, elemRolled));
     }
     const affixes = rollAffixes(rarity, chestTier);
     return {
@@ -440,6 +471,7 @@ function buildSetPiece(chestTier, rarity) {
       parts: rolled.parts,
       statSources: rolled.statSources,
       material: { id: material.id, name: material.name, d20: matRolled.d20 },
+      element: { id: element.id, name: element.name, d20: elemRolled.d20 },
     };
   }
 

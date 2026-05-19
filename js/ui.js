@@ -55,7 +55,7 @@ function itemTotalStats(item) {
   return total;
 }
 
-const PCT_STATS = new Set(['crit', 'fireDmg', 'goldFind', 'speed']);
+const PCT_STATS = new Set(['crit', 'fireDmg', 'frostDmg', 'voidDmg', 'poisonDmg', 'lightningDmg', 'goldFind', 'speed']);
 
 function comparisonHTML(item) {
   // Only show comparison if item is in inventory AND another item is equipped in same slot
@@ -145,6 +145,10 @@ function statLabel(key) {
     armor: 'Armure',
     crit: '% Crit',
     fireDmg: '% Feu',
+    frostDmg: '% Givre',
+    voidDmg: '% Néant',
+    poisonDmg: '% Poison',
+    lightningDmg: '% Foudre',
     goldFind: '% Or',
     speed: '% Vitesse',
   }[key] || key;
@@ -914,7 +918,7 @@ export function renderSettingsModal() {
 
 // === Stats Breakdown Modal ===
 
-const STAT_ORDER = ['vitality', 'damage', 'armor', 'crit', 'fireDmg', 'speed', 'goldFind'];
+const STAT_ORDER = ['vitality', 'damage', 'armor', 'crit', 'fireDmg', 'frostDmg', 'voidDmg', 'poisonDmg', 'lightningDmg', 'speed', 'goldFind'];
 const STAT_PERCENT = { crit: true, fireDmg: true, speed: true, goldFind: true };
 
 export function renderStatsBreakdownModal() {
