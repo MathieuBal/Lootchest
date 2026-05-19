@@ -342,27 +342,46 @@ const CHEST_PALETTES = {
 
 // === RENDER HELPERS ===
 
+// Convert a layout (string[]) + palette to an SVG <rect> sequence.
+// Merges runs of identical-color pixels on the same row into single wide
+// rects — typically reduces 1457 rects (character) to ~400, shrinking the
+// SVG payload by ~3× and speeding up DOM parse/paint.
 function gridToRects(layout, palette, ox = 0, oy = 0) {
   const rows = layout.length;
   const cols = layout[0].length;
-  let rects = '';
+  const out = [];
   for (let y = 0; y < rows; y++) {
     const row = layout[y];
-    for (let x = 0; x < cols; x++) {
-      const ch = row[x];
-      if (ch === '.' || !palette[ch]) continue;
-      rects += `<rect x="${x + ox}" y="${y + oy}" width="1" height="1" fill="${palette[ch]}"/>`;
+    let runColor = null;
+    let runStart = 0;
+    for (let x = 0; x <= cols; x++) {
+      const ch = x < cols ? row[x] : null;
+      const color = (ch && ch !== '.') ? palette[ch] : undefined;
+      if (color !== runColor) {
+        if (runColor) {
+          out.push(`<rect x="${runStart + ox}" y="${y + oy}" width="${x - runStart}" height="1" fill="${runColor}"/>`);
+        }
+        runColor = color || null;
+        runStart = x;
+      }
     }
   }
-  return rects;
+  return out.join('');
 }
 
-function gridToSVG(layout, palette, sizePx) {
+function gridToSVG(layout, palette, sizePx, rectsCache) {
   const rows = layout.length;
   const cols = layout[0].length;
-  const rects = gridToRects(layout, palette);
+  const rects = rectsCache || gridToRects(layout, palette);
   const width = Math.round(sizePx * cols / rows);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cols} ${rows}" width="${width}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${rects}</svg>`;
+}
+
+// Cached rects strings — both layout and palette are immutable per sprite.
+const CHARACTER_RECTS = gridToRects(CHARACTER_LAYOUT, CHARACTER_PALETTE);
+const CHEST_RECTS_BY_TIER = {};
+for (const tier of Object.keys(CHEST_PALETTES)) {
+  CHEST_RECTS_BY_TIER[tier] = gridToRects(CHEST_LAYOUT, CHEST_PALETTES[tier]);
 }
 
 // Compose multiple pixel layers ({layout, palette}) onto a single SVG.
@@ -370,20 +389,18 @@ function gridToSVG(layout, palette, sizePx) {
 export function composedSpriteSVG(layers, sizePx = 64) {
   if (!layers || layers.length === 0) return '';
   const cells = layers[0].layout.length;
-  let rects = '';
-  for (const layer of layers) {
-    rects += gridToRects(layer.layout, layer.palette);
-  }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cells} ${cells}" width="${sizePx}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${rects}</svg>`;
+  const parts = [];
+  for (const layer of layers) parts.push(gridToRects(layer.layout, layer.palette));
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cells} ${cells}" width="${sizePx}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${parts.join('')}</svg>`;
 }
 
 export function chestSpriteSVG(tier, sizePx = 120) {
-  const palette = CHEST_PALETTES[tier] || CHEST_PALETTES[1];
-  return gridToSVG(CHEST_LAYOUT, palette, sizePx);
+  const cachedRects = CHEST_RECTS_BY_TIER[tier] || CHEST_RECTS_BY_TIER[1];
+  return gridToSVG(CHEST_LAYOUT, null, sizePx, cachedRects);
 }
 
 export function characterSpriteSVG(sizePx = 120) {
-  return gridToSVG(CHARACTER_LAYOUT, CHARACTER_PALETTE, sizePx);
+  return gridToSVG(CHARACTER_LAYOUT, null, sizePx, CHARACTER_RECTS);
 }
 
 // Composite character (64×64) + equipped items (16×16 at 2× scale = 32 logical px)
@@ -408,11 +425,11 @@ export function composeCharacterWithGearSVG(equipment, sizePx = 120) {
     { type: 'item', slot: 'weapon' },
   ];
 
-  let body = '';
+  const parts = [];
   for (const step of drawSequence) {
     if (step.type === 'char') {
-      // Character is 64×64; render its rects directly with offset.
-      body += `<g transform="translate(${charX},${charY})">${gridToRects(CHARACTER_LAYOUT, CHARACTER_PALETTE)}</g>`;
+      // Reuse cached character rects (palette is constant).
+      parts.push(`<g transform="translate(${charX},${charY})">${CHARACTER_RECTS}</g>`);
       continue;
     }
     const item = equipment[step.slot];
@@ -421,15 +438,14 @@ export function composeCharacterWithGearSVG(equipment, sizePx = 120) {
     if (!pos) continue;
     if (item.parts && hasCompositionFor(item.baseTypeId)) {
       const layers = getCompositionLayers(item.baseTypeId, item.parts);
-      let inner = '';
-      // Items are 16×16; scale 2× by wrapping in a scale transform.
-      for (const layer of layers) inner += gridToRects(layer.layout, layer.palette);
-      body += `<g transform="translate(${pos.x},${pos.y}) scale(2)">${inner}</g>`;
+      const innerParts = [];
+      for (const layer of layers) innerParts.push(gridToRects(layer.layout, layer.palette));
+      parts.push(`<g transform="translate(${pos.x},${pos.y}) scale(2)">${innerParts.join('')}</g>`);
     } else if (item.emoji) {
-      body += `<text x="${pos.x + 16}" y="${pos.y + 22}" font-size="22" text-anchor="middle" dominant-baseline="middle">${item.emoji}</text>`;
+      parts.push(`<text x="${pos.x + 16}" y="${pos.y + 22}" font-size="22" text-anchor="middle" dominant-baseline="middle">${item.emoji}</text>`);
     }
   }
 
   const width = Math.round(sizePx * W / H);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${width}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${width}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${parts.join('')}</svg>`;
 }

@@ -132,8 +132,11 @@ button, input, select {
   cursor: pointer;
   transition: transform 80ms, background 80ms, border-color 120ms, box-shadow 80ms;
   box-shadow: 3px 3px 0 #000, inset 0 1px 0 rgba(255,255,255,0.06);
-  min-height: 36px; /* comfortable baseline tap target */
+  min-height: 36px;
   touch-action: manipulation;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .btn:hover:not(:disabled) {
   background: linear-gradient(180deg, #4a3a60 0%, #2a2238 100%);
@@ -1630,7 +1633,7 @@ button, input, select {
   .btn-danger:hover:not(:disabled) { background: #7a2030; }
   .tab:hover:not(.active) { background: var(--bg-panel-light); color: var(--text-dim); }
   .item-icon:hover { transform: none; z-index: auto; }
-  .equipment-slot:hover { border-color: inherit; box-shadow: inherit; }
+  .equipment-slot:hover { border-color: var(--border); }
   .hud-stat-btn:hover { background: var(--bg-panel-light); border-color: var(--border); }
   .mc-row:hover:not(.disabled) { border-color: var(--border); background: inherit; }
   .settings-row:hover { border-color: var(--border); }
@@ -1662,9 +1665,10 @@ button, input, select {
   .talents-grid { grid-template-columns: 1fr; }
   .breakdown-body { grid-template-columns: 1fr 1fr; }
   .codex-grid { grid-template-columns: 1fr 1fr; }
-  /* Modal sizing */
-  .modal-inner { width: 95vw; max-width: none; }
-  .modal-wide  { max-width: none; width: 95vw; }
+  /* Modal sizing — reduce outer padding so inner can fill width without overflow */
+  .modal { padding: 8px; }
+  .modal-inner { width: 100%; max-width: none; }
+  .modal-wide  { max-width: none; width: 100%; }
 }
 /* === Empty states === */
 .empty-state {
@@ -1761,15 +1765,15 @@ button, input, select {
   .modal-wide  { width: 100vw; max-width: none; border-left: none; border-right: none; }
   .modal { padding: 0; }
   .breakdown-body { grid-template-columns: 1fr; }
-  /* Equipment grid: show labels */
-  .equipment-slot-label { font-size: 7px; }
+  /* Equipment grid: shrink labels */
+  .equipment-slot .slot-label { font-size: 7px; }
   /* Combat log wider */
   .combat-log { max-height: 120px; }
   /* Tooltip: position at bottom on small screens */
   .tooltip { max-width: calc(100vw - 16px); }
-  /* HUD: stack title + stats vertically */
-  .hud { flex-direction: column; align-items: flex-start; }
-  .hud-actions { width: 100%; justify-content: space-between; }
+  /* HUD: stack title + stats + actions vertically */
+  .hud { flex-direction: column; align-items: stretch; }
+  .hud-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
   .hud-stats { width: 100%; justify-content: flex-start; }
 }
 
@@ -1813,13 +1817,13 @@ button, input, select {
 }
 
 /* === Mobile Action Sheet === */
+/* z-index sits above all modal/popup/tooltip layers (max was 250 for toasts) */
 .action-sheet {
   position: fixed;
   inset: 0;
-  z-index: 9500;
-  pointer-events: auto;
+  z-index: 300;
 }
-.action-sheet.hidden { display: none; }
+.action-sheet.hidden { display: none; pointer-events: none; }
 
 .action-sheet-backdrop {
   position: absolute;
