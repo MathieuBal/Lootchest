@@ -3026,6 +3026,52 @@ function rollPart(partDef, chestTier, statMult) {
 //
 // IMPORTANT: combat only consumes `baseStats`. `statSources` is purely for
 // display / explainability and is safe to ignore if missing.
+
+// Helper: variant lookup by partType + variantId (for keep-variant re-rolls).
+function variantLookup(weaponBaseTypeId) {
+  const def = WEAPON_PARTS[weaponBaseTypeId];
+  if (!def) return null;
+  const byType = {};
+  for (const partDef of def.parts) {
+    byType[partDef.type] = Object.fromEntries(partDef.variants.map(v => [v.id, v]));
+  }
+  return byType;
+}
+
+// Re-derive part stats from existing variants. Two modes:
+//   - 'keepRoll'   : keep each part's existing d20 (preserves quality identity)
+//   - 'rerollRoll' : re-roll d20 for each part (same visuals, new values)
+// Used by rescaleItemToTier (keepRoll) and rerollPartValuesOnly (rerollRoll).
+export function recomputePartStats(weaponBaseTypeId, parts, chestTier, statMult, mode = 'keepRoll') {
+  const lookup = variantLookup(weaponBaseTypeId);
+  if (!lookup) return { parts, baseStats: {}, statSources: [] };
+  const baseStats = {};
+  const statSources = [];
+  const newParts = parts.map(p => {
+    const variant = lookup[p.partType]?.[p.variantId];
+    if (!variant) return p;
+    const d20 = mode === 'rerollRoll' ? Math.floor(Math.random() * 20) + 1 : p.d20;
+    const t = (d20 - 1) / 19;
+    const stats = {};
+    for (const [stat, [min, max]] of Object.entries(variant.statBias || {})) {
+      stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * chestTier * statMult));
+    }
+    return { ...p, d20, quality: t, stats };
+  });
+  for (const p of newParts) {
+    if (!p.stats || Object.keys(p.stats).length === 0) continue;
+    for (const [s, v] of Object.entries(p.stats)) baseStats[s] = (baseStats[s] || 0) + v;
+    statSources.push({
+      sourceType: 'part',
+      sourceId: `${p.partType}.${p.variantId}`,
+      label: p.name,
+      stats: { ...p.stats },
+      quality: p.quality,
+    });
+  }
+  return { parts: newParts, baseStats, statSources };
+}
+
 export function rollWeaponParts(weaponBaseTypeId, chestTier, statMult) {
   const def = WEAPON_PARTS[weaponBaseTypeId];
   if (!def) return null;

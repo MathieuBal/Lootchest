@@ -6,7 +6,7 @@ import {
   SETS, SET_DROP_CHANCE, prestigeRareMult,
 } from './data.js';
 import { state } from './state.js';
-import { rollWeaponParts, hasCompositionFor } from './parts.js';
+import { rollWeaponParts, hasCompositionFor, recomputePartStats } from './parts.js';
 import { rareDropMultiplier, pityReduction } from './talents.js';
 import { trackProgress as bountyTrack } from './bounties.js';
 
@@ -179,6 +179,74 @@ export function rebuildItemAffixesAndStats(item) {
 export function rebuildItemAffixesOnly(item) {
   if (item.uniqueId) return; // unique fixed affixes cannot be rerolled
   item.affixes = rollAffixes(item.rarity, item.chestTier);
+}
+
+// Alias matching the procedural-engine plan terminology.
+export const rerollAffixesOnly = rebuildItemAffixesOnly;
+
+// Re-roll part VALUES (d20) but keep the same variants → same visual identity,
+// new stat numbers. Affixes are untouched. No-op for uniques/non-composed items.
+export function rerollPartValuesOnly(item) {
+  if (item.uniqueId) return;
+  if (!item.parts || !hasCompositionFor(item.baseTypeId)) return;
+  const statMult = RARITY_BY_ID[item.rarity].statMult;
+  const { parts, baseStats, statSources } =
+    recomputePartStats(item.baseTypeId, item.parts, item.chestTier, statMult, 'rerollRoll');
+  item.parts = parts;
+  item.baseStats = baseStats;
+  item.statSources = statSources;
+}
+
+// Re-roll parts (which variants are picked) AND their values → visual changes.
+// Affixes are untouched. No-op for uniques/non-composed items.
+export function rerollPartsAndVisuals(item) {
+  if (item.uniqueId) return;
+  if (!item.parts || !hasCompositionFor(item.baseTypeId)) return;
+  const statMult = RARITY_BY_ID[item.rarity].statMult;
+  const { parts, baseStats, statSources } = rollWeaponParts(item.baseTypeId, item.chestTier, statMult);
+  item.parts = parts;
+  item.baseStats = baseStats;
+  item.statSources = statSources;
+}
+
+// Rescale an item to a new tier WITHOUT touching its identity (same parts
+// variants, same affixes, same name). Stats scale with the new tier.
+// Used by Pierre de Forge so the player doesn't lose a beloved sprite.
+export function rescaleItemToTier(item, newTier) {
+  if (newTier <= 0) return;
+  const oldTier = item.chestTier;
+  if (oldTier === newTier) return;
+  item.chestTier = newTier;
+
+  // Unique items: re-derive stats + affixes from template (template's formula
+  // already scales with chestTier, so this is a faithful rescale).
+  if (item.uniqueId) {
+    rebuildItemAffixesAndStats(item);
+    return;
+  }
+
+  // Composed items: recompute part stats keeping the same d20 (preserves roll
+  // quality so a perfect-roll T4 stays a perfect-roll T5 after a Pierre).
+  if (item.parts && hasCompositionFor(item.baseTypeId)) {
+    const statMult = RARITY_BY_ID[item.rarity].statMult;
+    const { parts, baseStats, statSources } =
+      recomputePartStats(item.baseTypeId, item.parts, newTier, statMult, 'keepRoll');
+    item.parts = parts;
+    item.baseStats = baseStats;
+    item.statSources = statSources;
+  } else {
+    const baseType = BASE_TYPES[item.slot].find(b => b.id === item.baseTypeId);
+    if (baseType) item.baseStats = scaleBaseStats(baseType.baseStats, newTier, item.rarity);
+  }
+
+  // Rescale affixes proportionally (affix.value scales linearly with chestTier
+  // at roll time, so we mirror that here).
+  const ratio = newTier / oldTier;
+  for (const a of item.affixes || []) {
+    a.value = Math.max(1, Math.round(a.value * ratio));
+  }
+
+  item.goldValue = computeGoldValue(item.rarity, newTier);
 }
 
 // Same as rebuildItemAffixesOnly but values roll in the TOP 50% of their range.
