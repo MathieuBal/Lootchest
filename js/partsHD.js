@@ -319,7 +319,232 @@ export const HD_SWORD_POMMELS = [
   },
 ];
 
-// Weapon-parts definition (mirrors the WEAPON_PARTS.sword shape from parts.js)
+// === AXE HEADS (64×64) ===
+// Head occupies rows 0-22, the eye (where the handle passes through) is around
+// row 8-14 on the right side. Different head shapes give very different
+// silhouettes — the part of an axe a player notices first.
+
+// --- Single-bit broad axe: half-moon blade on the left, hub on the right ---
+function buildAxeHeadSingle() {
+  const c = makeCanvas(64, 64);
+  // Blade body (half-disc shape, edge on the left)
+  ellipse(c, 31, 13, 13, 10, 'm');
+  // Clear the right half so we have a clean cutting edge profile
+  rect(c, 34, 0, 30, 30, '.');
+  // Hub block on the right for the haft passage
+  rect(c, 32, 9, 6, 10, 'm');
+  // Sharp edge highlight on the far left
+  for (let y = 7; y <= 19; y++) {
+    px(c, 17, y, 'h');
+    px(c, 18, y, 'l');
+  }
+  // Subtle bevel mid-blade
+  for (let x = 21; x <= 31; x++) {
+    px(c, x, 9, 'l');
+    px(c, x, 17, 's');
+  }
+  // Inner shadow near the haft
+  vline(c, 33, 10, 18, 's');
+  // Top rim shadow
+  hline(c, 19, 32, 6, 's');
+  // Bottom shadow
+  hline(c, 19, 32, 20, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+// --- Double-bit axe: two opposing crescent blades ---
+function buildAxeHeadDouble() {
+  const c = makeCanvas(64, 64);
+  // Two ellipses on each side
+  ellipse(c, 21, 13, 9, 8, 'm');
+  ellipse(c, 43, 13, 9, 8, 'm');
+  // Cut the inner halves so each becomes a crescent
+  rect(c, 22, 0, 6, 28, '.');
+  rect(c, 36, 0, 6, 28, '.');
+  // Central hub joining them
+  rect(c, 28, 9, 8, 10, 'm');
+  // Sharp edge highlights on outer extremes
+  for (let y = 8; y <= 18; y++) {
+    px(c, 13, y, 'h'); px(c, 14, y, 'l');
+    px(c, 50, y, 'h'); px(c, 49, y, 'l');
+  }
+  // Top + bottom mid shading
+  hline(c, 28, 35, 8, 'l');
+  hline(c, 28, 35, 18, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+// --- Crescent (moon) axe: curved, dramatic asymmetric blade ---
+function buildAxeHeadCrescent() {
+  const c = makeCanvas(64, 64);
+  // Large outer ellipse forms the crescent body
+  ellipse(c, 28, 13, 14, 10, 'm');
+  // Inner ellipse subtracted → crescent shape
+  ellipse(c, 30, 14, 9, 7, '.');
+  // Right side cut to leave a curved profile
+  rect(c, 38, 0, 26, 30, '.');
+  // Hub block for haft
+  rect(c, 32, 10, 5, 10, 'm');
+  // Connect crescent tip to hub on top
+  for (let x = 18; x <= 38; x++) px(c, x, 5, 'm');
+  for (let x = 22; x <= 38; x++) px(c, x, 6, 'm');
+  // Connect on bottom
+  for (let x = 22; x <= 38; x++) px(c, x, 20, 'm');
+  // Sharp inner curve highlight
+  for (let y = 9; y <= 17; y++) px(c, 32, y, 'h');
+  // Outer arc edge highlight
+  px(c, 17, 9, 'l'); px(c, 16, 11, 'l'); px(c, 16, 13, 'l'); px(c, 16, 15, 'l'); px(c, 17, 17, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+const PALETTE_AXE_HEAD_STEEL = {
+  o: '#0a0d12',
+  s: '#3a4655',
+  m: '#6f7e91',
+  l: '#aebcd0',
+  h: '#e2eaf6',
+};
+const ROLES_AXE_HEAD = {
+  o: 'outline',
+  s: 'shadow',
+  m: 'mid',
+  l: 'light',
+  h: 'highlight',
+};
+
+// === AXE HANDLES (64×64) ===
+// Vertical shaft cols 30-33, rows 18-58. Wood grain, bone, or reinforced metal.
+
+function buildAxeHandleWood() {
+  const c = makeCanvas(64, 64);
+  // Vertical wooden shaft
+  rect(c, 30, 19, 4, 40, 'm');
+  // Wood grain: long highlights on left, shadows on right
+  vline(c, 30, 20, 57, 'l');
+  vline(c, 33, 20, 57, 's');
+  // Knots / striations every 8 rows
+  px(c, 31, 26, 's'); px(c, 32, 27, 's');
+  px(c, 31, 35, 's'); px(c, 32, 36, 's');
+  px(c, 31, 44, 's'); px(c, 32, 45, 's');
+  px(c, 31, 53, 's'); px(c, 32, 54, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+function buildAxeHandleBone() {
+  const c = makeCanvas(64, 64);
+  rect(c, 30, 19, 4, 40, 'm');
+  vline(c, 30, 20, 57, 'l');
+  vline(c, 33, 20, 57, 's');
+  // Bone ridges
+  for (let y = 22; y <= 56; y += 4) {
+    px(c, 30, y, 'h');
+    px(c, 33, y, 's');
+  }
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+const PALETTE_HANDLE_WOOD = {
+  o: '#1a0a04', s: '#3a1d0c', m: '#5a3018', l: '#8a5028', h: '#a06820',
+};
+const PALETTE_HANDLE_BONE = {
+  o: '#30281d', s: '#6d6048', m: '#a99876', l: '#d7c7a4', h: '#f1e8cf',
+};
+// Handles are intentionally NOT retinted (they're not the weapon's "material"
+// — the head's material is what defines the axe).
+
+// === AXE WRAPS (64×64) ===
+// Decorative binding at the grip area, rows 45-55, cols 28-35.
+
+function buildAxeWrapLeather() {
+  const c = makeCanvas(64, 64);
+  // Wider grip area
+  rect(c, 28, 45, 8, 10, 'm');
+  // Diagonal leather bands alternating dark/light
+  for (let row = 45; row <= 54; row += 2) {
+    hline(c, 28, 35, row, 's');
+    hline(c, 28, 35, row + 1, 'm');
+  }
+  // Edge highlights
+  vline(c, 28, 46, 54, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+function buildAxeWrapCord() {
+  const c = makeCanvas(64, 64);
+  rect(c, 28, 45, 8, 10, 'm');
+  // Cord wraps: tighter pattern (rope coils)
+  for (let row = 45; row <= 54; row++) {
+    if (row % 2 === 0) {
+      hline(c, 28, 35, row, 's');
+      px(c, 29, row, 'l');
+      px(c, 34, row, 'l');
+    } else {
+      hline(c, 28, 35, row, 'm');
+    }
+  }
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+const PALETTE_WRAP_LEATHER = { o: '#0e0805', s: '#2a1810', m: '#5a3818', l: '#8a5828' };
+const PALETTE_WRAP_CORD    = { o: '#1a1408', s: '#3a2818', m: '#6a4828', l: '#9a7848' };
+
+export const HD_AXE_HEADS = [
+  {
+    id: 'single',   name: 'Tête Simple HD',   weight: 18,
+    layout: buildAxeHeadSingle(),   palette: PALETTE_AXE_HEAD_STEEL, roles: ROLES_AXE_HEAD,
+    statBias: { damage: [15, 28], armor: [2, 5] },
+    tags: ['balanced', 'heavy'],
+  },
+  {
+    id: 'double',   name: 'Tête Double HD',   weight: 12,
+    layout: buildAxeHeadDouble(),   palette: PALETTE_AXE_HEAD_STEEL, roles: ROLES_AXE_HEAD,
+    statBias: { damage: [18, 32], crit: [3, 7] },
+    tags: ['heavy', 'aggressive'],
+  },
+  {
+    id: 'crescent', name: 'Tête Croissant HD', weight: 8,
+    layout: buildAxeHeadCrescent(), palette: PALETTE_AXE_HEAD_STEEL, roles: ROLES_AXE_HEAD,
+    statBias: { damage: [12, 24], crit: [5, 10], speed: [1, 3] },
+    tags: ['curved', 'precision'],
+  },
+];
+
+export const HD_AXE_HANDLES = [
+  {
+    id: 'wood', name: 'Manche Bois HD', weight: 24,
+    layout: buildAxeHandleWood(), palette: PALETTE_HANDLE_WOOD,
+    statBias: { armor: [1, 3] },
+    tags: ['wood'],
+  },
+  {
+    id: 'bone', name: 'Manche Os HD',  weight: 8,
+    layout: buildAxeHandleBone(), palette: PALETTE_HANDLE_BONE,
+    statBias: { vitality: [3, 6] },
+    tags: ['organic', 'pale'],
+  },
+];
+
+export const HD_AXE_WRAPS = [
+  {
+    id: 'leather', name: 'Sangle Cuir HD', weight: 20,
+    layout: buildAxeWrapLeather(), palette: PALETTE_WRAP_LEATHER,
+    tags: ['leather'],
+  },
+  {
+    id: 'cord',    name: 'Sangle Corde HD', weight: 12,
+    layout: buildAxeWrapCord(),    palette: PALETTE_WRAP_CORD,
+    tags: ['cord'],
+  },
+];
+
+// Weapon-parts definition (mirrors the WEAPON_PARTS shape from parts.js)
 export const HD_WEAPON_PARTS = {
   sword: {
     parts: [
@@ -329,6 +554,14 @@ export const HD_WEAPON_PARTS = {
     ],
     fixedLayers: { grip: HD_SWORD_GRIP },
     drawOrder: ['blade', 'guard', '@grip', 'pommel'],
+  },
+  axe: {
+    parts: [
+      { type: 'head',   variants: HD_AXE_HEADS },
+      { type: 'handle', variants: HD_AXE_HANDLES },
+      { type: 'wrap',   variants: HD_AXE_WRAPS },
+    ],
+    drawOrder: ['handle', 'head', 'wrap'],
   },
 };
 
@@ -479,6 +712,75 @@ function buildHDOverlayVoid() {
   return canvasToLayout(c);
 }
 
+// --- HD AXE OVERLAYS (head zone rows 0-22, cols 14-38) ---
+
+function buildHDOverlayFireAxe() {
+  const c = makeCanvas(64, 64);
+  // Cluster of embers on the blade edge (left side of head)
+  px(c, 17, 9, 'g'); px(c, 16, 10, 'l'); px(c, 17, 11, 'g');
+  px(c, 18, 13, 'l'); px(c, 17, 14, 'm'); px(c, 18, 15, 'l');
+  px(c, 17, 17, 'g'); px(c, 16, 18, 'l');
+  // Embers along the cutting edge
+  px(c, 20, 8, 'm'); px(c, 21, 7, 'd');
+  px(c, 22, 19, 'm'); px(c, 21, 20, 'd');
+  // Floating embers
+  px(c, 12, 12, 'g'); px(c, 13, 11, 'l');
+  px(c, 11, 16, 'g'); px(c, 14, 18, 'l');
+  px(c, 25, 4, 'g');
+  return canvasToLayout(c);
+}
+
+function buildHDOverlayFrostAxe() {
+  const c = makeCanvas(64, 64);
+  // Crystals on the cutting edge
+  px(c, 17, 9, 'g'); px(c, 18, 10, 'l');
+  px(c, 16, 13, 'l'); px(c, 17, 14, 'g'); px(c, 18, 15, 'l');
+  px(c, 17, 17, 'l'); px(c, 16, 18, 'm');
+  // Frost rime on body
+  px(c, 22, 9, 'g'); px(c, 26, 10, 'l');
+  px(c, 24, 18, 'g'); px(c, 28, 19, 'l');
+  // Floating snowflakes
+  px(c, 12, 8, 'g'); px(c, 13, 15, 'g'); px(c, 11, 20, 'l');
+  return canvasToLayout(c);
+}
+
+function buildHDOverlayPoisonAxe() {
+  const c = makeCanvas(64, 64);
+  px(c, 17, 12, 'l'); px(c, 18, 13, 'm'); px(c, 17, 14, 'g');
+  px(c, 16, 16, 'l');
+  px(c, 22, 10, 'm'); px(c, 26, 13, 'l');
+  px(c, 24, 19, 'm'); px(c, 28, 20, 'l');
+  // Falling droplets
+  px(c, 18, 24, 'g'); px(c, 22, 26, 'l');
+  return canvasToLayout(c);
+}
+
+function buildHDOverlayLightningAxe() {
+  const c = makeCanvas(64, 64);
+  // Arc traversing the head from top to bottom
+  const path = [[24, 4], [22, 6], [20, 8], [18, 10], [17, 12], [19, 14], [20, 16], [18, 18], [17, 20], [19, 22]];
+  for (const [x, y] of path) { px(c, x, y, 'l'); }
+  // Bright cores at corners
+  px(c, 22, 6, 'g'); px(c, 17, 12, 'g'); px(c, 19, 22, 'g');
+  // Sparks around
+  px(c, 26, 9, 'g'); px(c, 14, 14, 'g');
+  return canvasToLayout(c);
+}
+
+function buildHDOverlayVoidAxe() {
+  const c = makeCanvas(64, 64);
+  // Void core mid-blade
+  px(c, 18, 13, 'd'); px(c, 19, 13, 'd');
+  px(c, 17, 14, 'l'); px(c, 18, 14, 'g'); px(c, 19, 14, 'g'); px(c, 20, 14, 'l');
+  px(c, 18, 15, 'd'); px(c, 19, 15, 'd');
+  // Tendrils
+  px(c, 22, 9, 'm'); px(c, 26, 10, 'l');
+  px(c, 24, 19, 'm'); px(c, 27, 21, 'l');
+  // Sparkles
+  px(c, 13, 7, 'g'); px(c, 12, 17, 'g'); px(c, 28, 5, 'l'); px(c, 29, 23, 'l');
+  return canvasToLayout(c);
+}
+
 const HD_ELEMENT_OVERLAYS = {
   sword: {
     fire:      buildHDOverlayFire(),
@@ -486,6 +788,13 @@ const HD_ELEMENT_OVERLAYS = {
     poison:    buildHDOverlayPoison(),
     lightning: buildHDOverlayLightning(),
     void:      buildHDOverlayVoid(),
+  },
+  axe: {
+    fire:      buildHDOverlayFireAxe(),
+    frost:     buildHDOverlayFrostAxe(),
+    poison:    buildHDOverlayPoisonAxe(),
+    lightning: buildHDOverlayLightningAxe(),
+    void:      buildHDOverlayVoidAxe(),
   },
 };
 
