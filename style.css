@@ -562,6 +562,24 @@ button, input, select {
 .monster-emoji {
   font-size: 56px;
   margin-bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+/* When a boss sprite is rendered (SVG inside), kill the text font-size so
+   the SVG controls its own dimensions, and add a hostile drop-shadow. */
+.monster-emoji.monster-sprite {
+  font-size: 0;
+  filter: drop-shadow(2px 4px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 8px rgba(255,80,80,0.35));
+  animation: boss-idle 3s ease-in-out infinite;
+}
+.monster-emoji.monster-sprite svg {
+  display: block;
+}
+@keyframes boss-idle {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-2px) scale(1.02); }
 }
 .monster-name {
   font-size: 11px;

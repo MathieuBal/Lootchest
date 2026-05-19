@@ -587,3 +587,267 @@ export function composeCharacterWithGearSVG(equipment, sizePx = 120) {
   const width = Math.round(sizePx * W / H);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${width}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${parts.join('')}</svg>`;
 }
+
+// ====================================================
+// === BOSS SPRITES (48×48, one per biome) ============
+// ====================================================
+// Each biome's boss gets a unique pixel-art portrait that replaces the
+// emoji in the combat panel. Regular monsters keep their emoji.
+
+// --- Roi Sylvain (Forest) — gnarled tree with hollow face + leafy crown ---
+function buildSylvainKingCanvas() {
+  const c = makeCanvas(48, 48);
+  // Leafy crown (3-layer ellipse, darker → lighter)
+  ellipse(c, 24, 9, 16, 6, 'D');   // deep green outline
+  ellipse(c, 24, 8, 14, 5, 'G');   // mid green
+  ellipse(c, 23, 7, 11, 3, 'g');   // bright highlight
+  // Stray leaves
+  px(c, 8, 11, 'D');  px(c, 40, 11, 'D');
+  px(c, 6, 9, 'G');   px(c, 42, 9, 'G');
+  // Trunk body (gnarled)
+  rect(c, 14, 14, 20, 28, 'T'); // trunk mid
+  rect(c, 15, 15, 18, 26, 't'); // trunk highlight (lighter)
+  // Trunk bark grain
+  vline(c, 18, 16, 40, 'T');
+  vline(c, 28, 16, 40, 'T');
+  hline(c, 16, 31, 22, 'T');
+  hline(c, 16, 31, 32, 'T');
+  // Hollow face area (darker recess)
+  rect(c, 17, 19, 14, 12, 'b'); // bark dark recess
+  // Eyes (glowing yellow)
+  rect(c, 19, 22, 3, 3, 'E'); // left eye socket
+  px(c, 20, 23, 'Y'); // yellow glow pupil
+  rect(c, 26, 22, 3, 3, 'E'); // right eye socket
+  px(c, 27, 23, 'Y');
+  // Mouth (jagged gap)
+  hline(c, 20, 27, 28, 'E');
+  px(c, 21, 27, 'M'); px(c, 23, 27, 'M'); px(c, 25, 27, 'M');
+  // Branch arms
+  px(c, 13, 22, 'T'); px(c, 12, 23, 'T'); px(c, 11, 22, 't');
+  px(c, 34, 22, 'T'); px(c, 35, 23, 'T'); px(c, 36, 22, 't');
+  // Roots/base
+  hline(c, 12, 35, 42, 'T');
+  px(c, 13, 43, 'T'); px(c, 15, 44, 'T');
+  px(c, 32, 43, 'T'); px(c, 34, 44, 'T');
+  // Shadow under
+  hline(c, 14, 33, 45, 'b');
+  outline(c, 'o');
+  return c;
+}
+const SYLVAIN_KING_PALETTE = {
+  o: '#0a1a08', D: '#1a3a14', G: '#3a8a30', g: '#7acc5a',
+  T: '#4a2818', t: '#6a4028', b: '#1a0a04',
+  E: '#000000', Y: '#ffe14a', M: '#5a1010',
+};
+
+// --- Hydre des Profondeurs (Cave) — 3 serpent heads on twisted necks ---
+function buildHydraCanvas() {
+  const c = makeCanvas(48, 48);
+  // Body (lower center mass)
+  ellipse(c, 24, 36, 12, 7, 'B'); // base body
+  ellipse(c, 24, 36, 10, 5, 'b'); // body highlight
+  // Belly scales
+  hline(c, 19, 28, 38, 'D');
+  hline(c, 20, 27, 40, 'D');
+  // Necks — 3 winding lines
+  // Left neck
+  px(c, 13, 25, 'B'); px(c, 14, 24, 'B'); px(c, 15, 23, 'B');
+  px(c, 14, 26, 'B'); px(c, 15, 27, 'B'); px(c, 16, 28, 'B');
+  px(c, 16, 29, 'B'); px(c, 17, 30, 'B');
+  // Center neck
+  px(c, 24, 18, 'B'); px(c, 24, 19, 'B'); px(c, 24, 20, 'B');
+  px(c, 24, 21, 'B'); px(c, 24, 22, 'B'); px(c, 24, 23, 'B');
+  px(c, 24, 24, 'B'); px(c, 24, 25, 'B');
+  // Right neck
+  px(c, 35, 25, 'B'); px(c, 34, 24, 'B'); px(c, 33, 23, 'B');
+  px(c, 34, 26, 'B'); px(c, 33, 27, 'B'); px(c, 32, 28, 'B');
+  px(c, 32, 29, 'B'); px(c, 31, 30, 'B');
+  // Heads (oval each)
+  // Left head
+  ellipse(c, 13, 19, 4, 3, 'B');
+  px(c, 11, 19, 'E'); px(c, 13, 19, 'R'); // eye + glowing red
+  px(c, 14, 21, 'F'); // fang
+  // Center head
+  ellipse(c, 24, 14, 4, 3, 'B');
+  px(c, 22, 14, 'E'); px(c, 26, 14, 'E');
+  px(c, 22, 14, 'R'); px(c, 26, 14, 'R');
+  px(c, 23, 16, 'F'); px(c, 25, 16, 'F');
+  // Right head
+  ellipse(c, 35, 19, 4, 3, 'B');
+  px(c, 37, 19, 'E'); px(c, 35, 19, 'R');
+  px(c, 34, 21, 'F');
+  // Spikes on body
+  px(c, 18, 32, 'D'); px(c, 22, 31, 'D'); px(c, 26, 31, 'D'); px(c, 30, 32, 'D');
+  outline(c, 'o');
+  return c;
+}
+const HYDRA_PALETTE = {
+  o: '#040a04', B: '#1a5a28', b: '#2c8a40', D: '#0a3a14',
+  E: '#000000', R: '#ff3050', F: '#fff8c8',
+};
+
+// --- Roi Mort (Castle) — crowned skull ---
+function buildDeadKingCanvas() {
+  const c = makeCanvas(48, 48);
+  // Crown (top)
+  rect(c, 14, 8, 20, 4, 'G'); // crown band gold
+  rect(c, 14, 12, 20, 2, 'g'); // crown rim brighter
+  // Crown spikes
+  px(c, 16, 5, 'G'); px(c, 16, 6, 'G'); px(c, 16, 7, 'G');
+  px(c, 24, 3, 'G'); px(c, 24, 4, 'G'); px(c, 24, 5, 'G'); px(c, 24, 6, 'G'); px(c, 24, 7, 'G');
+  px(c, 32, 5, 'G'); px(c, 32, 6, 'G'); px(c, 32, 7, 'G');
+  // Spike gems
+  px(c, 16, 5, 'R'); px(c, 24, 3, 'R'); px(c, 32, 5, 'R');
+  // Central crown gem
+  rect(c, 22, 9, 5, 3, 'R'); px(c, 23, 10, 'r'); px(c, 25, 10, 'r');
+  // Skull
+  ellipse(c, 24, 24, 12, 11, 'S'); // skull base
+  ellipse(c, 23, 22, 10, 9, 's'); // highlight
+  // Eye sockets (dark hollows)
+  rect(c, 16, 20, 6, 6, 'E');
+  rect(c, 26, 20, 6, 6, 'E');
+  // Glowing eyes inside
+  rect(c, 18, 22, 2, 2, 'g'); // gold glow left
+  rect(c, 28, 22, 2, 2, 'g'); // gold glow right
+  // Nose triangle
+  px(c, 24, 27, 'E'); px(c, 23, 28, 'E'); px(c, 25, 28, 'E'); px(c, 24, 29, 'E');
+  // Teeth row
+  rect(c, 16, 32, 16, 4, 's');
+  // Tooth gaps
+  vline(c, 18, 32, 35, 'E');
+  vline(c, 22, 32, 35, 'E');
+  vline(c, 26, 32, 35, 'E');
+  vline(c, 30, 32, 35, 'E');
+  // Cheek shadows
+  px(c, 13, 28, 's'); px(c, 35, 28, 's');
+  // Crack on forehead
+  px(c, 22, 17, 'E'); px(c, 21, 18, 'E'); px(c, 22, 19, 'E');
+  outline(c, 'o');
+  return c;
+}
+const DEAD_KING_PALETTE = {
+  o: '#080608', S: '#d8d4c0', s: '#f5f0d8', E: '#0a0612',
+  G: '#c89020', g: '#ffe14a', R: '#a02030', r: '#ff5060',
+};
+
+// --- Seigneur Démon (Hell) — horned demon head with glowing eyes ---
+function buildDemonLordCanvas() {
+  const c = makeCanvas(48, 48);
+  // Horns (curved up and out)
+  // Left horn
+  px(c, 13, 4, 'H'); px(c, 12, 5, 'H'); px(c, 11, 6, 'H'); px(c, 11, 7, 'H');
+  px(c, 12, 8, 'H'); px(c, 13, 9, 'H'); px(c, 14, 10, 'H');
+  px(c, 13, 5, 'h'); px(c, 12, 6, 'h'); // highlight
+  // Right horn
+  px(c, 34, 4, 'H'); px(c, 35, 5, 'H'); px(c, 36, 6, 'H'); px(c, 36, 7, 'H');
+  px(c, 35, 8, 'H'); px(c, 34, 9, 'H'); px(c, 33, 10, 'H');
+  px(c, 34, 5, 'h');
+  // Head silhouette (rounded with pointed chin)
+  ellipse(c, 24, 22, 12, 11, 'D'); // dark red base
+  ellipse(c, 23, 20, 10, 9, 'd');  // mid red highlight
+  // Top highlights (lit from above)
+  ellipse(c, 22, 16, 6, 3, 'r');
+  // Chin point
+  px(c, 23, 33, 'D'); px(c, 24, 33, 'D'); px(c, 25, 33, 'D');
+  px(c, 24, 34, 'D');
+  // Eyes (deep set, glowing red)
+  rect(c, 16, 19, 5, 4, 'E');
+  rect(c, 27, 19, 5, 4, 'E');
+  // Eye glow
+  px(c, 17, 20, 'F'); px(c, 18, 20, 'F'); px(c, 19, 20, 'F'); px(c, 20, 20, 'F');
+  px(c, 28, 20, 'F'); px(c, 29, 20, 'F'); px(c, 30, 20, 'F'); px(c, 31, 20, 'F');
+  // Eye pupils (white-hot core)
+  px(c, 18, 21, 'W'); px(c, 19, 21, 'W');
+  px(c, 29, 21, 'W'); px(c, 30, 21, 'W');
+  // Brow ridge (dark V)
+  hline(c, 14, 33, 17, 'E');
+  px(c, 22, 18, 'E'); px(c, 25, 18, 'E');
+  // Nose (subtle, two slits)
+  px(c, 23, 25, 'E'); px(c, 25, 25, 'E');
+  // Mouth (fanged grin)
+  hline(c, 18, 30, 28, 'E'); // mouth line
+  // Fangs (top + bottom)
+  px(c, 19, 29, 'W'); px(c, 21, 29, 'W');
+  px(c, 27, 29, 'W'); px(c, 29, 29, 'W');
+  // Goatee chin
+  px(c, 24, 31, 'E'); px(c, 23, 32, 'E'); px(c, 25, 32, 'E');
+  outline(c, 'o');
+  return c;
+}
+const DEMON_LORD_PALETTE = {
+  o: '#080000', D: '#5a0a18', d: '#a02030', r: '#e84858',
+  H: '#1a0a08', h: '#3a1408',
+  E: '#0a0204', F: '#ff5030', W: '#fff080',
+};
+
+// --- Maître du Néant (Void) — colossal eye with tentacles ---
+function buildVoidMasterCanvas() {
+  const c = makeCanvas(48, 48);
+  // Outer void aura (dark sphere)
+  ellipse(c, 24, 24, 18, 18, 'V');
+  ellipse(c, 24, 23, 16, 16, 'v');
+  // Eye sclera (white)
+  ellipse(c, 24, 24, 11, 9, 'W');
+  // Iris (purple swirl)
+  ellipse(c, 24, 24, 7, 7, 'P');
+  ellipse(c, 24, 24, 5, 5, 'p');
+  // Pupil (vertical slit)
+  rect(c, 23, 19, 2, 11, 'E');
+  // Pupil highlight
+  px(c, 23, 20, 'X');
+  // Tentacles (4 directions, organic curves)
+  // Top
+  px(c, 22, 5, 'V'); px(c, 23, 6, 'v'); px(c, 24, 7, 'V'); px(c, 25, 7, 'v');
+  px(c, 22, 6, 'v'); px(c, 21, 7, 'V');
+  // Bottom
+  px(c, 22, 43, 'V'); px(c, 23, 42, 'v'); px(c, 24, 41, 'V'); px(c, 25, 42, 'v');
+  px(c, 21, 42, 'V'); px(c, 26, 43, 'V');
+  // Left
+  px(c, 5, 22, 'V'); px(c, 6, 23, 'v'); px(c, 7, 24, 'V'); px(c, 7, 25, 'v');
+  px(c, 6, 26, 'V');
+  // Right
+  px(c, 43, 22, 'V'); px(c, 42, 23, 'v'); px(c, 41, 24, 'V'); px(c, 41, 25, 'v');
+  px(c, 42, 26, 'V');
+  // Diagonal smaller tentacles
+  px(c, 9, 9, 'V'); px(c, 10, 10, 'V');
+  px(c, 39, 9, 'V'); px(c, 38, 10, 'V');
+  px(c, 9, 39, 'V'); px(c, 10, 38, 'V');
+  px(c, 39, 39, 'V'); px(c, 38, 38, 'V');
+  // Sparkles around (cosmic vibe)
+  px(c, 6, 12, 'X'); px(c, 42, 14, 'X');
+  px(c, 4, 28, 'X'); px(c, 44, 30, 'X');
+  px(c, 11, 4, 'X'); px(c, 36, 6, 'X');
+  outline(c, 'o');
+  return c;
+}
+const VOID_MASTER_PALETTE = {
+  o: '#040214', V: '#1a0838', v: '#3a1858',
+  W: '#e8e0f8', P: '#7028a0', p: '#a058e0',
+  E: '#000000', X: '#ffffff',
+};
+
+// === Boss registry ===
+// Maps biome boss names → { canvas, palette }. Built once at module load.
+const BOSS_SPRITES = {
+  'Roi Sylvain':            { canvas: buildSylvainKingCanvas(), palette: SYLVAIN_KING_PALETTE },
+  'Hydre des Profondeurs':  { canvas: buildHydraCanvas(),       palette: HYDRA_PALETTE },
+  'Roi Mort':               { canvas: buildDeadKingCanvas(),    palette: DEAD_KING_PALETTE },
+  'Seigneur Démon':         { canvas: buildDemonLordCanvas(),   palette: DEMON_LORD_PALETTE },
+  'Maître du Néant':        { canvas: buildVoidMasterCanvas(),  palette: VOID_MASTER_PALETTE },
+};
+// Pre-render each boss to a cached rects string
+const BOSS_RECTS = {};
+for (const [name, def] of Object.entries(BOSS_SPRITES)) {
+  BOSS_RECTS[name] = gridToRects(canvasToLayout(def.canvas), def.palette);
+}
+
+export function hasBossSprite(monsterName) {
+  return !!BOSS_SPRITES[monsterName];
+}
+
+export function bossSpriteSVG(monsterName, sizePx = 96) {
+  const def = BOSS_SPRITES[monsterName];
+  if (!def) return '';
+  const rects = BOSS_RECTS[monsterName];
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="${sizePx}" height="${sizePx}" shape-rendering="crispEdges" style="image-rendering: pixelated;">${rects}</svg>`;
+}

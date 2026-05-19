@@ -18,7 +18,7 @@ import { SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, TALENT_CATEGORIES, TALENT_MAST
 import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talents.js';
 import { SKILLS, getActiveSkills } from './skills.js';
 import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
-import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG } from './sprites.js';
+import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { getCompositionLayers } from './parts.js';
 
 // === Item icon helpers ===
@@ -445,7 +445,15 @@ function renderDungeon() {
   card.classList.toggle('elite', !!monster.isElite);
   // Apply biome background to the monster card
   card.style.background = biome.bgGradient;
-  document.getElementById('monster-emoji').textContent = monster.emoji;
+  // Use pixel-art boss sprite when available, fall back to emoji otherwise
+  const monsterEl = document.getElementById('monster-emoji');
+  if (monster.isBoss && hasBossSprite(monster.name)) {
+    monsterEl.innerHTML = bossSpriteSVG(monster.name, 96);
+    monsterEl.classList.add('monster-sprite');
+  } else {
+    monsterEl.textContent = monster.emoji;
+    monsterEl.classList.remove('monster-sprite');
+  }
   document.getElementById('monster-name').innerHTML = monster.isElite
     ? `${monster.eliteIcon || '⭐'} <span class="monster-name-elite">${monster.name}</span>`
     : monster.name;
