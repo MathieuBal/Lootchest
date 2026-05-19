@@ -7,6 +7,7 @@ import {
 } from './data.js';
 import { state } from './state.js';
 import { rollWeaponParts, hasCompositionFor, recomputePartStats } from './parts.js';
+import { rollMaterial, rollMaterialStats, materialStatSource, mergeMaterialStats, MATERIALS } from './materials.js';
 import { rareDropMultiplier, pityReduction } from './talents.js';
 import { trackProgress as bountyTrack } from './bounties.js';
 
@@ -81,11 +82,38 @@ function scaleBaseStats(baseStats, chestTier, rarity) {
   return result;
 }
 
-function makeName(baseType, rarity) {
-  if (rarity === 'common') return baseType.name;
-  if (rarity === 'magic') return `${pickRandom(NAME_PREFIXES)} ${baseType.name}`;
-  // rare+ get prefix + suffix
-  return `${pickRandom(NAME_PREFIXES)} ${baseType.name} ${pickRandom(NAME_SUFFIXES)}`;
+// Re-derive a material's contribution using its stored d20 (preserves the
+// material's roll quality across rebuilds/rescales). Pushes stats into
+// baseStats and a statSource entry. No-op if the item has no material.
+function applyMaterialContribution(item, baseStats, statSources) {
+  if (!item.material) return;
+  const mat = MATERIALS[item.material.id];
+  if (!mat) return;
+  const statMult = RARITY_BY_ID[item.rarity].statMult;
+  const d20 = item.material.d20 || 10;
+  const t = (d20 - 1) / 19;
+  const stats = {};
+  for (const [stat, [min, max]] of Object.entries(mat.statBias || {})) {
+    stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * item.chestTier * statMult));
+  }
+  mergeMaterialStats(baseStats, stats);
+  if (Object.keys(stats).length > 0) {
+    statSources.push({
+      sourceType: 'material',
+      sourceId: mat.id,
+      label: mat.name,
+      stats,
+      quality: t,
+    });
+  }
+}
+
+function makeName(baseType, rarity, material) {
+  const matSuffix = material ? ` ${material.adjective}` : '';
+  if (rarity === 'common') return `${baseType.name}${matSuffix}`;
+  if (rarity === 'magic') return `${pickRandom(NAME_PREFIXES)} ${baseType.name}${matSuffix}`;
+  // rare+ get prefix + suffix; the material adjective goes between them
+  return `${pickRandom(NAME_PREFIXES)} ${baseType.name}${matSuffix} ${pickRandom(NAME_SUFFIXES)}`;
 }
 
 function computeGoldValue(rarity, chestTier) {
@@ -165,6 +193,8 @@ export function rebuildItemAffixesAndStats(item) {
     item.parts = parts;
     item.baseStats = baseStats;
     item.statSources = statSources;
+    // Preserve material identity (don't re-roll which material) but rescale its contribution.
+    applyMaterialContribution(item, item.baseStats, item.statSources);
   } else {
     item.baseStats = scaleBaseStats(baseType.baseStats, item.chestTier, item.rarity);
   }
@@ -172,7 +202,8 @@ export function rebuildItemAffixesAndStats(item) {
   item.goldValue = computeGoldValue(item.rarity, item.chestTier);
   // Regenerate name for regular items only; set/unique names are preserved.
   if (!item.setId && !item.uniqueId) {
-    item.name = makeName(baseType, item.rarity);
+    const mat = item.material ? MATERIALS[item.material.id] : null;
+    item.name = makeName(baseType, item.rarity, mat);
   }
 }
 
@@ -185,7 +216,8 @@ export function rebuildItemAffixesOnly(item) {
 export const rerollAffixesOnly = rebuildItemAffixesOnly;
 
 // Re-roll part VALUES (d20) but keep the same variants → same visual identity,
-// new stat numbers. Affixes are untouched. No-op for uniques/non-composed items.
+// new stat numbers. Material identity preserved (stats re-derived). Affixes
+// are untouched. No-op for uniques/non-composed items.
 export function rerollPartValuesOnly(item) {
   if (item.uniqueId) return;
   if (!item.parts || !hasCompositionFor(item.baseTypeId)) return;
@@ -195,10 +227,11 @@ export function rerollPartValuesOnly(item) {
   item.parts = parts;
   item.baseStats = baseStats;
   item.statSources = statSources;
+  applyMaterialContribution(item, item.baseStats, item.statSources);
 }
 
 // Re-roll parts (which variants are picked) AND their values → visual changes.
-// Affixes are untouched. No-op for uniques/non-composed items.
+// Material identity preserved. Affixes untouched.
 export function rerollPartsAndVisuals(item) {
   if (item.uniqueId) return;
   if (!item.parts || !hasCompositionFor(item.baseTypeId)) return;
@@ -207,6 +240,7 @@ export function rerollPartsAndVisuals(item) {
   item.parts = parts;
   item.baseStats = baseStats;
   item.statSources = statSources;
+  applyMaterialContribution(item, item.baseStats, item.statSources);
 }
 
 // Rescale an item to a new tier WITHOUT touching its identity (same parts
@@ -234,6 +268,7 @@ export function rescaleItemToTier(item, newTier) {
     item.parts = parts;
     item.baseStats = baseStats;
     item.statSources = statSources;
+    applyMaterialContribution(item, item.baseStats, item.statSources);
   } else {
     const baseType = BASE_TYPES[item.slot].find(b => b.id === item.baseTypeId);
     if (baseType) item.baseStats = scaleBaseStats(baseType.baseStats, newTier, item.rarity);
@@ -287,6 +322,13 @@ function buildRegularItem(chestTier, rarity) {
   if (hasCompositionFor(baseType.id)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
     const { parts, baseStats, statSources } = rollWeaponParts(baseType.id, chestTier, statMult);
+    // Material — second identity layer, adds stats + appears in tooltip/name.
+    const material = rollMaterial(chestTier, rarity);
+    const matRolled = rollMaterialStats(material, chestTier, statMult);
+    mergeMaterialStats(baseStats, matRolled.stats);
+    if (Object.keys(matRolled.stats).length > 0) {
+      statSources.push(materialStatSource(material, matRolled));
+    }
     const affixes = rollAffixes(rarity, chestTier);
     return {
       id: nextId(),
@@ -294,13 +336,14 @@ function buildRegularItem(chestTier, rarity) {
       baseTypeId: baseType.id,
       emoji: baseType.emoji,
       rarity,
-      name: makeName(baseType, rarity),
+      name: makeName(baseType, rarity, material),
       baseStats,
       affixes,
       goldValue: computeGoldValue(rarity, chestTier),
       chestTier,
       parts,
       statSources,
+      material: { id: material.id, name: material.name, d20: matRolled.d20 },
     };
   }
 
@@ -372,6 +415,14 @@ function buildSetPiece(chestTier, rarity) {
   if (hasCompositionFor(piece.baseTypeId)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
     const rolled = rollWeaponParts(piece.baseTypeId, chestTier, statMult);
+    // Material — set pieces keep their canonical name (the set's identity) but
+    // still benefit from material stat bonuses + tooltip explanation.
+    const material = rollMaterial(chestTier, rarity);
+    const matRolled = rollMaterialStats(material, chestTier, statMult);
+    mergeMaterialStats(rolled.baseStats, matRolled.stats);
+    if (Object.keys(matRolled.stats).length > 0) {
+      rolled.statSources.push(materialStatSource(material, matRolled));
+    }
     const affixes = rollAffixes(rarity, chestTier);
     return {
       id: nextId(),
@@ -388,6 +439,7 @@ function buildSetPiece(chestTier, rarity) {
       setName: set.name,
       parts: rolled.parts,
       statSources: rolled.statSources,
+      material: { id: material.id, name: material.name, d20: matRolled.d20 },
     };
   }
 
