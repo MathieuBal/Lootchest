@@ -153,3 +153,76 @@ export function mergeMaterialStats(baseStats, materialStats) {
     baseStats[k] = (baseStats[k] || 0) + v;
   }
 }
+
+// === Material RENDER palettes (phase 4A) ===
+// 6-color palette per material, keyed by role (outline/shadow/mid/light/
+// highlight/accent). Used to retint the metal pixels of weapon/armor parts
+// so that "Hache en Or" and "Hache en Obsidienne" actually look different.
+//
+// Non-metal parts (wood handles, leather grips, cloth tunics) are not
+// affected — they don't declare a `roles` mapping.
+export const MATERIAL_RENDER_PALETTES = {
+  iron: {
+    outline: '#171821', shadow: '#343746', mid: '#676b7f',
+    light: '#9ca3b8', highlight: '#d5d9e8', accent: '#f4f6ff',
+  },
+  bronze: {
+    outline: '#2e1708', shadow: '#6a3514', mid: '#a96524',
+    light: '#d58d38', highlight: '#f5bd68', accent: '#ffe4a0',
+  },
+  bone: {
+    outline: '#30281d', shadow: '#6d6048', mid: '#a99876',
+    light: '#d7c7a4', highlight: '#f1e8cf', accent: '#fff8e8',
+  },
+  steel: {
+    outline: '#121722', shadow: '#344456', mid: '#6e8095',
+    light: '#a9bbcf', highlight: '#dce8f6', accent: '#ffffff',
+  },
+  silver: {
+    outline: '#181824', shadow: '#48485c', mid: '#898ba0',
+    light: '#c8c9d8', highlight: '#f2f2ff', accent: '#ffffff',
+  },
+  obsidian: {
+    outline: '#040208', shadow: '#12091b', mid: '#291738',
+    light: '#52306d', highlight: '#8e5ad1', accent: '#d7a8ff',
+  },
+  gold: {
+    outline: '#392208', shadow: '#784812', mid: '#c08320',
+    light: '#efc342', highlight: '#ffe78a', accent: '#fff6c8',
+  },
+  crystal: {
+    outline: '#0d2a3a', shadow: '#1d5a70', mid: '#35a4c8',
+    light: '#78dcf2', highlight: '#c8f8ff', accent: '#ffffff',
+  },
+  mithril: {
+    outline: '#162232', shadow: '#354f70', mid: '#6e95c3',
+    light: '#a9ccf0', highlight: '#dcf2ff', accent: '#ffffff',
+  },
+  dragonbone: {
+    outline: '#351c12', shadow: '#6c3c2a', mid: '#af7350',
+    light: '#ddb08b', highlight: '#f2d8b8', accent: '#ffb066',
+  },
+};
+
+// Roles that get replaced by the material's palette. Other roles (gem, rune,
+// elemental glow) are kept from the part's original palette.
+export const RETINT_ROLES = new Set(['outline', 'shadow', 'mid', 'light', 'highlight', 'accent']);
+
+/**
+ * Build a per-render palette by substituting the part's role-mapped codes
+ * with the material's matching colors. Codes without a role or with a role
+ * outside RETINT_ROLES are preserved from the original palette.
+ * Returns the original palette unchanged if no material or no roles.
+ */
+export function applyMaterialToPalette(palette, roles, materialId) {
+  if (!materialId || !roles) return palette;
+  const matPal = MATERIAL_RENDER_PALETTES[materialId];
+  if (!matPal) return palette;
+  const result = { ...palette };
+  for (const [code, role] of Object.entries(roles)) {
+    if (RETINT_ROLES.has(role) && matPal[role]) {
+      result[code] = matPal[role];
+    }
+  }
+  return result;
+}

@@ -575,7 +575,7 @@ export function composeCharacterWithGearSVG(equipment, sizePx = 120) {
     const pos = slotPositions[step.slot];
     if (!pos) continue;
     if (item.parts && hasCompositionFor(item.baseTypeId)) {
-      const layers = getCompositionLayers(item.baseTypeId, item.parts);
+      const layers = getCompositionLayers(item.baseTypeId, item.parts, item.material?.id);
       const innerParts = [];
       for (const layer of layers) innerParts.push(gridToRects(layer.layout, layer.palette));
       parts.push(`<g transform="translate(${pos.x},${pos.y}) scale(2)">${innerParts.join('')}</g>`);

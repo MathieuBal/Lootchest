@@ -63,7 +63,7 @@ function setBadgeHTML(item, big) {
 
 function itemVisualHTML(item, big = false) {
   if (item.parts) {
-    const layers = getCompositionLayers(item.baseTypeId, item.parts);
+    const layers = getCompositionLayers(item.baseTypeId, item.parts, item.material?.id);
     return composedSpriteSVG(layers, big ? 64 : 40);
   }
   return item.emoji || '❔';
