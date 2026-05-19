@@ -351,7 +351,12 @@ export function attemptCurrentFloor() {
         milestone = { floor, level, reward };
       }
     }
-    state.combat.currentFloor = floor + 1;
+    // Stay on the same floor when looping a beaten floor; otherwise advance.
+    // (Loop mode is meant to farm the current floor, not push forward.)
+    const wasBeatenFloor = !advanced; // !advanced ↔ floor was already in highestUnlocked range
+    if (!(state.combat.loopMode && wasBeatenFloor)) {
+      state.combat.currentFloor = floor + 1;
+    }
   } else {
     state.combat.deaths += 1;
   }
