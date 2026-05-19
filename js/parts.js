@@ -10,7 +10,7 @@
 
 import { applyMaterialToPalette } from './materials.js';
 import { getElementOverlayLayer } from './elements.js';
-import { HD_WEAPON_PARTS, hasHDCompositionFor } from './partsHD.js';
+import { HD_WEAPON_PARTS, hasHDCompositionFor, getHDElementOverlayLayer } from './partsHD.js';
 
 // === Auto-infer metal roles from a palette by sorting colors by luminance.
 // Darkest → outline, brightest → highlight. Used to bulk-annotate every
@@ -3226,12 +3226,11 @@ export function getCompositionLayers(weaponBaseTypeId, parts, materialId = null,
     layers.push({ layout: v.layout, palette });
   }
   // Element overlay layer (drawn last so its signature pixels stay on top).
-  // Skipped in HD mode for now — overlays are 16×16 sparse, would need
-  // dedicated 64×64 versions to align with HD parts. TODO: HD overlays.
-  if (!hd) {
-    const elementOverlay = getElementOverlayLayer(weaponBaseTypeId, elementId);
-    if (elementOverlay) layers.push(elementOverlay);
-  }
+  // HD has dedicated 64×64 overlays; legacy uses the 16×16 ones.
+  const elementOverlay = hd
+    ? getHDElementOverlayLayer(weaponBaseTypeId, elementId)
+    : getElementOverlayLayer(weaponBaseTypeId, elementId);
+  if (elementOverlay) layers.push(elementOverlay);
   return layers;
 }
 

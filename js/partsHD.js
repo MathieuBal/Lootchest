@@ -335,3 +335,171 @@ export const HD_WEAPON_PARTS = {
 export function hasHDCompositionFor(weaponBaseTypeId) {
   return !!HD_WEAPON_PARTS[weaponBaseTypeId];
 }
+
+// === HD element overlays (phase 4H) ===
+// Sparse 64×64 layouts that paint elemental signature pixels ON TOP of the
+// composed HD weapon. Centered on the typical blade region (cols 26-37,
+// rows 4-38) so they read cleanly regardless of blade variant.
+
+const HD_OVERLAY_PALETTES = {
+  fire:      { d: '#7a1a08', m: '#ff6728', l: '#ffb347', g: '#fff0a8' },
+  frost:     { d: '#145070', m: '#54cfff', l: '#b8f4ff', g: '#ffffff' },
+  poison:    { d: '#174f18', m: '#4bc84a', l: '#a8ff6a', g: '#eaffc8' },
+  lightning: { d: '#8a6400', m: '#ffd33d', l: '#fff08a', g: '#ffffff' },
+  void:      { d: '#210840', m: '#6d34d7', l: '#a66cff', g: '#f0ddff' },
+};
+
+// --- Fire: bright glow at tip + embers along blade edges + floating sparks ---
+function buildHDOverlayFire() {
+  const c = makeCanvas(64, 64);
+  // Tip halo
+  px(c, 31, 4, 'g'); px(c, 32, 4, 'g');
+  px(c, 30, 5, 'g'); px(c, 31, 5, 'l'); px(c, 32, 5, 'l'); px(c, 33, 5, 'g');
+  px(c, 30, 6, 'l'); px(c, 33, 6, 'l');
+  // Left edge embers
+  px(c, 27, 10, 'm'); px(c, 26, 11, 'd');
+  px(c, 28, 14, 'l'); px(c, 27, 15, 'm');
+  px(c, 28, 19, 'm'); px(c, 27, 20, 'd');
+  px(c, 28, 24, 'l');
+  px(c, 27, 29, 'm'); px(c, 28, 30, 'd');
+  px(c, 28, 34, 'l'); px(c, 27, 35, 'm');
+  // Right edge embers
+  px(c, 36, 11, 'l'); px(c, 37, 12, 'm');
+  px(c, 35, 16, 'm');
+  px(c, 36, 21, 'l'); px(c, 37, 22, 'd');
+  px(c, 35, 26, 'm');
+  px(c, 36, 31, 'l'); px(c, 37, 32, 'm');
+  px(c, 35, 36, 'd');
+  // Floating embers (off-blade sparks)
+  px(c, 24, 8, 'g'); px(c, 25, 9, 'l');
+  px(c, 39, 13, 'g'); px(c, 38, 14, 'l');
+  px(c, 23, 18, 'g'); px(c, 40, 23, 'g');
+  px(c, 22, 28, 'l'); px(c, 41, 30, 'l');
+  return canvasToLayout(c);
+}
+
+// --- Frost: ice crystals along the blade + sparkles ---
+function buildHDOverlayFrost() {
+  const c = makeCanvas(64, 64);
+  // Tip crystal cluster
+  px(c, 30, 4, 'g'); px(c, 32, 4, 'g'); px(c, 31, 5, 'g');
+  px(c, 29, 6, 'l'); px(c, 33, 6, 'l');
+  px(c, 30, 7, 'm'); px(c, 32, 7, 'm');
+  // Crystals on left edge (4-pixel snowflake shapes)
+  px(c, 27, 12, 'l'); px(c, 26, 13, 'g'); px(c, 27, 14, 'l');
+  px(c, 26, 19, 'l'); px(c, 27, 20, 'g');
+  px(c, 28, 25, 'l'); px(c, 27, 26, 'g'); px(c, 28, 27, 'l');
+  px(c, 27, 32, 'm'); px(c, 26, 33, 'l');
+  // Crystals on right edge
+  px(c, 36, 11, 'g'); px(c, 37, 12, 'l');
+  px(c, 36, 17, 'l'); px(c, 37, 18, 'g'); px(c, 36, 19, 'l');
+  px(c, 35, 23, 'm');
+  px(c, 36, 29, 'l'); px(c, 37, 30, 'g');
+  px(c, 36, 34, 'm'); px(c, 35, 35, 'l');
+  // Floating snowflakes
+  px(c, 22, 14, 'g'); px(c, 41, 19, 'g');
+  px(c, 23, 27, 'g'); px(c, 40, 31, 'g');
+  px(c, 21, 8, 'l'); px(c, 42, 12, 'l');
+  return canvasToLayout(c);
+}
+
+// --- Poison: green droplets dripping along the blade ---
+function buildHDOverlayPoison() {
+  const c = makeCanvas(64, 64);
+  // Tip drip
+  px(c, 31, 6, 'l'); px(c, 32, 6, 'l');
+  px(c, 31, 7, 'm'); px(c, 32, 7, 'g');
+  // Left edge droplets
+  px(c, 28, 12, 'm'); px(c, 27, 13, 'l'); px(c, 28, 14, 'g');
+  px(c, 27, 19, 'm'); px(c, 28, 20, 'l');
+  px(c, 28, 25, 'l'); px(c, 27, 26, 'm'); px(c, 28, 27, 'g');
+  px(c, 27, 32, 'l');
+  // Right edge droplets
+  px(c, 35, 11, 'l'); px(c, 36, 12, 'm');
+  px(c, 36, 17, 'l'); px(c, 35, 18, 'g'); px(c, 36, 19, 'm');
+  px(c, 35, 24, 'm');
+  px(c, 36, 29, 'l'); px(c, 35, 30, 'g'); px(c, 36, 31, 'm');
+  px(c, 35, 35, 'l');
+  // Center oozing
+  px(c, 31, 16, 'm'); px(c, 32, 24, 'm');
+  // Falling droplets below the blade
+  px(c, 30, 40, 'g'); px(c, 33, 42, 'g');
+  return canvasToLayout(c);
+}
+
+// --- Lightning: yellow zigzag arcing through the blade ---
+function buildHDOverlayLightning() {
+  const c = makeCanvas(64, 64);
+  // Top glow
+  px(c, 31, 4, 'g'); px(c, 32, 4, 'g');
+  // Zigzag path from tip down to bottom (alternating left-right)
+  const path = [
+    [31, 6], [30, 7], [31, 8], [32, 9], [33, 10],
+    [32, 12], [31, 13], [30, 14], [31, 16],
+    [32, 17], [33, 18], [34, 19], [33, 21], [32, 22],
+    [31, 23], [30, 25], [31, 26], [32, 27], [33, 28],
+    [32, 30], [31, 31], [30, 33], [31, 34], [32, 35],
+  ];
+  for (const [x, y] of path) px(c, x, y, 'l');
+  // Bright core pixels at corners (where the zigzag changes direction)
+  px(c, 30, 7, 'g'); px(c, 33, 10, 'g'); px(c, 34, 19, 'g');
+  px(c, 30, 25, 'g'); px(c, 30, 33, 'g');
+  // Mid color glow around the path
+  for (const [x, y] of path) {
+    if (x > 26) px(c, x - 1, y, 'm');
+    if (x < 37) px(c, x + 1, y, 'm');
+  }
+  // Floating sparks
+  px(c, 24, 14, 'g'); px(c, 39, 20, 'g');
+  px(c, 22, 27, 'l'); px(c, 41, 32, 'l');
+  return canvasToLayout(c);
+}
+
+// --- Void: dark purple sparkles + tendrils + central glow ---
+function buildHDOverlayVoid() {
+  const c = makeCanvas(64, 64);
+  // Tip dark halo
+  px(c, 31, 5, 'g'); px(c, 32, 5, 'g');
+  px(c, 30, 6, 'l'); px(c, 31, 6, 'd'); px(c, 32, 6, 'd'); px(c, 33, 6, 'l');
+  px(c, 31, 7, 'm'); px(c, 32, 7, 'm');
+  // Central void core (mid-blade)
+  px(c, 31, 20, 'd'); px(c, 32, 20, 'd');
+  px(c, 30, 21, 'l'); px(c, 31, 21, 'd'); px(c, 32, 21, 'd'); px(c, 33, 21, 'l');
+  px(c, 30, 22, 'l'); px(c, 31, 22, 'g'); px(c, 32, 22, 'g'); px(c, 33, 22, 'l');
+  px(c, 31, 23, 'd'); px(c, 32, 23, 'd');
+  // Tendrils along edges
+  px(c, 27, 12, 'm'); px(c, 28, 13, 'l');
+  px(c, 36, 14, 'm'); px(c, 35, 15, 'l');
+  px(c, 28, 28, 'l'); px(c, 27, 29, 'm');
+  px(c, 35, 30, 'l'); px(c, 36, 31, 'm');
+  // Sparkles in air
+  px(c, 23, 10, 'g'); px(c, 41, 14, 'g');
+  px(c, 22, 22, 'l'); px(c, 42, 26, 'l');
+  px(c, 24, 32, 'g'); px(c, 40, 34, 'g');
+  return canvasToLayout(c);
+}
+
+const HD_ELEMENT_OVERLAYS = {
+  sword: {
+    fire:      buildHDOverlayFire(),
+    frost:     buildHDOverlayFrost(),
+    poison:    buildHDOverlayPoison(),
+    lightning: buildHDOverlayLightning(),
+    void:      buildHDOverlayVoid(),
+  },
+};
+
+/**
+ * Return the HD overlay layer for the given weapon type + element, or null.
+ * Mirrors getElementOverlayLayer in elements.js but for 64×64 sources.
+ */
+export function getHDElementOverlayLayer(weaponBaseTypeId, elementId) {
+  if (!elementId || elementId === 'none') return null;
+  const overlays = HD_ELEMENT_OVERLAYS[weaponBaseTypeId];
+  if (!overlays) return null;
+  const layout = overlays[elementId];
+  if (!layout) return null;
+  const palette = HD_OVERLAY_PALETTES[elementId];
+  if (!palette) return null;
+  return { layout, palette, kind: 'element-overlay', elementId };
+}
