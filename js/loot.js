@@ -10,6 +10,7 @@ import { rollWeaponParts, hasCompositionFor, recomputePartStats } from './parts.
 import { rollMaterial, rollMaterialStats, materialStatSource, mergeMaterialStats, MATERIALS } from './materials.js';
 import { rollElement, rollElementStats, elementStatSource, mergeElementStats, ELEMENTS } from './elements.js';
 import { rollFaction, rollFactionStats, factionStatSource, mergeFactionStats, FACTIONS } from './factions.js';
+import { rollLegendaryEffect } from './legendaryEffects.js';
 import { rareDropMultiplier, pityReduction } from './talents.js';
 import { trackProgress as bountyTrack } from './bounties.js';
 
@@ -370,7 +371,7 @@ function buildRegularItem(chestTier, rarity) {
     mergeElementStats(baseStats, elemRolled.stats);
     if (Object.keys(elemRolled.stats).length > 0) statSources.push(elementStatSource(element, elemRolled));
     const affixes = rollAffixes(rarity, chestTier);
-    return {
+    const item = {
       id: nextId(),
       slot,
       baseTypeId: baseType.id,
@@ -387,6 +388,10 @@ function buildRegularItem(chestTier, rarity) {
       element:  { id: element.id,  name: element.name,  d20: elemRolled.d20 },
       faction:  { id: faction.id,  name: faction.name,  d20: factionRolled.d20 },
     };
+    // Legendary effect — 30% on legendary, 80% on ancestral, tag-gated.
+    const effect = rollLegendaryEffect(item);
+    if (effect) item.legendaryEffect = { id: effect.id, name: effect.name };
+    return item;
   }
 
   const baseStats = scaleBaseStats(baseType.baseStats, chestTier, rarity);

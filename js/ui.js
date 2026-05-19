@@ -19,6 +19,7 @@ import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talen
 import { SKILLS, getActiveSkills } from './skills.js';
 import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
+import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
 import { getCompositionLayers } from './parts.js';
 
 // === Item icon helpers ===
@@ -123,6 +124,12 @@ export function itemDetailsHTML(item) {
     }
   }
   const flavor = item.flavor ? `<div class="tt-flavor">"${item.flavor}"</div>` : '';
+  // Legendary effect block (rare drop on legendary+ items, with behavior text)
+  let legendaryBlock = '';
+  if (item.legendaryEffect) {
+    const eff = LEGENDARY_EFFECTS[item.legendaryEffect.id];
+    if (eff) legendaryBlock = `<div class="tt-legendary-effect"><span class="tt-le-title">✦ ${eff.name}</span><span class="tt-le-desc">${eff.desc}</span></div>`;
+  }
   const power = Math.round(itemPowerContribution(item));
   return `
     <div class="tt-name rt-${r.cssClass}">${item.name}${uniqueBadge}</div>
@@ -131,6 +138,7 @@ export function itemDetailsHTML(item) {
     ${baseLines}
     ${affixLines}
     ${sourcesHTML(item)}
+    ${legendaryBlock}
     ${flavor}
     <div class="tt-power">⚡ Puissance : ${power.toLocaleString('fr-FR')}</div>
     <div class="tt-value">💰 ${item.goldValue} or · 💎 ${shardYield(item)} ${r.name}</div>

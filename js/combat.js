@@ -5,6 +5,7 @@ import { PLAYER_BASE, biomeForFloor } from './data.js';
 import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
 import { buildSkillContext } from './skills.js';
+import { activeLegendaryEffectIds } from './legendaryEffects.js';
 import { trackProgress as bountyTrack, syncAbsoluteProgress as bountySync } from './bounties.js';
 
 export function isBossFloor(floor) {
@@ -95,6 +96,10 @@ export function resolveFight(monster) {
   let shadowDodgeCharge = false; // shadow_strike: next attack after dodge guarantees crit
   let demonPactReady = setEffectIds.has('demon_pact'); // first attack of combat hits ×3
 
+  // Active legendary effects (one per equipped legendary item)
+  const legendaryEffects = activeLegendaryEffectIds();
+  let bloodPactReady = legendaryEffects.has('bloodPact'); // mirror demon_pact for legendaries
+
   function runHook(hookName, ctx) {
     const results = [];
     for (const s of activeSkills) {
@@ -122,6 +127,14 @@ export function resolveFight(monster) {
       const before = pHp;
       pHp = Math.min(playerMaxHp, pHp + heal);
       events.push({ type: 'set_heal', amount: pHp - before, emoji: '🌿', playerHp: pHp, monsterHp: mHp });
+    }
+
+    // Legendary effect: searingTouch → 3% monster max HP burn each turn from t2 onward
+    if (legendaryEffects.has('searingTouch') && turns > 1 && mHp > 0) {
+      const burn = Math.max(1, Math.round(monsterMaxHp * 0.03));
+      mHp = Math.max(0, mHp - burn);
+      events.push({ type: 'legendary_burn', amount: burn, emoji: '🔥', monsterHp: mHp, playerHp: pHp });
+      if (mHp <= 0) break;
     }
 
     // Boss mechanic: triggers at turn start (regen / burn / shield / enrage / phaseShift)
@@ -197,11 +210,44 @@ export function resolveFight(monster) {
       extraMult *= 3;
       mults.push({ emoji: '👹', label: 'Pacte démoniaque' });
     }
+    // Legendary effect: bloodPact → first hit of combat does triple damage
+    // (stacks multiplicatively with demon_pact set if both equipped)
+    if (bloodPactReady) {
+      bloodPactReady = false;
+      extraMult *= 3;
+      mults.push({ emoji: '🩸', label: 'Pacte de Sang' });
+    }
     const isCrit = forceCrit || Math.random() < critChance;
     let hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + elemBonus * Math.random()) * extraMult);
     if (monsterShielded) hit = 0;
     mHp = Math.max(0, mHp - hit);
     events.push({ type: 'player_hit', dmg: hit, isCrit, forceCrit, monsterHp: mHp, playerHp: pHp, mults, blocked: monsterShielded });
+
+    // Legendary effect: chainLightning → on crit, a 50%-damage follow-up
+    if (legendaryEffects.has('chainLightning') && isCrit && hit > 0 && !monsterShielded) {
+      const followHit = Math.max(1, Math.round(hit * 0.5));
+      mHp = Math.max(0, mHp - followHit);
+      events.push({ type: 'player_hit', dmg: followHit, isCrit: false, monsterHp: mHp, playerHp: pHp,
+                    mults: [{ emoji: '⚡', label: 'Foudre en Chaîne' }] });
+      if (mHp <= 0) break;
+    }
+    // Legendary effect: voidEcho → 12% chance the attack repeats
+    if (legendaryEffects.has('voidEcho') && hit > 0 && !monsterShielded && Math.random() < 0.12) {
+      const echoHit = hit;
+      mHp = Math.max(0, mHp - echoHit);
+      events.push({ type: 'player_hit', dmg: echoHit, isCrit: false, monsterHp: mHp, playerHp: pHp,
+                    mults: [{ emoji: '🌑', label: 'Écho du Néant' }] });
+      if (mHp <= 0) break;
+    }
+    // Legendary effect: vampireMark → heal 8% of damage dealt
+    if (legendaryEffects.has('vampireMark') && hit > 0) {
+      const healed = Math.max(1, Math.round(hit * 0.08));
+      const before = pHp;
+      pHp = Math.min(playerMaxHp, pHp + healed);
+      if (pHp > before) {
+        events.push({ type: 'set_drain', amount: pHp - before, emoji: '🧛', playerHp: pHp, monsterHp: mHp });
+      }
+    }
 
     // Set effect: lich_drain → heal 10% of damage dealt
     if (setEffectIds.has('lich_drain') && hit > 0) {
@@ -325,6 +371,10 @@ export function attemptCurrentFloor() {
       }
     }
     monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier());
+    // Legendary effect: goldenTouch → +30% gold per kill (compounds with other multipliers)
+    if (activeLegendaryEffectIds().has('goldenTouch')) {
+      monster.goldReward = Math.round(monster.goldReward * 1.30);
+    }
     state.gold += monster.goldReward;
 
     // 🗝 Key drops: boss = 3 guaranteed, elite = 1 guaranteed, normal = 30% chance

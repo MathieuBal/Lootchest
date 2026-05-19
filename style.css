@@ -1151,6 +1151,20 @@ button, input, select {
 .tt-src-q    { color: var(--gold); font-family: monospace; letter-spacing: -1px; }
 .tt-src-stats { grid-column: 1 / -1; color: var(--text-dim); margin-top: 2px; }
 
+/* === Legendary effect block === */
+.tt-legendary-effect {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 8px 0 4px;
+  padding: 6px 8px;
+  background: linear-gradient(90deg, rgba(255, 122, 26, 0.12), transparent);
+  border: 1px solid var(--r-legendary);
+  font-size: 8px;
+}
+.tt-le-title { color: var(--r-legendary); font-weight: bold; }
+.tt-le-desc  { color: var(--text); line-height: 1.6; }
+
 /* === Affix prefix/suffix badges === */
 .affix-type {
   display: inline-block;
