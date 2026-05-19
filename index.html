@@ -32,15 +32,20 @@
       <button id="btn-talents" class="btn btn-small" title="Arbre de talents">🌳 <span id="talent-points-badge">0</span></button>
       <button id="btn-skills" class="btn btn-small" title="Compétences de combat">📜 <span id="skills-count-badge">0</span></button>
       <button id="btn-bounties" class="btn btn-small btn-primary" title="Contrats actifs">📋 <span id="bounties-badge">0</span></button>
-      <button id="btn-codex" class="btn btn-small" title="Codex de découvertes">📖</button>
+      <button id="btn-codex" class="btn btn-small" title="Codex de découvertes">📖 Codex</button>
       <button id="btn-forge" class="btn btn-small" title="Forge">⚒ Forge</button>
-      <button id="btn-ascend" class="btn btn-small" title="Ascension">🌟 Ascension</button>
-      <button id="btn-mute" class="btn btn-small" title="Couper le son">🔊</button>
-      <button id="btn-settings" class="btn btn-small" title="Paramètres">⚙</button>
-      <button id="btn-help" class="btn btn-small" title="Aide / Tutoriel">❓</button>
-      <button id="btn-export" class="btn btn-small">Exporter</button>
-      <button id="btn-import" class="btn btn-small">Importer</button>
-      <button id="btn-reset" class="btn btn-small btn-danger">Reset</button>
+      <button id="btn-ascend" class="btn btn-small" title="Ascension (débloqué T5 + étage 50)">🌟 Ascension</button>
+      <div class="hud-menu">
+        <button id="btn-menu" class="btn btn-small" title="Plus d'options" aria-haspopup="true" aria-expanded="false">⋯</button>
+        <div class="hud-menu-list hidden" id="hud-menu-list" role="menu">
+          <button id="btn-help" class="btn btn-small" role="menuitem">❓ Aide</button>
+          <button id="btn-mute" class="btn btn-small" role="menuitem">🔊 Son</button>
+          <button id="btn-settings" class="btn btn-small" role="menuitem">⚙ Paramètres</button>
+          <button id="btn-export" class="btn btn-small" role="menuitem">⬇ Exporter</button>
+          <button id="btn-import" class="btn btn-small" role="menuitem">⬆ Importer</button>
+          <button id="btn-reset" class="btn btn-small btn-danger" role="menuitem">⚠ Reset</button>
+        </div>
+      </div>
       <input type="file" id="file-import" accept="application/json" hidden />
     </div>
   </header>
@@ -318,7 +323,10 @@
     <div class="modal-inner">
       <div class="modal-header">
         <h2>❓ Comment jouer</h2>
-        <button class="btn btn-small modal-close" data-close="help-modal">✕</button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn btn-small" id="btn-replay-welcome" title="Revoir l'intro">🎓 Revoir l'intro</button>
+          <button class="btn btn-small modal-close" data-close="help-modal">✕</button>
+        </div>
       </div>
       <div class="help-body">
         <h3>📦 Coffre</h3>
@@ -394,6 +402,42 @@
 
   <!-- TOAST -->
   <div id="toast-container" class="toast-container"></div>
+
+  <!-- WELCOME MODAL (premier visite) -->
+  <div id="welcome-modal" class="modal hidden">
+    <div class="modal-inner modal-wide welcome-modal-inner">
+      <div class="welcome-hero">
+        <div class="welcome-emoji">⛓📦⛓</div>
+        <h1 class="welcome-title">Bienvenue dans Lootchest</h1>
+        <p class="welcome-tagline">Un RPG-looter pixel art. Chaque coffre est une promesse.</p>
+      </div>
+      <div class="welcome-steps">
+        <div class="welcome-step">
+          <div class="welcome-step-head"><span class="welcome-step-num">1</span><span class="welcome-step-emoji">🗝</span></div>
+          <h3>Ouvre des coffres</h3>
+          <p>Tu démarres avec <strong>10 clés</strong>. Clique <strong>Ouvrir le coffre</strong> pour looter des armes et armures.</p>
+        </div>
+        <div class="welcome-step">
+          <div class="welcome-step-head"><span class="welcome-step-num">2</span><span class="welcome-step-emoji">⚔️</span></div>
+          <h3>Équipe et combats</h3>
+          <p>Clique un objet pour l'<strong>équiper</strong>. Va dans <strong>Donjon</strong> et attaque pour gagner or, clés et items.</p>
+        </div>
+        <div class="welcome-step">
+          <div class="welcome-step-head"><span class="welcome-step-num">3</span><span class="welcome-step-emoji">📈</span></div>
+          <h3>Progresse</h3>
+          <p>Améliore ton coffre, débloque la <strong>Forge</strong>, les <strong>Talents</strong>, et grimpe les étages du donjon.</p>
+        </div>
+        <div class="welcome-step">
+          <div class="welcome-step-head"><span class="welcome-step-num">4</span><span class="welcome-step-emoji">💡</span></div>
+          <h3>Astuces</h3>
+          <p><strong>Mobile :</strong> tape un item pour ouvrir le menu d'action.<br><strong>Desktop :</strong> Shift/Ctrl/Alt + clic. <strong>❓ Aide</strong> dans le menu pour tout savoir.</p>
+        </div>
+      </div>
+      <div class="welcome-actions">
+        <button class="btn btn-primary btn-big" id="btn-welcome-start">⚔️ Commencer l'aventure</button>
+      </div>
+    </div>
+  </div>
 
   <!-- TOOLTIP -->
   <div id="tooltip" class="tooltip hidden"></div>

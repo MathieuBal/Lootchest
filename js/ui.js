@@ -645,7 +645,11 @@ function renderInventory() {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
     if (state.inventory.length === 0) {
-      empty.innerHTML = '<div class="empty-icon">📭</div><div class="empty-title">Inventaire vide</div><div class="empty-desc">Ouvre des coffres ou combats des monstres pour looter du matos.</div>';
+      const hasKeys = (state.keys || 0) > 0;
+      const hint = hasKeys
+        ? 'Tu as des clés 🗝 — ouvre ton premier coffre dans l\'onglet 📦 Coffre.'
+        : 'Plus de clés. Va au 🗝 Donjon pour en farmer (drop sur monstres tués).';
+      empty.innerHTML = `<div class="empty-icon">📭</div><div class="empty-title">Inventaire vide</div><div class="empty-desc">${hint}</div>`;
     } else {
       empty.innerHTML = `<div class="empty-icon">🔍</div><div class="empty-title">Aucun résultat</div><div class="empty-desc">Aucun item ne correspond à "${invSearchText}".</div>`;
     }

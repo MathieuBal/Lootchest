@@ -60,6 +60,52 @@ setActiveTab(state.ui?.leftTab || 'chest');
 checkAchievements();
 // Initialise bounty board if empty
 refreshBoardIfEmpty();
+
+// Show welcome modal on very first visit
+function dismissWelcome() {
+  if (state.ui.hasSeenWelcome) return;
+  state.ui.hasSeenWelcome = true;
+  hideModal('welcome-modal');
+  notify();
+  refreshNextStepHint();
+}
+if (!state.ui.hasSeenWelcome) {
+  showModal('welcome-modal');
+}
+document.getElementById('btn-welcome-start').addEventListener('click', () => {
+  dismissWelcome();
+  soundClick();
+});
+// Backdrop click also dismisses (sets the flag so it doesn't reappear)
+document.getElementById('welcome-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'welcome-modal') dismissWelcome();
+});
+
+// === Next-step hint indicator ===
+// Highlights ONE element the new player should interact with, based on
+// game progression. Removes itself once the user has clearly made progress.
+function refreshNextStepHint() {
+  document.querySelectorAll('.next-step-hint').forEach(el => el.classList.remove('next-step-hint'));
+  // Don't hint while the welcome modal is open
+  if (isModalOpen('welcome-modal')) return;
+  const opened = state.opened || 0;
+  const hasItems = state.inventory.length > 0;
+  const anyEquipped = Object.values(state.equipment).some(Boolean);
+  const kills = state.combat?.kills || 0;
+
+  let target = null;
+  if (opened === 0 && (state.keys || 0) > 0) {
+    target = document.getElementById('btn-open');             // → ouvrir 1er coffre
+  } else if (hasItems && !anyEquipped) {
+    target = document.querySelector('#inventory-grid [data-item-id]'); // → équiper
+  } else if (anyEquipped && kills === 0) {
+    target = document.querySelector('.tab[data-tab="dungeon"]'); // → aller au donjon
+  }
+  if (target) target.classList.add('next-step-hint');
+}
+
+subscribe(refreshNextStepHint);
+refreshNextStepHint();
 onBountyComplete(b => {
   const rewardSummary = [`+${b.reward.gold.toLocaleString('fr-FR')} 💰`];
   for (const [orbId, q] of Object.entries(b.reward.orbs)) {
@@ -787,9 +833,42 @@ document.getElementById('btn-mute').addEventListener('click', () => {
   if (!m) soundClick(); // confirm unmute
 });
 
+// === HUD dropdown menu (Aide / Son / Paramètres / Export / Import / Reset) ===
+const _hudMenu     = document.getElementById('hud-menu-list');
+const _hudMenuBtn  = document.getElementById('btn-menu');
+
+function toggleHudMenu(open) {
+  const shouldOpen = open ?? _hudMenu.classList.contains('hidden');
+  _hudMenu.classList.toggle('hidden', !shouldOpen);
+  _hudMenuBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+}
+
+_hudMenuBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleHudMenu();
+  soundClick();
+});
+
+// Click any menu item → close menu (each button keeps its own behavior)
+_hudMenu.addEventListener('click', () => toggleHudMenu(false));
+
+// Click outside → close menu
+document.addEventListener('click', (e) => {
+  if (_hudMenu.classList.contains('hidden')) return;
+  if (e.target.closest('.hud-menu')) return;
+  toggleHudMenu(false);
+});
+
 // Help modal
 document.getElementById('btn-help').addEventListener('click', () => {
   showModal('help-modal');
+});
+// "Revoir l'intro" inside the help modal → re-show the welcome flow
+document.getElementById('btn-replay-welcome').addEventListener('click', () => {
+  hideModal('help-modal');
+  state.ui.hasSeenWelcome = false;
+  showModal('welcome-modal');
+  soundClick();
 });
 
 // Settings modal
@@ -905,6 +984,7 @@ document.addEventListener('keydown', (e) => {
       hideDropPopup();
       return;
     }
+    if (isModalOpen('welcome-modal')) { dismissWelcome(); return; }
     const modals = ['forge-modal','achievements-modal','help-modal','talents-modal','codex-modal','skills-modal','bounties-modal','settings-modal','stats-breakdown-modal'];
     for (const id of modals) {
       if (isModalOpen(id)) { hideModal(id); return; }
@@ -913,7 +993,7 @@ document.addEventListener('keydown', (e) => {
   }
 
   // Block all other shortcuts when a modal is open
-  const anyModal = ['forge-modal','achievements-modal','help-modal','talents-modal','codex-modal','skills-modal','bounties-modal','settings-modal','stats-breakdown-modal']
+  const anyModal = ['forge-modal','achievements-modal','help-modal','talents-modal','codex-modal','skills-modal','bounties-modal','settings-modal','stats-breakdown-modal','welcome-modal']
     .some(id => isModalOpen(id));
   if (anyModal) return;
 
