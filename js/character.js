@@ -35,6 +35,10 @@ export function computeStats() {
     armor: 0,
     crit: 0,
     fireDmg: 0,
+    frostDmg: 0,
+    voidDmg: 0,
+    poisonDmg: 0,
+    lightningDmg: 0,
     goldFind: 0,
     speed: 0,
   };

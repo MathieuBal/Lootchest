@@ -25,6 +25,27 @@ export const GLOSSARY = {
   boucle:    'Mode auto-combat : refight l\'étage en boucle jusqu\'à défaite ou désactivation.',
   reroll:    'Régénère aléatoirement les affixes d\'un objet via un orbe (chaos / altération).',
   rerollplus: 'Reroll garanti hauts rolls. Coûte 3 cristaux de la rareté de l\'objet.',
+
+  // === Couches procédurales (parts → material → element → faction → effet) ===
+  partie:    'Pièce visuelle composant une arme (lame, garde, pommeau…) ou une armure. Chaque pièce contribue ses propres stats.',
+  qualite:   'Roll d20 d\'une partie/matériau/élément. ▓▓▓▓▓ = top roll, ▓░░░░ = bas. Visible dans le tooltip.',
+  materiau:  'Composition physique de l\'objet (Fer, Acier, Os, Or, Mithril, Os de Dragon…). Ajoute des stats et apparaît dans le nom : "Hache en Obsidienne".',
+  element:   'Charge élémentaire optionnelle d\'un objet (Feu, Givre, Poison, Foudre, Néant). Ajoute des dégâts élémentaires + un adjectif au nom : "Lame Givrée", "Hache Vénéneuse".',
+  faction:   'Identité thématique d\'un objet rare+ (Royal, Infernal, Sylvain, Spectral, Bestial). Biaise les rolls de matériau et d\'élément vers son thème.',
+  composition: 'Liste détaillée des couches qui composent un objet : parts, matériau, élément, faction, effet légendaire. Chaque couche pousse ses stats dans baseStats avec son origine traçable.',
+
+  // === Effets légendaires ===
+  effetlegendaire: 'Comportement spécial d\'un objet légendaire/ancestral (✦ doré). Mute le combat, contrairement aux affixes qui ne font qu\'ajouter des stats.',
+  pactedesang:  'Effet légendaire : le premier coup de chaque combat inflige le triple des dégâts.',
+  marquevampire:'Effet légendaire : 8 % du dégât infligé te soigne (vol de vie).',
+  toucherbrulant:'Effet légendaire (élément Feu) : brûle 3 % des PV max de l\'ennemi chaque tour.',
+  foudrechaine:'Effet légendaire (élément Foudre) : chaque coup critique déclenche une seconde attaque à 50 % de dégâts.',
+  toucherdor:  'Effet légendaire (matériau Or) : +30 % d\'or par monstre tué.',
+  echoneant:   'Effet légendaire (élément Néant) : 12 % de chance que ton attaque se répète immédiatement.',
+
+  // === Forge clarifiée ===
+  pierre:    'Pierre de Forge : monte le tier d\'objet +1. Préserve l\'identité visuelle (parts, matériau, élément, affixes) — seules les valeurs montent.',
+  rescaletier: 'Opération "rescale tier" : change le tier d\'un objet en gardant les variants de parts, le matériau, l\'élément, les affixes. Préserve la qualité (d20).',
 };
 
 // Aliases — terms with multiple spellings/cases that share a definition
@@ -48,6 +69,22 @@ export const GLOSSARY_ALIASES = {
   compétences: 'competence',
   contrats: 'contrat',
   'reroll+': 'rerollplus',
+  parties: 'partie',
+  qualité: 'qualite',
+  matériau: 'materiau',
+  matériaux: 'materiau',
+  élément: 'element',
+  éléments: 'element',
+  factions: 'faction',
+  'effet légendaire': 'effetlegendaire',
+  'effets légendaires': 'effetlegendaire',
+  'pacte de sang': 'pactedesang',
+  'marque du vampire': 'marquevampire',
+  'toucher brûlant': 'toucherbrulant',
+  'foudre en chaîne': 'foudrechaine',
+  "toucher d'or": 'toucherdor',
+  'écho du néant': 'echoneant',
+  'pierre de forge': 'pierre',
 };
 
 export function lookupGlossary(term) {

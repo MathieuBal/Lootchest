@@ -996,6 +996,51 @@ button, input, select {
 }
 .item-icon-big .item-lock-chip { font-size: 16px; top: 4px; left: 4px; }
 .item-icon-locked { box-shadow: 0 0 0 2px #ffe14a, inset 0 0 8px rgba(255,225,74,0.3); }
+
+/* === Material / Element / Legendary effect chips === */
+/* Material chip: bottom-left, tints by material color */
+.item-mat-chip {
+  position: absolute;
+  bottom: 1px;
+  left: 1px;
+  font-size: 9px;
+  line-height: 1;
+  pointer-events: none;
+  text-shadow: 0 0 3px #000, 0 0 5px #000;
+}
+/* Element chip: top-right (offset so it doesn't collide with unique chip) */
+.item-elem-chip {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  font-size: 9px;
+  line-height: 1;
+  pointer-events: none;
+  text-shadow: 0 0 3px currentColor;
+  animation: elem-flicker 2.5s ease-in-out infinite;
+}
+@keyframes elem-flicker {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.5); }
+}
+/* Legendary-effect chip: a ✦ star floating, top-right above element */
+.item-effect-chip {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  font-size: 9px;
+  line-height: 1;
+  pointer-events: none;
+  color: var(--r-legendary);
+  text-shadow: 0 0 4px var(--r-legendary);
+  animation: leg-pulse 2s ease-in-out infinite;
+}
+/* If both element and effect are present, push element down */
+.item-icon:has(.item-effect-chip) .item-elem-chip { top: auto; bottom: 1px; right: 1px; left: auto; }
+@keyframes leg-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.15); }
+}
 .slot-visual { display: flex; align-items: center; justify-content: center; flex: 1; min-height: 0; }
 .slot-visual svg { display: block; max-width: 80%; max-height: 80%; }
 .equipment-slot { font-size: 24px; padding: 4px; }
@@ -1125,6 +1170,45 @@ button, input, select {
 .tooltip .tt-slot { color: var(--text-dim); margin-bottom: 6px; font-size: 8px; }
 .tooltip .tt-base { color: var(--text); margin-bottom: 4px; }
 .tooltip .tt-affix { color: var(--r-magic); }
+
+/* === Item composition breakdown (statSources) === */
+.tt-sources-title {
+  font-size: 8px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.tt-source {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 4px 6px;
+  margin-bottom: 3px;
+  border-left: 2px solid var(--border);
+  font-size: 8px;
+}
+.tt-src-name { color: var(--text); font-weight: bold; }
+.tt-src-q    { color: var(--gold); font-family: monospace; letter-spacing: -1px; }
+.tt-src-stats { grid-column: 1 / -1; color: var(--text-dim); margin-top: 2px; }
+
+/* === Legendary effect block === */
+.tt-legendary-effect {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 8px 0 4px;
+  padding: 6px 8px;
+  background: linear-gradient(90deg, rgba(255, 122, 26, 0.12), transparent);
+  border: 1px solid var(--r-legendary);
+  font-size: 8px;
+}
+.tt-le-title { color: var(--r-legendary); font-weight: bold; }
+.tt-le-desc  { color: var(--text); line-height: 1.6; }
 
 /* === Affix prefix/suffix badges === */
 .affix-type {

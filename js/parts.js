@@ -2995,7 +2995,9 @@ function pickWeighted(variants) {
   return variants[variants.length - 1];
 }
 
-// Roll a part: pick variant via d100 weighted draw, then roll d20 to lerp the stat range.
+// Roll a single part: pick a variant by weight, roll a d20 for quality, scale
+// its statBias by tier × rarity multiplier. Returns the part + a `quality`
+// (0..1) derived from the d20 so the engine can later expose roll quality.
 function rollPart(partDef, chestTier, statMult) {
   const variant = pickWeighted(partDef.variants);
   const d20 = Math.floor(Math.random() * 20) + 1;
@@ -3004,21 +3006,92 @@ function rollPart(partDef, chestTier, statMult) {
   for (const [stat, [min, max]] of Object.entries(variant.statBias || {})) {
     stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * chestTier * statMult));
   }
-  return { partType: partDef.type, variantId: variant.id, name: variant.name, d20, stats };
+  return {
+    partType: partDef.type,
+    variantId: variant.id,
+    name: variant.name,
+    d20,
+    quality: t,           // 0..1 — useful for tooltips / forge ranking
+    stats,
+  };
 }
 
-// Returns { parts: [...], baseStats: {...} } for the given weapon type.
+// Roll every part of a composed item type. Returns:
+//   - parts:       array of { partType, variantId, name, d20, quality, stats }
+//   - baseStats:   the merged { stat → value } map consumed by combat
+//   - statSources: per-source breakdown for the tooltip / debug. Each entry
+//                  has { sourceType, sourceId, label, stats } so that future
+//                  layers (material, element, faction, legendary effect) can
+//                  push their own entries with the same shape.
+//
+// IMPORTANT: combat only consumes `baseStats`. `statSources` is purely for
+// display / explainability and is safe to ignore if missing.
+
+// Helper: variant lookup by partType + variantId (for keep-variant re-rolls).
+function variantLookup(weaponBaseTypeId) {
+  const def = WEAPON_PARTS[weaponBaseTypeId];
+  if (!def) return null;
+  const byType = {};
+  for (const partDef of def.parts) {
+    byType[partDef.type] = Object.fromEntries(partDef.variants.map(v => [v.id, v]));
+  }
+  return byType;
+}
+
+// Re-derive part stats from existing variants. Two modes:
+//   - 'keepRoll'   : keep each part's existing d20 (preserves quality identity)
+//   - 'rerollRoll' : re-roll d20 for each part (same visuals, new values)
+// Used by rescaleItemToTier (keepRoll) and rerollPartValuesOnly (rerollRoll).
+export function recomputePartStats(weaponBaseTypeId, parts, chestTier, statMult, mode = 'keepRoll') {
+  const lookup = variantLookup(weaponBaseTypeId);
+  if (!lookup) return { parts, baseStats: {}, statSources: [] };
+  const baseStats = {};
+  const statSources = [];
+  const newParts = parts.map(p => {
+    const variant = lookup[p.partType]?.[p.variantId];
+    if (!variant) return p;
+    const d20 = mode === 'rerollRoll' ? Math.floor(Math.random() * 20) + 1 : p.d20;
+    const t = (d20 - 1) / 19;
+    const stats = {};
+    for (const [stat, [min, max]] of Object.entries(variant.statBias || {})) {
+      stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * chestTier * statMult));
+    }
+    return { ...p, d20, quality: t, stats };
+  });
+  for (const p of newParts) {
+    if (!p.stats || Object.keys(p.stats).length === 0) continue;
+    for (const [s, v] of Object.entries(p.stats)) baseStats[s] = (baseStats[s] || 0) + v;
+    statSources.push({
+      sourceType: 'part',
+      sourceId: `${p.partType}.${p.variantId}`,
+      label: p.name,
+      stats: { ...p.stats },
+      quality: p.quality,
+    });
+  }
+  return { parts: newParts, baseStats, statSources };
+}
+
 export function rollWeaponParts(weaponBaseTypeId, chestTier, statMult) {
   const def = WEAPON_PARTS[weaponBaseTypeId];
   if (!def) return null;
   const parts = def.parts.map(p => rollPart(p, chestTier, statMult));
   const baseStats = {};
+  const statSources = [];
   for (const p of parts) {
+    if (Object.keys(p.stats).length === 0) continue;
     for (const [s, v] of Object.entries(p.stats)) {
       baseStats[s] = (baseStats[s] || 0) + v;
     }
+    statSources.push({
+      sourceType: 'part',
+      sourceId: `${p.partType}.${p.variantId}`,
+      label: p.name,
+      stats: { ...p.stats },
+      quality: p.quality,
+    });
   }
-  return { parts, baseStats };
+  return { parts, baseStats, statSources };
 }
 
 // Return all part layouts/palettes to compose the sprite, in draw order:

@@ -19,6 +19,9 @@ import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talen
 import { SKILLS, getActiveSkills } from './skills.js';
 import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
+import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
+import { MATERIALS } from './materials.js';
+import { ELEMENTS } from './elements.js';
 import { getCompositionLayers } from './parts.js';
 
 // === Item icon helpers ===
@@ -29,8 +32,26 @@ export function itemIconHTML(item, { big = false } = {}) {
   const setBadge = item.setId ? setBadgeHTML(item, big) : '';
   const uniqueBadge = item.uniqueId && !item.setId ? '<div class="item-unique-chip" title="Unique">✨</div>' : '';
   const lockBadge = item.locked ? '<div class="item-lock-chip" title="Verrouillé (Alt+clic pour déverrouiller)">🔒</div>' : '';
+  // Material + element badges (bottom corners). Material in BL, element in TL.
+  // Hidden on big mode where we have room for full tooltip.
+  let matBadge = '', elemBadge = '';
+  if (!big) {
+    if (item.material) {
+      const m = MATERIALS[item.material.id];
+      if (m && m.icon) matBadge = `<div class="item-mat-chip" title="${m.name}" style="color:${m.tintColor}">${m.icon}</div>`;
+    }
+    if (item.element && item.element.id !== 'none') {
+      const e = ELEMENTS[item.element.id];
+      if (e && e.icon) elemBadge = `<div class="item-elem-chip" title="${e.name}" style="color:${e.glowColor}">${e.icon}</div>`;
+    }
+  }
+  // Legendary-effect indicator (top-right, replaces unique chip if both — uniques have no effect anyway)
+  let effectBadge = '';
+  if (item.legendaryEffect && !item.uniqueId) {
+    effectBadge = `<div class="item-effect-chip" title="Effet : ${item.legendaryEffect.name}">✦</div>`;
+  }
   const setStyle = item.setId && SETS_BY_ID[item.setId] ? ` style="--set-color: ${SETS_BY_ID[item.setId].color}"` : '';
-  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}${item.setId ? ' item-icon-set' : ''}${item.locked ? ' item-icon-locked' : ''}"${setStyle} data-item-id="${item.id}">${inner}${setBadge}${uniqueBadge}${lockBadge}</div>`;
+  return `<div class="item-icon r-${r.cssClass}${big ? ' item-icon-big' : ''}${item.parts ? ' item-icon-composed' : ''}${item.setId ? ' item-icon-set' : ''}${item.locked ? ' item-icon-locked' : ''}"${setStyle} data-item-id="${item.id}">${inner}${setBadge}${uniqueBadge}${lockBadge}${matBadge}${elemBadge}${effectBadge}</div>`;
 }
 
 function setBadgeHTML(item, big) {
@@ -55,7 +76,7 @@ function itemTotalStats(item) {
   return total;
 }
 
-const PCT_STATS = new Set(['crit', 'fireDmg', 'goldFind', 'speed']);
+const PCT_STATS = new Set(['crit', 'fireDmg', 'frostDmg', 'voidDmg', 'poisonDmg', 'lightningDmg', 'goldFind', 'speed']);
 
 function comparisonHTML(item) {
   // Only show comparison if item is in inventory AND another item is equipped in same slot
@@ -87,6 +108,26 @@ function affixTypeBadge(aff) {
   return '';
 }
 
+// Breakdown of base-stat origins (parts, and later: material/element/faction).
+// Reads `item.statSources` which is populated by rollWeaponParts for composed
+// items. Each source lists the stats it contributed. Hidden if absent (legacy
+// items, non-composed items, uniques).
+function sourcesHTML(item) {
+  if (!item.statSources || item.statSources.length === 0) return '';
+  const SOURCE_ICON = { part: '🧩', material: '🔩', element: '✨', faction: '🏷', condition: '🌀' };
+  const rows = item.statSources.map(src => {
+    const icon = SOURCE_ICON[src.sourceType] || '◆';
+    const stats = Object.entries(src.stats)
+      .map(([k, v]) => `+${v} ${statLabel(k)}`)
+      .join(' · ');
+    // d20 quality bar (▓ filled / ░ empty), 5 segments
+    const q = Math.round((src.quality || 0) * 5);
+    const bar = '▓'.repeat(q) + '░'.repeat(5 - q);
+    return `<div class="tt-source"><span class="tt-src-name">${icon} ${src.label}</span><span class="tt-src-q" title="Qualité du roll">${bar}</span><div class="tt-src-stats">${stats}</div></div>`;
+  }).join('');
+  return `<div class="tt-sources-title">Composition</div>${rows}`;
+}
+
 export function itemDetailsHTML(item) {
   const r = RARITY_BY_ID[item.rarity];
   const slot = SLOT_BY_ID[item.slot];
@@ -103,6 +144,12 @@ export function itemDetailsHTML(item) {
     }
   }
   const flavor = item.flavor ? `<div class="tt-flavor">"${item.flavor}"</div>` : '';
+  // Legendary effect block (rare drop on legendary+ items, with behavior text)
+  let legendaryBlock = '';
+  if (item.legendaryEffect) {
+    const eff = LEGENDARY_EFFECTS[item.legendaryEffect.id];
+    if (eff) legendaryBlock = `<div class="tt-legendary-effect"><span class="tt-le-title">✦ ${eff.name}</span><span class="tt-le-desc">${eff.desc}</span></div>`;
+  }
   const power = Math.round(itemPowerContribution(item));
   return `
     <div class="tt-name rt-${r.cssClass}">${item.name}${uniqueBadge}</div>
@@ -110,6 +157,8 @@ export function itemDetailsHTML(item) {
     ${setBlock}
     ${baseLines}
     ${affixLines}
+    ${sourcesHTML(item)}
+    ${legendaryBlock}
     ${flavor}
     <div class="tt-power">⚡ Puissance : ${power.toLocaleString('fr-FR')}</div>
     <div class="tt-value">💰 ${item.goldValue} or · 💎 ${shardYield(item)} ${r.name}</div>
@@ -124,6 +173,10 @@ function statLabel(key) {
     armor: 'Armure',
     crit: '% Crit',
     fireDmg: '% Feu',
+    frostDmg: '% Givre',
+    voidDmg: '% Néant',
+    poisonDmg: '% Poison',
+    lightningDmg: '% Foudre',
     goldFind: '% Or',
     speed: '% Vitesse',
   }[key] || key;
@@ -893,7 +946,7 @@ export function renderSettingsModal() {
 
 // === Stats Breakdown Modal ===
 
-const STAT_ORDER = ['vitality', 'damage', 'armor', 'crit', 'fireDmg', 'speed', 'goldFind'];
+const STAT_ORDER = ['vitality', 'damage', 'armor', 'crit', 'fireDmg', 'frostDmg', 'voidDmg', 'poisonDmg', 'lightningDmg', 'speed', 'goldFind'];
 const STAT_PERCENT = { crit: true, fireDmg: true, speed: true, goldFind: true };
 
 export function renderStatsBreakdownModal() {

@@ -4,6 +4,7 @@ import { state, notify } from './state.js';
 import { RARITIES, RARITY_BY_ID, AFFIXES, AFFIXES_BY_ID, AFFIX_LIMITS, maxAllowedChestTier } from './data.js';
 import {
   rebuildItemAffixesOnly, rebuildItemAffixesPlus, rebuildItemAffixesAndStats,
+  rescaleItemToTier,
 } from './loot.js';
 import { trackProgress as bountyTrack } from './bounties.js';
 
@@ -261,8 +262,9 @@ export function canPierre(item) {
 export function applyPierre(item) {
   if (!canPierre(item)) return false;
   spendOrb('pierre');
-  item.chestTier += 1;
-  rebuildItemAffixesAndStats(item);
+  // Identity-preserving tier up: same parts variants, same affixes, same name.
+  // Stats scale with the new tier (composed items keep their d20 quality).
+  rescaleItemToTier(item, item.chestTier + 1);
   trackForge();
   notify();
   return true;

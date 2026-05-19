@@ -130,9 +130,44 @@ loot a un sprite **unique** selon les parts roulées au drop. Voir
 #### Raretés
 `Commun → Magique → Rare → Épique → Légendaire → Ancestral`
 
+#### 🧩 Composition procédurale
+Chaque arme/armure est composée de plusieurs **couches indépendantes** qui
+contribuent toutes aux stats finales et apparaissent dans la section
+"Composition" du tooltip avec leur qualité de roll (▓▓▓░░) :
+
+| Couche             | Contenu                                                                  | Visible où                                  |
+|--------------------|--------------------------------------------------------------------------|---------------------------------------------|
+| 🧩 **Parties**     | Lame + garde + pommeau (épée), tête + manche + lien (hache), etc.        | Sprite de l'item                            |
+| 🔩 **Matériau**    | Fer · Bronze · Os · Acier · Argent · Obsidienne · Or · Cristal · Mithril · Os de Dragon | Chip coin bas-gauche, adjectif au nom |
+| ✨ **Élément**     | Aucun · Feu · Givre · Poison · Foudre · Néant (optionnel)                | Chip coin haut-droit (flicker), nom         |
+| 🏷 **Faction**     | Aucune · Royal · Infernal · Sylvain · Spectral · Bestial (rare+ uniquement) | Adjectif au nom + biais matériau/élément |
+| ✦ **Effet légend.**| Pacte de Sang · Marque du Vampire · Toucher Brûlant · Foudre en Chaîne · Toucher d'Or · Écho du Néant | ✦ doré coin + bloc dans tooltip |
+
+Les factions biaisent les rolls de matériau et d'élément vers leur thème
+(un objet Infernal a ~44 % de chance d'être de Feu vs ~14 % sans biais).
+Les effets légendaires modifient le **comportement** de combat (vs les
+affixes qui n'ajoutent que des stats) et certains nécessitent un
+élément/matériau spécifique (Foudre en Chaîne ne sort que sur des items
+de Foudre, Toucher d'Or que sur des items en Or…).
+
+Exemple d'item :
+```
+Astral Robe Givrée en Acier Royale
+  🧩 Épaules Lisses      +24 %Feu        ▓▓▓░░
+  🧩 Corps Lisse         +35 Vie         ▓▓▓░░
+  🧩 Bordure Dorée       +13 Vie · +13 %Or
+  🔩 Acier               +5 Dégâts · +3 Armure
+  ✨ Givre               +29 %Givre · +7 %Vitesse
+  🏷 Royal               +5 Armure · +6 %Or
+  ✦ Marque du Vampire    Vol de vie 8 % / coup
+```
+
+Une **🪨 Pierre de Forge** préserve toute l'identité (parties, matériau,
+élément, faction, affixes, effet) — seules les valeurs montent en gamme.
+
 #### Sets & Uniques
 - **20 uniques légendaires** (items nommés, affixes fixes, flavor text,
-  pas rerollables)
+  pas rerollables, pas d'effet légendaire procédural)
 - **9 sets** thématiques avec bonus 2/3/4 pièces + effet 4 pièces unique
 
 | Set         | Pièces                                  | Effet 4-pièces                                    |
@@ -282,18 +317,23 @@ js/
                   sets, uniques, talents
   state.js        état global + pub/sub + flag onboarding (v3)
   save.js         localStorage + export/import + migrations v1→v2→v3
-  glossary.js     définitions de 23 termes de jeu + aliases
+  glossary.js     38 termes de jeu + aliases (matériaux, éléments,
+                  factions, effets légendaires, jargon RPG…)
   loot.js         génération d'items (rollRarity, buildItem,
-                  buildSetPiece, buildUniqueLegendary)
+                  buildSetPiece, buildUniqueLegendary, rescaleItemToTier,
+                  rerollAffixesOnly, rerollPartValuesOnly,
+                  rerollPartsAndVisuals)
   chest.js        openChest (gate clés), rollOrbDrops, canUpgrade
   character.js    computeStats, computeStatsBreakdown,
                   activeSetEffects, itemPowerContribution
   inventory.js    sellItem, salvageItem, toggleLockItem,
                   autoActionFor, setAutoMode
-  combat.js       resolveFight (skills/sets/boss mechanics/elite),
+  combat.js       resolveFight (skills/sets/boss mechanics/elite +
+                  6 effets légendaires + 5 dégâts élémentaires),
                   generateMonster, key drops
   achievements.js checkAchievements, onAchievementUnlocked
-  forge.js        10 actions (Pierre cap dynamique selon prestige)
+  forge.js        10 actions (Pierre préserve identité visuelle
+                  via rescaleItemToTier)
   prestige.js     canAscend, ascend (reset + keys = 10)
   skills.js       12 compétences passives avec hooks de combat
   talents.js      multiplicateurs + categoryPoints + categoryMastery
@@ -302,7 +342,19 @@ js/
                   perso 64×64, coffres 64×64 ×10 tiers décorés,
                   5 boss 48×48, composition perso+équipement
   parts.js        WEAPON_PARTS — composition visuelle des armes par
-                  parts (blade/guard/grip/pommel…) ; ~150 variants
+                  parts (blade/guard/grip/pommel…) ; ~150 variants.
+                  Helpers rollPart/rollWeaponParts/recomputePartStats
+                  exposent quality (d20) + statSources.
+  materials.js    10 matériaux (Fer → Os de Dragon) avec stats,
+                  icônes, tintColor, tags pour biais faction.
+  elements.js     5 éléments (Feu, Givre, Poison, Foudre, Néant)
+                  + Aucun. Mécaniques de dégâts élémentaires.
+  factions.js     6 factions (Royal, Infernal, Sylvain, Spectral,
+                  Bestial, Aucune). Biaisent material/element via tags.
+  legendaryEffects.js  6 effets de combat sur légendaires/ancestraux
+                  (Pacte de Sang, Marque du Vampire, Toucher Brûlant,
+                  Foudre en Chaîne, Toucher d'Or, Écho du Néant) avec
+                  tag-gating par élément ou matériau.
   sound.js        SFX synthétisés Web Audio (toggle mute)
   fx.js           particules, floating damage, screen shake
   ui.js           renderAll + tous les renders modaux + stats
