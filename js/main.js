@@ -32,7 +32,7 @@ import {
 import {
   renderAll, showDropPopup, hideDropPopup, getCurrentDrop,
   flashRarity, startCooldownAnim, setOpenButtonEnabled,
-  showTooltip, moveTooltip, hideTooltip, itemDetailsHTML,
+  showTooltip, hideTooltip, itemDetailsHTML,
   setActiveTab, appendCombatLog,
   showModal, hideModal, isModalOpen, showToast, setForgeSelected, getForgeSelectedId,
   showCombatBars, hideCombatBars, updateMonsterHp, updatePlayerHp,

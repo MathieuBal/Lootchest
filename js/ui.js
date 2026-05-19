@@ -673,11 +673,6 @@ export function showTooltip(item, x, y) {
   positionTooltip(x, y);
 }
 
-export function moveTooltip(x, y) {
-  if (tooltipEl().classList.contains('hidden')) return;
-  positionTooltip(x, y);
-}
-
 function positionTooltip(x, y) {
   const tt = tooltipEl();
   const rect = tt.getBoundingClientRect();
