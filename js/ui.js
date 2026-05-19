@@ -140,8 +140,12 @@ function renderHUD() {
     const statEl = document.getElementById('hud-keys-stat');
     if (statEl) statEl.classList.toggle('hud-keys-empty', (state.keys || 0) === 0);
   }
-  document.getElementById('hud-tier').textContent = tier.tier;
+  const tierEl = document.getElementById('hud-tier');
+  tierEl.textContent = tier.tier;
   document.getElementById('hud-tier-name').textContent = tier.name;
+  // Propagate tier number to the parent badge so CSS can theme it (T6+ get colored)
+  const tierStat = tierEl.closest('.hud-stat-tier');
+  if (tierStat) tierStat.dataset.tier = tier.tier;
   document.getElementById('hud-opened').textContent = state.opened.toLocaleString('fr-FR');
   document.getElementById('hud-power').textContent = computePower(computeStats()).toLocaleString('fr-FR');
   const ap = getAchievementProgress();
