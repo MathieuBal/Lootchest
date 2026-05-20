@@ -693,6 +693,172 @@ export const HD_WAND_SHAFTS = [
   },
 ];
 
+// === DAGGER PARTS (64×64) — short blade, blade rows 10-30 ===
+function buildDaggerBladeStraight() {
+  const c = makeCanvas(64, 64);
+  px(c, 31, 10, 'h'); px(c, 32, 10, 'h');
+  rect(c, 30, 11, 4, 1, 'm');
+  rect(c, 29, 12, 6, 18, 'm');
+  vline(c, 30, 12, 28, 'l');
+  vline(c, 29, 13, 28, 'h');
+  vline(c, 34, 12, 29, 's');
+  vline(c, 32, 14, 26, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildDaggerBladeCurved() {
+  const c = makeCanvas(64, 64);
+  for (let y = 10; y <= 29; y++) {
+    const t = (y - 10) / 19;
+    const baseX = Math.round(31 + 3 * Math.sin(t * Math.PI * 2));
+    rect(c, baseX - 2, y, 5, 1, 'm');
+    px(c, baseX - 2, y, 'h');
+    px(c, baseX, y, 'l');
+    px(c, baseX + 2, y, 's');
+  }
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildDaggerBladeJagged() {
+  const c = makeCanvas(64, 64);
+  px(c, 31, 10, 'h'); px(c, 32, 10, 'h');
+  rect(c, 29, 11, 6, 19, 'm');
+  vline(c, 30, 12, 28, 'l');
+  vline(c, 29, 12, 28, 'h');
+  vline(c, 34, 12, 29, 's');
+  for (let y = 13; y <= 28; y += 3) { px(c, 35, y, 'm'); px(c, 36, y, 's'); }
+  vline(c, 32, 14, 27, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_DAGGER_STEEL = { o: '#0a0d12', s: '#3a4655', m: '#6f7e91', l: '#aebcd0', h: '#e2eaf6' };
+const ROLES_DAGGER = { o: 'outline', s: 'shadow', m: 'mid', l: 'light', h: 'highlight' };
+
+function buildDaggerGuardStraight() {
+  const c = makeCanvas(64, 64);
+  rect(c, 26, 30, 12, 3, 'm');
+  hline(c, 26, 37, 30, 'l');
+  hline(c, 26, 37, 32, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildDaggerGuardSwept() {
+  const c = makeCanvas(64, 64);
+  rect(c, 27, 30, 10, 2, 'm');
+  hline(c, 27, 36, 30, 'l');
+  px(c, 26, 29, 'm'); px(c, 25, 28, 'l');
+  px(c, 37, 29, 'm'); px(c, 38, 28, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_DAGGER_GUARD = { o: '#1a0e04', s: '#5a3818', m: '#9a7838', l: '#d0a848', h: '#ffe14a' };
+
+function buildDaggerGrip() {
+  const c = makeCanvas(64, 64);
+  rect(c, 30, 33, 4, 12, 'm');
+  for (let row = 33; row <= 44; row += 2) { hline(c, 30, 33, row, 's'); hline(c, 30, 33, row + 1, 'm'); }
+  vline(c, 30, 34, 43, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_DAGGER_GRIP = { o: '#0e0805', s: '#2a1810', m: '#5a3818', l: '#8a5828' };
+
+function buildDaggerPommelRound() {
+  const c = makeCanvas(64, 64);
+  ellipse(c, 31, 47, 3, 2, 'm');
+  px(c, 30, 45, 'l'); px(c, 31, 45, 'h');
+  hline(c, 29, 33, 49, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildDaggerPommelGem() {
+  const c = makeCanvas(64, 64);
+  ellipse(c, 31, 47, 3, 3, 'm');
+  rect(c, 30, 46, 3, 2, 'A');
+  px(c, 31, 46, 'B');
+  px(c, 30, 44, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_DAGGER_POMMEL = { o: '#1a0e04', s: '#5a3818', m: '#9a7838', l: '#d0a848', h: '#ffe14a', A: '#1850a8', B: '#5aacff' };
+
+const HD_DAGGER_BLADES = [
+  { id: 'straight', name: 'Lame Droite HD', weight: 20, layout: buildDaggerBladeStraight(), palette: PALETTE_DAGGER_STEEL, roles: ROLES_DAGGER, statBias: { damage: [6, 14], crit: [5, 11], speed: [2, 5] }, tags: ['fast', 'precision'] },
+  { id: 'curved', name: 'Lame Ondulée HD', weight: 12, layout: buildDaggerBladeCurved(), palette: PALETTE_DAGGER_STEEL, roles: ROLES_DAGGER, statBias: { damage: [7, 15], crit: [6, 13] }, tags: ['curved', 'aggressive'] },
+  { id: 'jagged', name: 'Lame Dentelée HD', weight: 9, layout: buildDaggerBladeJagged(), palette: PALETTE_DAGGER_STEEL, roles: ROLES_DAGGER, statBias: { damage: [9, 18], poisonDmg: [3, 7] }, tags: ['serrated', 'brutal'] },
+];
+const HD_DAGGER_GUARDS = [
+  { id: 'straight', name: 'Garde Courte HD', weight: 22, layout: buildDaggerGuardStraight(), palette: PALETTE_DAGGER_GUARD, roles: ROLES_DAGGER, statBias: { armor: [1, 3] }, tags: ['simple'] },
+  { id: 'swept', name: 'Garde Recourbée HD', weight: 10, layout: buildDaggerGuardSwept(), palette: PALETTE_DAGGER_GUARD, roles: ROLES_DAGGER, statBias: { crit: [2, 5], speed: [1, 3] }, tags: ['swept'] },
+];
+const HD_DAGGER_GRIP = { id: 'wrapped', name: 'Poignée Cuir HD', layout: buildDaggerGrip(), palette: PALETTE_DAGGER_GRIP };
+const HD_DAGGER_POMMELS = [
+  { id: 'round', name: 'Pommeau Rond HD', weight: 20, layout: buildDaggerPommelRound(), palette: PALETTE_DAGGER_POMMEL, roles: ROLES_DAGGER, statBias: { armor: [1, 3] }, tags: ['simple'] },
+  { id: 'gemmed', name: 'Pommeau Gemme HD', weight: 10, layout: buildDaggerPommelGem(), palette: PALETTE_DAGGER_POMMEL, roles: ROLES_DAGGER, statBias: { crit: [3, 6] }, tags: ['gem'] },
+];
+
+// === BOW PARTS (64×64) — sideways arc spanning rows 4-58, grip in middle ===
+function buildBowLimbRecurve() {
+  const c = makeCanvas(64, 64);
+  for (let y = 6; y <= 58; y++) {
+    const t = (y - 32) / 26;
+    let x = 34 - Math.round(10 * (1 - t * t));
+    if (y < 12) x += (12 - y);
+    if (y > 52) x += (y - 52);
+    rect(c, x, y, 3, 1, 'm');
+    px(c, x, y, 'l');
+    px(c, x + 2, y, 's');
+  }
+  for (let y = 8; y <= 56; y++) px(c, 40, y, 'd');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildBowLimbLong() {
+  const c = makeCanvas(64, 64);
+  for (let y = 4; y <= 59; y++) {
+    const t = (y - 32) / 28;
+    const x = 36 - Math.round(8 * (1 - t * t));
+    rect(c, x, y, 3, 1, 'm');
+    px(c, x, y, 'l');
+    px(c, x + 2, y, 's');
+  }
+  for (let y = 6; y <= 57; y++) px(c, 41, y, 'd');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_BOW_WOOD = { o: '#1a0a04', s: '#3a1d0c', m: '#5a3018', l: '#8a5028', d: '#2a1808' };
+const ROLES_BOW = { o: 'outline', s: 'shadow', m: 'mid', l: 'light' };
+
+function buildBowGrip() {
+  const c = makeCanvas(64, 64);
+  rect(c, 22, 28, 5, 8, 'm');
+  for (let row = 28; row <= 35; row += 2) { hline(c, 22, 26, row, 's'); hline(c, 22, 26, row + 1, 'm'); }
+  vline(c, 22, 29, 34, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_BOW_GRIP = { o: '#0e0805', s: '#2a1810', m: '#5a3818', l: '#8a5828' };
+
+function buildBowTips() {
+  const c = makeCanvas(64, 64);
+  px(c, 44, 5, 'l'); px(c, 45, 6, 'm'); px(c, 44, 7, 'l');
+  px(c, 44, 57, 'l'); px(c, 45, 56, 'm'); px(c, 44, 55, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_BOW_TIPS = { o: '#1a0e04', m: '#c89020', l: '#ffe14a' };
+
+const HD_BOW_LIMBS = [
+  { id: 'recurve', name: 'Arc Recourbé HD', weight: 16, layout: buildBowLimbRecurve(), palette: PALETTE_BOW_WOOD, roles: ROLES_BOW, statBias: { damage: [8, 16], crit: [4, 9], speed: [2, 5] }, tags: ['recurve', 'fast'] },
+  { id: 'long', name: 'Arc Long HD', weight: 14, layout: buildBowLimbLong(), palette: PALETTE_BOW_WOOD, roles: ROLES_BOW, statBias: { damage: [12, 22], crit: [3, 6] }, tags: ['longbow', 'power'] },
+];
+const HD_BOW_GRIPS = [
+  { id: 'wrapped', name: 'Poignée Arc HD', weight: 24, layout: buildBowGrip(), palette: PALETTE_BOW_GRIP, statBias: { speed: [1, 3] }, tags: ['leather'] },
+];
+const HD_BOW_TIPS = [
+  { id: 'gold', name: 'Embouts Dorés HD', weight: 18, layout: buildBowTips(), palette: PALETTE_BOW_TIPS, roles: { o: 'outline', m: 'mid', l: 'highlight' }, statBias: { goldFind: [3, 8] }, tags: ['flashy'] },
+];
+
 // Weapon-parts definition (mirrors the WEAPON_PARTS shape from parts.js)
 export const HD_WEAPON_PARTS = {
   sword: {
@@ -718,6 +884,23 @@ export const HD_WEAPON_PARTS = {
       { type: 'shaft', variants: HD_WAND_SHAFTS },
     ],
     drawOrder: ['shaft', 'head'],
+  },
+  dagger: {
+    parts: [
+      { type: 'blade',  variants: HD_DAGGER_BLADES },
+      { type: 'guard',  variants: HD_DAGGER_GUARDS },
+      { type: 'pommel', variants: HD_DAGGER_POMMELS },
+    ],
+    fixedLayers: { grip: HD_DAGGER_GRIP },
+    drawOrder: ['blade', 'guard', '@grip', 'pommel'],
+  },
+  bow: {
+    parts: [
+      { type: 'limbs', variants: HD_BOW_LIMBS },
+      { type: 'grip',  variants: HD_BOW_GRIPS },
+      { type: 'tips',  variants: HD_BOW_TIPS },
+    ],
+    drawOrder: ['limbs', 'grip', 'tips'],
   },
 };
 
