@@ -13,7 +13,7 @@
 // — drop-in compatible with the existing rollPart() and getCompositionLayers
 // pipelines, just at a bigger canvas.
 
-import { makeCanvas, px, rect, ellipse, hline, vline, outline, canvasToLayout, line } from './builder.js';
+import { makeCanvas, px, rect, ellipse, ellipseOutline, hline, vline, outline, canvasToLayout, line } from './builder.js';
 
 // === SWORD BLADES (64×64) ===
 // Each blade occupies rows 4-40 (upper 36 rows), centered cols 28-35.
@@ -1118,6 +1118,245 @@ const HD_SHIELD_BOSSES = [
   { id: 'cross', name: 'Croix Héraldique HD', weight: 10, layout: buildShieldBossCross(), palette: PALETTE_SHIELD_BOSS, statBias: { armor: [2, 4], vitality: [3, 6] }, tags: ['heraldic'] },
 ];
 
+// =====================================================================
+// === HD CLOTH/LIGHT ARMOR + ACCESSORIES (cap, crown, tunic, robe,
+//     buckler) — paper-doll alternatives to helm/plate/tower ==========
+// =====================================================================
+
+const ROLES_GENERIC = { o: 'outline', s: 'shadow', m: 'mid', l: 'light', h: 'highlight' };
+
+// --- CAP (light cloth/leather hat) ---
+function buildCapDomeSoft() {
+  const c = makeCanvas(64, 64);
+  ellipse(c, 32, 20, 13, 11, 'm');
+  rect(c, 0, 21, 64, 18, '.');
+  ellipse(c, 30, 17, 9, 7, 'l');
+  ellipse(c, 28, 14, 4, 3, 'h');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildCapDomePointed() {
+  const c = makeCanvas(64, 64);
+  for (let y = 6; y <= 21; y++) {
+    const w = Math.round((y - 4) * 0.8) + 1;
+    rect(c, 32 - w, y, w * 2, 1, 'm');
+  }
+  for (let y = 9; y <= 20; y++) { const w = Math.round((y - 4) * 0.5); rect(c, 30 - w, y, w + 2, 1, 'l'); }
+  // floppy tip
+  px(c, 36, 5, 'm'); px(c, 38, 4, 'm');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildCapBrim() {
+  const c = makeCanvas(64, 64);
+  rect(c, 17, 21, 30, 3, 'm');
+  hline(c, 17, 46, 21, 'l');
+  hline(c, 17, 46, 23, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildCapAccentFeather() {
+  const c = makeCanvas(64, 64);
+  // Feather sticking up on the right
+  for (let y = 4; y <= 16; y++) { px(c, 44 + Math.floor((16 - y) / 3), y, 'A'); }
+  px(c, 45, 6, 'B'); px(c, 44, 10, 'B');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildCapAccentBand() {
+  const c = makeCanvas(64, 64);
+  rect(c, 19, 19, 26, 2, 'A');
+  px(c, 31, 19, 'B'); px(c, 32, 19, 'B');
+  return canvasToLayout(c);
+}
+const PALETTE_CAP_CLOTH = { o: '#1a1420', s: '#3a2a44', m: '#5a4068', l: '#8a68a0', h: '#b894c8' };
+const PALETTE_CAP_ACCENT = { o: '#1a0e04', A: '#c0392b', B: '#ff7060' };
+
+const HD_CAP_DOMES = [
+  { id: 'soft', name: 'Coiffe Souple HD', weight: 20, layout: buildCapDomeSoft(), palette: PALETTE_CAP_CLOTH, roles: ROLES_GENERIC, statBias: { vitality: [3, 7], speed: [1, 3] }, tags: ['cloth'] },
+  { id: 'pointed', name: 'Chapeau Pointu HD', weight: 12, layout: buildCapDomePointed(), palette: PALETTE_CAP_CLOTH, roles: ROLES_GENERIC, statBias: { fireDmg: [2, 6], vitality: [2, 4] }, tags: ['mage'] },
+];
+const HD_CAP_BRIMS = [
+  { id: 'flat', name: 'Bord Plat HD', weight: 22, layout: buildCapBrim(), palette: PALETTE_CAP_CLOTH, roles: ROLES_GENERIC, statBias: { armor: [1, 3] }, tags: ['brim'] },
+];
+const HD_CAP_ACCENTS = [
+  { id: 'feather', name: 'Plume HD', weight: 14, layout: buildCapAccentFeather(), palette: PALETTE_CAP_ACCENT, statBias: { goldFind: [3, 7] }, tags: ['feather'] },
+  { id: 'band', name: 'Bandeau HD', weight: 16, layout: buildCapAccentBand(), palette: PALETTE_CAP_ACCENT, statBias: { crit: [1, 4] }, tags: ['band'] },
+];
+
+// --- CROWN (royal headpiece) ---
+function buildCrownBand() {
+  const c = makeCanvas(64, 64);
+  rect(c, 20, 16, 24, 6, 'm');
+  hline(c, 20, 43, 16, 'h');
+  hline(c, 20, 43, 21, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildCrownSpikesTall() {
+  const c = makeCanvas(64, 64);
+  // 5 tall spikes
+  for (const x of [22, 27, 32, 37, 42]) {
+    const h = (x === 32) ? 10 : 6;
+    for (let dy = 0; dy < h; dy++) {
+      const w = Math.max(0, Math.floor((h - dy) / 3));
+      rect(c, x - w, 16 - dy, w * 2 + 1, 1, 'm');
+    }
+    px(c, x, 16 - h + 1, 'h');
+  }
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildCrownSpikesShort() {
+  const c = makeCanvas(64, 64);
+  for (const x of [23, 29, 35, 41]) {
+    px(c, x, 11, 'm'); px(c, x, 12, 'm'); px(c, x, 13, 'l'); px(c, x, 14, 'm'); px(c, x, 15, 'm');
+    px(c, x, 11, 'h');
+  }
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildCrownGem() {
+  const c = makeCanvas(64, 64);
+  rect(c, 30, 17, 4, 4, 'A');
+  px(c, 30, 17, 'B'); px(c, 31, 17, 'B');
+  // side gems
+  px(c, 24, 18, 'A'); px(c, 40, 18, 'A');
+  return canvasToLayout(c);
+}
+const PALETTE_CROWN_GOLD = { o: '#1a0e04', s: '#7a4818', m: '#c89020', l: '#ffe14a', h: '#fff8c8' };
+const PALETTE_CROWN_GEM = { o: '#0a0418', A: '#1850a8', B: '#5aacff' };
+
+const HD_CROWN_BANDS = [
+  { id: 'band', name: 'Cercle d\'Or HD', weight: 24, layout: buildCrownBand(), palette: PALETTE_CROWN_GOLD, roles: ROLES_GENERIC, statBias: { armor: [2, 5], goldFind: [5, 12] }, tags: ['royal'] },
+];
+const HD_CROWN_SPIKES = [
+  { id: 'tall', name: 'Pointes Hautes HD', weight: 16, layout: buildCrownSpikesTall(), palette: PALETTE_CROWN_GOLD, roles: ROLES_GENERIC, statBias: { vitality: [4, 9] }, tags: ['tall'] },
+  { id: 'short', name: 'Pointes Basses HD', weight: 14, layout: buildCrownSpikesShort(), palette: PALETTE_CROWN_GOLD, roles: ROLES_GENERIC, statBias: { crit: [2, 5] }, tags: ['short'] },
+];
+const HD_CROWN_GEMS = [
+  { id: 'sapphire', name: 'Saphir HD', weight: 18, layout: buildCrownGem(), palette: PALETTE_CROWN_GEM, statBias: { fireDmg: [3, 8], crit: [2, 4] }, tags: ['gem'] },
+];
+
+// --- TUNIC (cloth shirt) ---
+function buildTunicTorso() {
+  const c = makeCanvas(64, 64);
+  rect(c, 22, 14, 20, 22, 'm');
+  ellipse(c, 32, 14, 10, 3, 'm');
+  rect(c, 28, 14, 8, 6, 's');     // collar V
+  rect(c, 24, 16, 4, 18, 'l');    // left highlight
+  vline(c, 25, 17, 33, 'h');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildTunicSleeves() {
+  const c = makeCanvas(64, 64);
+  rect(c, 16, 16, 6, 14, 'm'); rect(c, 42, 16, 6, 14, 'm');
+  vline(c, 16, 17, 29, 'l'); vline(c, 42, 17, 29, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildTunicBelt() {
+  const c = makeCanvas(64, 64);
+  rect(c, 22, 34, 20, 3, 'A');
+  rect(c, 30, 34, 4, 3, 'B');     // buckle
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_TUNIC_CLOTH = { o: '#1a140a', s: '#3a2c18', m: '#6a5028', l: '#9a7840', h: '#c0a060' };
+const PALETTE_TUNIC_BELT = { o: '#0e0805', A: '#3a2410', B: '#c89020' };
+
+const HD_TUNIC_TORSOS = [
+  { id: 'plain', name: 'Tunique HD', weight: 22, layout: buildTunicTorso(), palette: PALETTE_TUNIC_CLOTH, roles: ROLES_GENERIC, statBias: { armor: [3, 7], vitality: [3, 6] }, tags: ['cloth'] },
+];
+const HD_TUNIC_SLEEVES = [
+  { id: 'plain', name: 'Manches HD', weight: 22, layout: buildTunicSleeves(), palette: PALETTE_TUNIC_CLOTH, roles: ROLES_GENERIC, statBias: { speed: [1, 3] }, tags: ['cloth'] },
+];
+const HD_TUNIC_BELTS = [
+  { id: 'leather', name: 'Ceinture HD', weight: 22, layout: buildTunicBelt(), palette: PALETTE_TUNIC_BELT, statBias: { armor: [1, 3] }, tags: ['leather'] },
+];
+
+// --- ROBE (mage) ---
+function buildRobeTop() {
+  const c = makeCanvas(64, 64);
+  // Shoulder yoke + collar
+  rect(c, 20, 14, 24, 8, 'm');
+  ellipse(c, 32, 14, 12, 3, 'm');
+  rect(c, 29, 14, 6, 6, 's');     // collar
+  rect(c, 22, 15, 4, 6, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildRobeBody() {
+  const c = makeCanvas(64, 64);
+  // Flowing robe widening downward
+  for (let y = 20; y <= 44; y++) {
+    const w = 9 + Math.floor((y - 20) * 0.35);
+    rect(c, 32 - w, y, w * 2, 1, 'm');
+  }
+  // Fold highlights
+  vline(c, 28, 22, 43, 'l'); vline(c, 36, 22, 43, 's');
+  vline(c, 32, 22, 43, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildRobeTrim() {
+  const c = makeCanvas(64, 64);
+  // Glowing rune trim down the front + hem
+  vline(c, 32, 22, 43, 'A');
+  hline(c, 16, 47, 44, 'A');
+  px(c, 32, 28, 'B'); px(c, 32, 36, 'B');
+  return canvasToLayout(c);
+}
+const PALETTE_ROBE_CLOTH = { o: '#0a0a18', s: '#1a1a38', m: '#2a2a58', l: '#4848a0', h: '#7878d0' };
+const PALETTE_ROBE_TRIM = { o: '#1a0e04', A: '#c89020', B: '#fff8c8' };
+
+const HD_ROBE_TOPS = [
+  { id: 'yoke', name: 'Épaules de Robe HD', weight: 22, layout: buildRobeTop(), palette: PALETTE_ROBE_CLOTH, roles: ROLES_GENERIC, statBias: { vitality: [4, 9], fireDmg: [2, 5] }, tags: ['mage'] },
+];
+const HD_ROBE_BODIES = [
+  { id: 'flowing', name: 'Robe Flottante HD', weight: 22, layout: buildRobeBody(), palette: PALETTE_ROBE_CLOTH, roles: ROLES_GENERIC, statBias: { vitality: [5, 11], fireDmg: [3, 7] }, tags: ['mage'] },
+];
+const HD_ROBE_TRIMS = [
+  { id: 'runic', name: 'Liseré Runique HD', weight: 18, layout: buildRobeTrim(), palette: PALETTE_ROBE_TRIM, statBias: { fireDmg: [4, 9], crit: [1, 3] }, tags: ['runic'] },
+];
+
+// --- BUCKLER (small round shield) ---
+function buildBucklerBody() {
+  const c = makeCanvas(64, 64);
+  ellipse(c, 32, 30, 16, 16, 'm');
+  ellipse(c, 29, 26, 10, 10, 'l');
+  ellipse(c, 26, 22, 4, 4, 'h');
+  vline(c, 17, 24, 36, 's'); vline(c, 47, 24, 36, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildBucklerRim() {
+  const c = makeCanvas(64, 64);
+  ellipseOutline(c, 32, 30, 16, 16, 'h');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildBucklerBoss() {
+  const c = makeCanvas(64, 64);
+  ellipse(c, 32, 30, 5, 5, 'A');
+  ellipse(c, 31, 29, 3, 3, 'B');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_BUCKLER_RIM = { o: '#1a0e04', m: '#9a7838', l: '#d0a848', h: '#ffe14a' };
+const PALETTE_BUCKLER_BOSS = { o: '#0a0d12', s: '#3a4655', A: '#6f7e91', B: '#e2eaf6' };
+
+const HD_BUCKLER_BODIES = [
+  { id: 'round', name: 'Targe Ronde HD', weight: 20, layout: buildBucklerBody(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [5, 11], speed: [1, 3] }, tags: ['buckler'] },
+];
+const HD_BUCKLER_RIMS = [
+  { id: 'gold', name: 'Bordure Dorée HD', weight: 18, layout: buildBucklerRim(), palette: PALETTE_BUCKLER_RIM, roles: { o: 'outline', m: 'mid', l: 'light', h: 'highlight' }, statBias: { armor: [2, 4], goldFind: [3, 6] }, tags: ['gold'] },
+];
+const HD_BUCKLER_BOSSES = [
+  { id: 'round', name: 'Umbo HD', weight: 18, layout: buildBucklerBoss(), palette: PALETTE_BUCKLER_BOSS, roles: { o: 'outline', s: 'shadow', A: 'mid', B: 'highlight' }, statBias: { armor: [2, 5] }, tags: ['round'] },
+];
+
 // Weapon-parts definition (mirrors the WEAPON_PARTS shape from parts.js)
 export const HD_WEAPON_PARTS = {
   sword: {
@@ -1182,6 +1421,46 @@ export const HD_WEAPON_PARTS = {
       { type: 'body', variants: HD_SHIELD_BODIES },
       { type: 'rim',  variants: HD_SHIELD_RIMS },
       { type: 'boss', variants: HD_SHIELD_BOSSES },
+    ],
+    drawOrder: ['body', 'rim', 'boss'],
+  },
+  cap: {
+    parts: [
+      { type: 'dome',   variants: HD_CAP_DOMES },
+      { type: 'brim',   variants: HD_CAP_BRIMS },
+      { type: 'accent', variants: HD_CAP_ACCENTS },
+    ],
+    drawOrder: ['dome', 'brim', 'accent'],
+  },
+  crown: {
+    parts: [
+      { type: 'band',   variants: HD_CROWN_BANDS },
+      { type: 'spikes', variants: HD_CROWN_SPIKES },
+      { type: 'gem',    variants: HD_CROWN_GEMS },
+    ],
+    drawOrder: ['spikes', 'band', 'gem'],
+  },
+  tunic: {
+    parts: [
+      { type: 'torso',   variants: HD_TUNIC_TORSOS },
+      { type: 'sleeves', variants: HD_TUNIC_SLEEVES },
+      { type: 'belt',    variants: HD_TUNIC_BELTS },
+    ],
+    drawOrder: ['sleeves', 'torso', 'belt'],
+  },
+  robe: {
+    parts: [
+      { type: 'top',  variants: HD_ROBE_TOPS },
+      { type: 'body', variants: HD_ROBE_BODIES },
+      { type: 'trim', variants: HD_ROBE_TRIMS },
+    ],
+    drawOrder: ['body', 'top', 'trim'],
+  },
+  buckler: {
+    parts: [
+      { type: 'body', variants: HD_BUCKLER_BODIES },
+      { type: 'rim',  variants: HD_BUCKLER_RIMS },
+      { type: 'boss', variants: HD_BUCKLER_BOSSES },
     ],
     drawOrder: ['body', 'rim', 'boss'],
   },
