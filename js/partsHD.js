@@ -859,6 +859,265 @@ const HD_BOW_TIPS = [
   { id: 'gold', name: 'Embouts Dorés HD', weight: 18, layout: buildBowTips(), palette: PALETTE_BOW_TIPS, roles: { o: 'outline', m: 'mid', l: 'highlight' }, statBias: { goldFind: [3, 8] }, tags: ['flashy'] },
 ];
 
+// =====================================================================
+// === HD ARMOR PARTS (64×64) — helm, plate, tower shield ==============
+// =====================================================================
+
+const PALETTE_ARMOR_STEEL = { o: '#0a0d12', s: '#3a4655', m: '#6f7e91', l: '#aebcd0', h: '#e2eaf6' };
+const ROLES_ARMOR = { o: 'outline', s: 'shadow', m: 'mid', l: 'light', h: 'highlight' };
+
+// --- HELM crowns (dome top, rows 4-20) ---
+function buildHelmCrownRounded() {
+  const c = makeCanvas(64, 64);
+  ellipse(c, 32, 18, 14, 14, 'm');
+  rect(c, 0, 19, 64, 20, '.');        // keep top dome only
+  ellipse(c, 30, 15, 10, 9, 'l');     // front-lit
+  ellipse(c, 28, 12, 5, 4, 'h');      // highlight
+  // Comb ridge along the top
+  vline(c, 32, 5, 16, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildHelmCrownPointed() {
+  const c = makeCanvas(64, 64);
+  // Barbute-style pointed dome
+  for (let y = 4; y <= 19; y++) {
+    const w = Math.round((y - 4) * 0.95) + 2;
+    rect(c, 32 - w, y, w * 2, 1, 'm');
+  }
+  // Front light
+  for (let y = 7; y <= 18; y++) {
+    const w = Math.round((y - 4) * 0.6);
+    rect(c, 30 - w, y, w + 2, 1, 'l');
+  }
+  px(c, 28, 9, 'h'); px(c, 29, 10, 'h');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+// --- HELM visors (eye band, rows 19-27) ---
+function buildHelmVisorSlit() {
+  const c = makeCanvas(64, 64);
+  rect(c, 19, 19, 26, 8, 'm');
+  hline(c, 19, 44, 19, 'l');
+  hline(c, 19, 44, 26, 's');
+  // Horizontal eye slit (dark)
+  rect(c, 22, 22, 20, 2, 'o');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildHelmVisorT() {
+  const c = makeCanvas(64, 64);
+  rect(c, 19, 19, 26, 8, 'm');
+  hline(c, 19, 44, 19, 'l');
+  // T-shaped slit (cross): horizontal eye + vertical breathing slit
+  rect(c, 22, 21, 20, 2, 'o');
+  rect(c, 31, 21, 2, 6, 'o');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+// --- HELM jaws (lower guard, rows 27-36) ---
+function buildHelmJawFull() {
+  const c = makeCanvas(64, 64);
+  // Rounded chin guard
+  ellipse(c, 32, 28, 12, 8, 'm');
+  rect(c, 0, 0, 64, 28, '.');         // keep lower half
+  ellipse(c, 31, 27, 9, 6, 'l');
+  // Breathing holes
+  px(c, 28, 31, 'o'); px(c, 32, 32, 'o'); px(c, 36, 31, 'o');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildHelmJawOpen() {
+  const c = makeCanvas(64, 64);
+  // Open-face cheek guards (two side pieces)
+  rect(c, 20, 27, 6, 9, 'm');
+  rect(c, 38, 27, 6, 9, 'm');
+  vline(c, 20, 28, 35, 'l');
+  vline(c, 38, 28, 35, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+const HD_HELM_CROWNS = [
+  { id: 'rounded', name: 'Dôme Arrondi HD', weight: 20, layout: buildHelmCrownRounded(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [4, 9], vitality: [2, 5] }, tags: ['knight'] },
+  { id: 'pointed', name: 'Dôme Pointu HD', weight: 14, layout: buildHelmCrownPointed(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [5, 11] }, tags: ['barbute'] },
+];
+const HD_HELM_VISORS = [
+  { id: 'slit', name: 'Visière Fente HD', weight: 20, layout: buildHelmVisorSlit(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [2, 5] }, tags: ['slit'] },
+  { id: 'tee', name: 'Visière en T HD', weight: 12, layout: buildHelmVisorT(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [3, 6], crit: [1, 3] }, tags: ['tslit'] },
+];
+const HD_HELM_JAWS = [
+  { id: 'full', name: 'Mentonnière HD', weight: 18, layout: buildHelmJawFull(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [3, 7], vitality: [2, 4] }, tags: ['closed'] },
+  { id: 'open', name: 'Joues Ouvertes HD', weight: 12, layout: buildHelmJawOpen(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [1, 4], speed: [1, 2] }, tags: ['open'] },
+];
+
+// --- PLATE chest (breastplate, rows 14-36) ---
+function buildPlateChestSmooth() {
+  const c = makeCanvas(64, 64);
+  rect(c, 20, 14, 24, 22, 'm');
+  // Rounded top + bottom edges
+  ellipse(c, 32, 14, 12, 4, 'm');
+  ellipse(c, 32, 36, 12, 4, 'm');
+  // Central highlight ridge
+  rect(c, 30, 16, 4, 18, 'l');
+  vline(c, 31, 16, 33, 'h');
+  // Side shadows
+  vline(c, 21, 16, 34, 's'); vline(c, 42, 16, 34, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildPlateChestMuscled() {
+  const c = makeCanvas(64, 64);
+  rect(c, 20, 14, 24, 22, 'm');
+  ellipse(c, 32, 14, 12, 4, 'm');
+  // Pectoral bulges
+  ellipse(c, 26, 20, 5, 4, 'l'); ellipse(c, 38, 20, 5, 4, 'l');
+  px(c, 24, 18, 'h'); px(c, 36, 18, 'h');
+  // Ab lines
+  hline(c, 28, 36, 28, 's'); hline(c, 28, 36, 32, 's');
+  vline(c, 32, 26, 34, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+// --- PLATE shoulders (pauldrons, rows 10-22) ---
+function buildPlateShouldersRound() {
+  const c = makeCanvas(64, 64);
+  ellipse(c, 18, 16, 6, 5, 'm'); ellipse(c, 46, 16, 6, 5, 'm');
+  ellipse(c, 17, 14, 4, 3, 'l'); ellipse(c, 45, 14, 4, 3, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildPlateShouldersSpiked() {
+  const c = makeCanvas(64, 64);
+  ellipse(c, 18, 16, 6, 5, 'm'); ellipse(c, 46, 16, 6, 5, 'm');
+  ellipse(c, 17, 14, 4, 3, 'l'); ellipse(c, 45, 14, 4, 3, 'l');
+  // Spikes
+  px(c, 16, 9, 'm'); px(c, 16, 10, 'l'); px(c, 17, 11, 'm');
+  px(c, 48, 9, 'm'); px(c, 48, 10, 'l'); px(c, 47, 11, 'm');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+// --- PLATE lower (faulds, rows 36-46) ---
+function buildPlateLowerFaulds() {
+  const c = makeCanvas(64, 64);
+  rect(c, 22, 36, 20, 8, 'm');
+  // Segmented bands
+  hline(c, 22, 41, 38, 's'); hline(c, 22, 41, 41, 's');
+  hline(c, 22, 41, 36, 'l');
+  // Vertical division
+  vline(c, 32, 37, 43, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildPlateLowerTassets() {
+  const c = makeCanvas(64, 64);
+  // Two hanging plates
+  rect(c, 23, 36, 7, 9, 'm'); rect(c, 34, 36, 7, 9, 'm');
+  hline(c, 23, 29, 36, 'l'); hline(c, 34, 40, 36, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+const HD_PLATE_CHESTS = [
+  { id: 'smooth', name: 'Plastron Lisse HD', weight: 20, layout: buildPlateChestSmooth(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [8, 16], vitality: [3, 7] }, tags: ['knight'] },
+  { id: 'muscled', name: 'Plastron Musclé HD', weight: 12, layout: buildPlateChestMuscled(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [6, 13], damage: [2, 5] }, tags: ['heroic'] },
+];
+const HD_PLATE_SHOULDERS = [
+  { id: 'round', name: 'Spallières Rondes HD', weight: 20, layout: buildPlateShouldersRound(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [3, 7] }, tags: ['round'] },
+  { id: 'spiked', name: 'Spallières Cloutées HD', weight: 10, layout: buildPlateShouldersSpiked(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [2, 5], damage: [2, 4] }, tags: ['spiked'] },
+];
+const HD_PLATE_LOWERS = [
+  { id: 'faulds', name: 'Tassettes HD', weight: 20, layout: buildPlateLowerFaulds(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [3, 7], vitality: [2, 4] }, tags: ['faulds'] },
+  { id: 'tassets', name: 'Cuissots HD', weight: 12, layout: buildPlateLowerTassets(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [2, 6], speed: [1, 2] }, tags: ['tassets'] },
+];
+
+// --- TOWER shield (tall, rows 4-54) ---
+function buildShieldBodyRound() {
+  const c = makeCanvas(64, 64);
+  // Rounded-top tall shield
+  ellipse(c, 32, 16, 16, 14, 'm');
+  rect(c, 16, 16, 32, 30, 'm');
+  // Tapered bottom point
+  for (let y = 46; y <= 56; y++) {
+    const w = Math.round((56 - y) * 1.5);
+    rect(c, 32 - w, y, w * 2, 1, 'm');
+  }
+  // Surface highlight
+  rect(c, 22, 12, 8, 36, 'l');
+  vline(c, 24, 10, 48, 'h');
+  // Side shadows
+  vline(c, 17, 18, 44, 's'); vline(c, 46, 18, 44, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildShieldBodyHeater() {
+  const c = makeCanvas(64, 64);
+  // Flat top, pointed bottom (heater shield)
+  rect(c, 16, 8, 32, 32, 'm');
+  for (let y = 40; y <= 56; y++) {
+    const w = Math.round((56 - y) * 1.0);
+    rect(c, 32 - w, y, w * 2, 1, 'm');
+  }
+  rect(c, 22, 10, 8, 30, 'l');
+  vline(c, 24, 10, 42, 'h');
+  vline(c, 17, 10, 38, 's'); vline(c, 46, 10, 38, 's');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+
+function buildShieldRimPlain() {
+  const c = makeCanvas(64, 64);
+  // Border outline around the shield silhouette (approx)
+  for (let y = 6; y <= 44; y++) { px(c, 15, y, 'l'); px(c, 48, y, 'l'); }
+  hline(c, 16, 47, 7, 'l');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildShieldRimStudded() {
+  const c = makeCanvas(64, 64);
+  for (let y = 8; y <= 42; y += 6) { px(c, 16, y, 'h'); px(c, 47, y, 'h'); }
+  for (let x = 18; x <= 46; x += 6) px(c, x, 9, 'h');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_SHIELD_RIM = { o: '#1a0e04', m: '#c89020', l: '#ffe14a', h: '#fff8c8' };
+
+function buildShieldBossRound() {
+  const c = makeCanvas(64, 64);
+  ellipse(c, 32, 26, 6, 6, 'm');
+  ellipse(c, 31, 25, 4, 4, 'l');
+  px(c, 30, 23, 'h');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildShieldBossCross() {
+  const c = makeCanvas(64, 64);
+  // Heraldic cross emblem
+  rect(c, 30, 16, 4, 24, 'A');
+  rect(c, 22, 24, 20, 4, 'A');
+  px(c, 31, 17, 'B'); px(c, 23, 25, 'B');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_SHIELD_BOSS = { o: '#1a0e04', s: '#5a3818', m: '#c89020', l: '#ffe14a', h: '#fff8c8', A: '#a02030', B: '#ff5060' };
+
+const HD_SHIELD_BODIES = [
+  { id: 'round', name: 'Pavois Arrondi HD', weight: 18, layout: buildShieldBodyRound(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [10, 20], vitality: [4, 9] }, tags: ['tower'] },
+  { id: 'heater', name: 'Écu Heater HD', weight: 14, layout: buildShieldBodyHeater(), palette: PALETTE_ARMOR_STEEL, roles: ROLES_ARMOR, statBias: { armor: [8, 16], crit: [2, 4] }, tags: ['heater'] },
+];
+const HD_SHIELD_RIMS = [
+  { id: 'plain', name: 'Bordure Lisse HD', weight: 20, layout: buildShieldRimPlain(), palette: PALETTE_SHIELD_RIM, roles: { o: 'outline', m: 'mid', l: 'light', h: 'highlight' }, statBias: { armor: [2, 5] }, tags: ['plain'] },
+  { id: 'studded', name: 'Bordure Cloutée HD', weight: 12, layout: buildShieldRimStudded(), palette: PALETTE_SHIELD_RIM, roles: { o: 'outline', m: 'mid', l: 'light', h: 'highlight' }, statBias: { armor: [3, 6], goldFind: [2, 5] }, tags: ['studded'] },
+];
+const HD_SHIELD_BOSSES = [
+  { id: 'round', name: 'Umbo Rond HD', weight: 18, layout: buildShieldBossRound(), palette: PALETTE_SHIELD_BOSS, roles: { o: 'outline', s: 'shadow', m: 'mid', l: 'light', h: 'highlight' }, statBias: { armor: [2, 5] }, tags: ['round'] },
+  { id: 'cross', name: 'Croix Héraldique HD', weight: 10, layout: buildShieldBossCross(), palette: PALETTE_SHIELD_BOSS, statBias: { armor: [2, 4], vitality: [3, 6] }, tags: ['heraldic'] },
+];
+
 // Weapon-parts definition (mirrors the WEAPON_PARTS shape from parts.js)
 export const HD_WEAPON_PARTS = {
   sword: {
@@ -901,6 +1160,30 @@ export const HD_WEAPON_PARTS = {
       { type: 'tips',  variants: HD_BOW_TIPS },
     ],
     drawOrder: ['limbs', 'grip', 'tips'],
+  },
+  helm: {
+    parts: [
+      { type: 'crown', variants: HD_HELM_CROWNS },
+      { type: 'visor', variants: HD_HELM_VISORS },
+      { type: 'jaw',   variants: HD_HELM_JAWS },
+    ],
+    drawOrder: ['jaw', 'crown', 'visor'],
+  },
+  plate: {
+    parts: [
+      { type: 'chest',     variants: HD_PLATE_CHESTS },
+      { type: 'shoulders', variants: HD_PLATE_SHOULDERS },
+      { type: 'lower',     variants: HD_PLATE_LOWERS },
+    ],
+    drawOrder: ['lower', 'chest', 'shoulders'],
+  },
+  tower: {
+    parts: [
+      { type: 'body', variants: HD_SHIELD_BODIES },
+      { type: 'rim',  variants: HD_SHIELD_RIMS },
+      { type: 'boss', variants: HD_SHIELD_BOSSES },
+    ],
+    drawOrder: ['body', 'rim', 'boss'],
   },
 };
 
