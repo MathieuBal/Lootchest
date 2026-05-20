@@ -1185,6 +1185,83 @@ function buildHDOverlayVoidWand() {
   return canvasToLayout(c);
 }
 
+// --- HD DAGGER OVERLAYS (blade rows 10-30, cols 29-34) ---
+function buildHDOverlayFireDagger() {
+  const c = makeCanvas(64, 64);
+  px(c, 31, 9, 'g'); px(c, 32, 9, 'g');
+  px(c, 30, 11, 'l'); px(c, 33, 12, 'm');
+  px(c, 29, 15, 'm'); px(c, 34, 17, 'l');
+  px(c, 30, 20, 'g'); px(c, 33, 23, 'm');
+  px(c, 29, 26, 'l'); px(c, 27, 13, 'g'); px(c, 36, 19, 'g');
+  return canvasToLayout(c);
+}
+function buildHDOverlayFrostDagger() {
+  const c = makeCanvas(64, 64);
+  px(c, 31, 9, 'g'); px(c, 30, 12, 'l'); px(c, 33, 13, 'g');
+  px(c, 29, 17, 'l'); px(c, 34, 19, 'l'); px(c, 30, 23, 'g');
+  px(c, 27, 14, 'g'); px(c, 36, 21, 'g'); px(c, 28, 25, 'l');
+  return canvasToLayout(c);
+}
+function buildHDOverlayPoisonDagger() {
+  const c = makeCanvas(64, 64);
+  px(c, 30, 13, 'l'); px(c, 33, 15, 'm'); px(c, 29, 19, 'g');
+  px(c, 34, 22, 'l'); px(c, 31, 26, 'm');
+  px(c, 31, 32, 'g'); px(c, 32, 35, 'l');
+  return canvasToLayout(c);
+}
+function buildHDOverlayLightningDagger() {
+  const c = makeCanvas(64, 64);
+  const path = [[31, 9], [30, 12], [32, 15], [33, 18], [31, 21], [30, 24], [32, 27]];
+  for (const [x, y] of path) px(c, x, y, 'l');
+  px(c, 30, 12, 'g'); px(c, 33, 18, 'g'); px(c, 32, 27, 'g');
+  px(c, 27, 16, 'g'); px(c, 36, 22, 'l');
+  return canvasToLayout(c);
+}
+function buildHDOverlayVoidDagger() {
+  const c = makeCanvas(64, 64);
+  px(c, 30, 17, 'd'); px(c, 31, 17, 'd');
+  px(c, 29, 18, 'l'); px(c, 30, 18, 'g'); px(c, 31, 18, 'g'); px(c, 32, 18, 'l');
+  px(c, 30, 19, 'd'); px(c, 31, 19, 'd');
+  px(c, 27, 12, 'g'); px(c, 36, 15, 'g'); px(c, 28, 26, 'l'); px(c, 35, 24, 'l');
+  return canvasToLayout(c);
+}
+
+// --- HD BOW OVERLAYS (along the limb arc, cols 22-40) ---
+function buildHDOverlayFireBow() {
+  const c = makeCanvas(64, 64);
+  px(c, 38, 6, 'g'); px(c, 36, 9, 'l'); px(c, 33, 13, 'm');
+  px(c, 25, 24, 'g'); px(c, 24, 32, 'l'); px(c, 25, 40, 'g');
+  px(c, 33, 51, 'm'); px(c, 36, 55, 'l'); px(c, 38, 58, 'g');
+  return canvasToLayout(c);
+}
+function buildHDOverlayFrostBow() {
+  const c = makeCanvas(64, 64);
+  px(c, 37, 7, 'g'); px(c, 34, 12, 'l'); px(c, 26, 23, 'g');
+  px(c, 24, 32, 'l'); px(c, 26, 41, 'g'); px(c, 34, 52, 'l'); px(c, 37, 57, 'g');
+  return canvasToLayout(c);
+}
+function buildHDOverlayPoisonBow() {
+  const c = makeCanvas(64, 64);
+  px(c, 35, 10, 'l'); px(c, 26, 24, 'm'); px(c, 25, 33, 'g');
+  px(c, 26, 42, 'l'); px(c, 35, 53, 'm');
+  return canvasToLayout(c);
+}
+function buildHDOverlayLightningBow() {
+  const c = makeCanvas(64, 64);
+  // Arc along the string (col 40)
+  px(c, 40, 12, 'l'); px(c, 39, 20, 'g'); px(c, 41, 28, 'l');
+  px(c, 39, 36, 'g'); px(c, 41, 44, 'l'); px(c, 40, 52, 'g');
+  px(c, 24, 32, 'g');
+  return canvasToLayout(c);
+}
+function buildHDOverlayVoidBow() {
+  const c = makeCanvas(64, 64);
+  px(c, 24, 31, 'd'); px(c, 24, 32, 'g'); px(c, 24, 33, 'd');
+  px(c, 23, 32, 'l'); px(c, 25, 32, 'l');
+  px(c, 37, 9, 'g'); px(c, 37, 55, 'g'); px(c, 30, 20, 'l'); px(c, 30, 44, 'l');
+  return canvasToLayout(c);
+}
+
 const HD_ELEMENT_OVERLAYS = {
   sword: {
     fire:      buildHDOverlayFire(),
@@ -1192,6 +1269,20 @@ const HD_ELEMENT_OVERLAYS = {
     poison:    buildHDOverlayPoison(),
     lightning: buildHDOverlayLightning(),
     void:      buildHDOverlayVoid(),
+  },
+  dagger: {
+    fire:      buildHDOverlayFireDagger(),
+    frost:     buildHDOverlayFrostDagger(),
+    poison:    buildHDOverlayPoisonDagger(),
+    lightning: buildHDOverlayLightningDagger(),
+    void:      buildHDOverlayVoidDagger(),
+  },
+  bow: {
+    fire:      buildHDOverlayFireBow(),
+    frost:     buildHDOverlayFrostBow(),
+    poison:    buildHDOverlayPoisonBow(),
+    lightning: buildHDOverlayLightningBow(),
+    void:      buildHDOverlayVoidBow(),
   },
   axe: {
     fire:      buildHDOverlayFireAxe(),
