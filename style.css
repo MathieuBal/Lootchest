@@ -276,10 +276,19 @@ input, select { font-family: inherit; }
 /* ═══════════════ ① LOOT REVEAL (overlay) ═══════════════ */
 .loot { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
   background: radial-gradient(110% 80% at 50% 40%, color-mix(in srgb, var(--rc) 18%, #0a0610), #050306 75%); padding: 24px; text-align: center; }
-.loot-rays { position: absolute; top: 50%; left: 50%; width: 600px; height: 600px; transform: translate(-50%,-60%);
-  background: conic-gradient(from 0deg, transparent 0 8deg, color-mix(in srgb, var(--rc) 30%, transparent) 8deg 12deg, transparent 12deg 30deg);
-  opacity: 0; pointer-events: none; animation: spin 24s linear infinite; }
-.loot-rays.on { opacity: .5; }
+.loot-rays { position: absolute; top: 44%; left: 50%; width: 980px; height: 980px; transform: translate(-50%,-50%); pointer-events: none; opacity: 0;
+  background: conic-gradient(from 0deg, transparent 0 6deg, color-mix(in srgb, var(--rc) 60%, transparent) 6deg 9deg, transparent 9deg 24deg);
+  mix-blend-mode: screen; animation: spin 26s linear infinite; }
+.loot-rays.fine { width: 700px; height: 700px; animation: spinRev 17s linear infinite;
+  background: conic-gradient(from 12deg, transparent 0 3deg, color-mix(in srgb, var(--rc) 40%, transparent) 3deg 4.6deg, transparent 4.6deg 15deg); }
+.loot[data-ray="1"] .loot-rays { opacity: .2; }
+.loot[data-ray="2"] .loot-rays { opacity: .34; }
+.loot[data-ray="3"] .loot-rays { opacity: .5; }
+.loot[data-ray="4"] .loot-rays { opacity: .64; }
+.loot[data-ray="5"] .loot-rays { opacity: .78; }
+.loot-bloom { position: absolute; top: 44%; left: 50%; width: 360px; height: 360px; transform: translate(-50%,-50%); pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--rc) 50%, transparent), transparent 66%); mix-blend-mode: screen; animation: bloomPulse 2.2s ease-in-out infinite; }
+.loot[data-ray="0"] .loot-bloom, .loot[data-ray="1"] .loot-bloom { opacity: .5; }
 .loot-stamp { font-size: 13px; letter-spacing: 0.3em; position: relative; }
 .loot-art { width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; border-radius: var(--r-md); padding: 11px; background: var(--surface-sunken); position: relative; animation: lootRise .4s cubic-bezier(.2,1.2,.4,1); }
 .loot-name { font-size: 22px; position: relative; }
@@ -392,7 +401,9 @@ input, select { font-family: inherit; }
 }
 
 /* ⑥ Item detail */
-.item-sheet { padding-top: 8px; }
+.item-sheet { padding-top: 8px; animation: slideUp .3s cubic-bezier(.2,.9,.3,1); }
+.item-sheet .detail { animation: detailIn .34s cubic-bezier(.2,.9,.3,1) both; }
+@keyframes detailIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 .sheet-grip { width: 38px; height: 4px; border-radius: 2px; background: var(--border); margin: 6px auto 4px; }
 .detail { display: flex; flex-direction: column; gap: 12px; padding-bottom: 8px; }
 .detail-hero { display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -599,7 +610,23 @@ input, select { font-family: inherit; }
 @keyframes idleBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes callPop { 0% { opacity: 0; transform: scale(.6); } 30% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: scale(1); } }
 @keyframes lootRise { 0% { opacity: 0; transform: translateY(24px) scale(.7); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes spin { to { transform: translate(-50%,-60%) rotate(360deg); } }
+@keyframes spin { to { transform: translate(-50%,-50%) rotate(360deg); } }
+@keyframes spinRev { to { transform: translate(-50%,-50%) rotate(-360deg); } }
+@keyframes bloomPulse { 0%,100% { transform: translate(-50%,-50%) scale(.9); opacity: .75; } 50% { transform: translate(-50%,-50%) scale(1.12); opacity: 1; } }
+/* Chest open: lid-lift jolt + expanding white flash */
+.chest-ghost { position: fixed; z-index: 94; pointer-events: none; }
+.chest-ghost svg { width: 100%; height: 100%; }
+.chest-opening { animation: chestOpen .55s cubic-bezier(.3,1.5,.5,1); transform-origin: bottom center; }
+@keyframes chestOpen {
+  0% { transform: translateY(0) scale(1); filter: brightness(1); }
+  16% { transform: translateY(5px) scaleY(.88) scaleX(1.1); }
+  42% { transform: translateY(-16px) scaleY(1.14) scaleX(.94); filter: brightness(2.4) drop-shadow(0 0 14px var(--gold-100)); }
+  70% { transform: translateY(2px) scaleY(.97) scaleX(1.03); filter: brightness(1.2); }
+  100% { transform: translateY(0) scale(1); filter: brightness(1); }
+}
+.chest-burst { position: fixed; width: 44px; height: 44px; transform: translate(-50%,-50%); border-radius: 50%; pointer-events: none; z-index: 95;
+  background: radial-gradient(circle, rgba(255,255,255,.95), rgba(255,240,200,.55) 38%, transparent 70%); animation: chestBurst .58s ease-out forwards; }
+@keyframes chestBurst { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.2); } 28% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(8); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeOut { to { opacity: 0; transform: translateX(20px); } }
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
