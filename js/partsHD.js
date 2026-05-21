@@ -1357,6 +1357,140 @@ const HD_BUCKLER_BOSSES = [
   { id: 'round', name: 'Umbo HD', weight: 18, layout: buildBucklerBoss(), palette: PALETTE_BUCKLER_BOSS, roles: { o: 'outline', s: 'shadow', A: 'mid', B: 'highlight' }, statBias: { armor: [2, 5] }, tags: ['round'] },
 ];
 
+// =====================================================================
+// === HD ACCESSORIES (band, signet, pendant, talisman) ===============
+// =====================================================================
+
+// --- RING band (oval ring, centered rows 26-52) ---
+function buildRingBand() {
+  const c = makeCanvas(64, 64);
+  // Outer band ring (slightly tilted oval)
+  ellipseOutline(c, 32, 40, 11, 13, 'm');
+  ellipseOutline(c, 32, 40, 10, 12, 'l');
+  // Thickness shading on the lower-right
+  px(c, 40, 46, 's'); px(c, 41, 44, 's'); px(c, 39, 48, 's');
+  // Highlight on upper-left
+  px(c, 24, 34, 'h'); px(c, 23, 37, 'h');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildRingBandThick() {
+  const c = makeCanvas(64, 64);
+  ellipseOutline(c, 32, 40, 12, 13, 'm');
+  ellipseOutline(c, 32, 40, 10, 11, 's');  // inner shadow ring (thick band)
+  ellipseOutline(c, 32, 40, 11, 12, 'l');
+  px(c, 24, 34, 'h');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_RING_GOLD = { o: '#1a0e04', s: '#7a4818', m: '#c89020', l: '#ffe14a', h: '#fff8c8' };
+const ROLES_RING = { o: 'outline', s: 'shadow', m: 'mid', l: 'light', h: 'highlight' };
+
+// --- RING gem (mounted on top, rows 22-32) ---
+function buildRingGemRound() {
+  const c = makeCanvas(64, 64);
+  ellipse(c, 32, 26, 5, 5, 'A');
+  ellipse(c, 30, 24, 3, 3, 'B');
+  px(c, 29, 23, 'C');
+  // Prongs holding it
+  px(c, 27, 30, 'm'); px(c, 37, 30, 'm');
+  return canvasToLayout(c);
+}
+function buildSignetSeal() {
+  const c = makeCanvas(64, 64);
+  // Flat engraved seal face
+  ellipse(c, 32, 26, 7, 5, 'm');
+  ellipse(c, 32, 26, 5, 3, 's');
+  // Engraved emblem (cross/star)
+  px(c, 32, 24, 'l'); px(c, 32, 28, 'l'); px(c, 30, 26, 'l'); px(c, 34, 26, 'l');
+  px(c, 28, 22, 'h');
+  return canvasToLayout(c);
+}
+const PALETTE_GEM_RED = { o: '#1a0408', A: '#a02030', B: '#ff5060', C: '#ffd0d0' };
+const PALETTE_SIGNET = { o: '#1a0e04', s: '#5a3818', m: '#c89020', l: '#ffe14a', h: '#fff8c8' };
+
+const HD_BAND_RINGS = [
+  { id: 'thin', name: 'Anneau Fin HD', weight: 22, layout: buildRingBand(), palette: PALETTE_RING_GOLD, roles: ROLES_RING, statBias: { crit: [2, 5], goldFind: [3, 7] }, tags: ['ring'] },
+  { id: 'thick', name: 'Anneau Épais HD', weight: 14, layout: buildRingBandThick(), palette: PALETTE_RING_GOLD, roles: ROLES_RING, statBias: { armor: [2, 5], vitality: [2, 5] }, tags: ['ring'] },
+];
+const HD_BAND_GEMS = [
+  { id: 'ruby', name: 'Rubis HD', weight: 18, layout: buildRingGemRound(), palette: PALETTE_GEM_RED, statBias: { fireDmg: [3, 8], damage: [2, 5] }, tags: ['gem'] },
+];
+const HD_SIGNET_RINGS = HD_BAND_RINGS;  // signets reuse band shapes
+const HD_SIGNET_SEALS = [
+  { id: 'seal', name: 'Sceau Gravé HD', weight: 18, layout: buildSignetSeal(), palette: PALETTE_SIGNET, roles: ROLES_RING, statBias: { goldFind: [5, 12], crit: [1, 3] }, tags: ['seal'] },
+];
+
+// --- PENDANT chain (links going up, rows 2-30) ---
+function buildPendantChain() {
+  const c = makeCanvas(64, 64);
+  // Chain forming an inverted V from top
+  for (let i = 0; i < 14; i++) {
+    const y = 4 + i * 2;
+    const spread = Math.round(i * 0.9);
+    px(c, 32 - spread, y, 'm'); px(c, 33 - spread, y, 'l');
+    px(c, 31 + spread, y, 'm'); px(c, 32 + spread, y, 'l');
+  }
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildPendantBodyTeardrop() {
+  const c = makeCanvas(64, 64);
+  // Teardrop pendant hanging at the bottom
+  ellipse(c, 32, 42, 8, 9, 'm');
+  ellipse(c, 30, 40, 5, 6, 'l');
+  px(c, 28, 37, 'h');
+  // Pointed bottom
+  px(c, 32, 52, 'm'); px(c, 32, 53, 's');
+  // Bail (loop connecting to chain)
+  ellipseOutline(c, 32, 32, 2, 2, 'm');
+  // Inset gem
+  ellipse(c, 32, 42, 3, 4, 'A');
+  px(c, 31, 41, 'B');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_PENDANT_CHAIN = { o: '#1a0e04', m: '#9a7838', l: '#d0a848' };
+const PALETTE_PENDANT_BODY = { o: '#1a0e04', s: '#7a4818', m: '#c89020', l: '#ffe14a', h: '#fff8c8', A: '#7028a0', B: '#c080ff' };
+
+const HD_PENDANT_CHAINS = [
+  { id: 'chain', name: 'Chaîne HD', weight: 24, layout: buildPendantChain(), palette: PALETTE_PENDANT_CHAIN, roles: { o: 'outline', m: 'mid', l: 'light' }, statBias: { vitality: [2, 5] }, tags: ['chain'] },
+];
+const HD_PENDANT_BODIES = [
+  { id: 'teardrop', name: 'Larme HD', weight: 18, layout: buildPendantBodyTeardrop(), palette: PALETTE_PENDANT_BODY, roles: ROLES_RING, statBias: { fireDmg: [3, 8], vitality: [3, 6] }, tags: ['amulet'] },
+];
+
+// --- TALISMAN figure (symbolic charm) ---
+function buildTalismanFigureEye() {
+  const c = makeCanvas(64, 64);
+  // All-seeing eye charm
+  ellipse(c, 32, 40, 10, 7, 'm');
+  ellipse(c, 32, 40, 8, 5, 'l');
+  ellipse(c, 32, 40, 3, 3, 'A');     // iris
+  px(c, 32, 40, 'B');                 // pupil
+  // Bail
+  ellipseOutline(c, 32, 31, 2, 2, 'm');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+function buildTalismanFigureMoon() {
+  const c = makeCanvas(64, 64);
+  // Crescent moon charm
+  ellipse(c, 32, 40, 9, 9, 'm');
+  ellipse(c, 35, 38, 7, 7, '.');     // subtract → crescent
+  ellipse(c, 30, 40, 4, 5, 'l');
+  ellipseOutline(c, 32, 30, 2, 2, 'm');
+  outline(c, 'o');
+  return canvasToLayout(c);
+}
+const PALETTE_TALISMAN = { o: '#0a0a18', s: '#1a1a38', m: '#4848a0', l: '#7878d0', h: '#b0b0f0', A: '#ffe14a', B: '#1a0a04' };
+
+const HD_TALISMAN_CHAINS = HD_PENDANT_CHAINS;  // share
+const HD_TALISMAN_FIGURES = [
+  { id: 'eye', name: 'Œil HD', weight: 16, layout: buildTalismanFigureEye(), palette: PALETTE_TALISMAN, roles: ROLES_RING, statBias: { crit: [3, 7], fireDmg: [2, 5] }, tags: ['eye'] },
+  { id: 'moon', name: 'Lune HD', weight: 14, layout: buildTalismanFigureMoon(), palette: PALETTE_TALISMAN, roles: ROLES_RING, statBias: { vitality: [4, 9], speed: [1, 3] }, tags: ['moon'] },
+];
+
 // Weapon-parts definition (mirrors the WEAPON_PARTS shape from parts.js)
 export const HD_WEAPON_PARTS = {
   sword: {
@@ -1463,6 +1597,34 @@ export const HD_WEAPON_PARTS = {
       { type: 'boss', variants: HD_BUCKLER_BOSSES },
     ],
     drawOrder: ['body', 'rim', 'boss'],
+  },
+  band: {
+    parts: [
+      { type: 'ring', variants: HD_BAND_RINGS },
+      { type: 'gem',  variants: HD_BAND_GEMS },
+    ],
+    drawOrder: ['ring', 'gem'],
+  },
+  signet: {
+    parts: [
+      { type: 'ring', variants: HD_SIGNET_RINGS },
+      { type: 'seal', variants: HD_SIGNET_SEALS },
+    ],
+    drawOrder: ['ring', 'seal'],
+  },
+  pendant: {
+    parts: [
+      { type: 'chain', variants: HD_PENDANT_CHAINS },
+      { type: 'body',  variants: HD_PENDANT_BODIES },
+    ],
+    drawOrder: ['chain', 'body'],
+  },
+  talisman: {
+    parts: [
+      { type: 'chain',  variants: HD_TALISMAN_CHAINS },
+      { type: 'figure', variants: HD_TALISMAN_FIGURES },
+    ],
+    drawOrder: ['chain', 'figure'],
   },
 };
 
