@@ -9,6 +9,11 @@ import { buildSkillContext } from './skills.js';
 import { activeLegendaryEffectIds } from './legendaryEffects.js';
 import { trackProgress as bountyTrack, syncAbsoluteProgress as bountySync } from './bounties.js';
 
+// Total elemental damage is a single additive % pool applied per swing. Without a
+// cap, stacking elemental rolls across 8 slots reached +1300% (a ×14 multiplier),
+// which one-shot everything. Cap the pool so elemental is strong but not absurd.
+export const ELEM_DMG_CAP = 1.5; // max +150% from elemental
+
 export function isBossFloor(floor) {
   return floor > 0 && floor % 5 === 0;
 }
@@ -52,6 +57,9 @@ export function generateMonster(floor) {
   const boss = isBossFloor(floor);
   const base = pickStableMonster(floor);
   const scale = 1 + (floor - 1) * 0.28;
+  // HP scales faster than damage so geared fights last several turns instead of
+  // being one-shot, without making monster damage spike into one-shotting the player.
+  const hpScale = 1 + (floor - 1) * 0.55;
   const bossMult = boss ? 2.6 : 1;
   const hard = !!state.settings?.hardMode;
   const hardCombat = hard ? 1.5 : 1;
@@ -99,7 +107,7 @@ export function generateMonster(floor) {
     emoji: base.emoji,
     eliteIcon: elite?.icon || null,
     eliteId: elite?.id || null,
-    hp: Math.round(base.hpBase * scale * bossMult * hardCombat * elHp),
+    hp: Math.round(base.hpBase * hpScale * bossMult * hardCombat * elHp),
     damage,
     armor: Math.round(((base.armorBase || 0) + elArm) * scale * bossMult * hardCombat),
     goldReward: Math.round(base.goldBase * scale * (boss ? 6 : (elite ? 2.5 : 1)) * hardLoot * elGold * affixBoost),
@@ -139,7 +147,7 @@ export function resolveFight(monster, opts = {}) {
   const voidBonus    = (stats.voidDmg     || 0) / 100;
   const poisonBonus  = (stats.poisonDmg   || 0) / 100;
   const lightBonus   = (stats.lightningDmg|| 0) / 100;
-  const elemBonus    = (fireBonus + frostBonus + voidBonus + poisonBonus + lightBonus) * relicElemMult();
+  const elemBonus    = Math.min(ELEM_DMG_CAP, (fireBonus + frostBonus + voidBonus + poisonBonus + lightBonus) * relicElemMult());
 
   // Skill context (active skills + per-fight state)
   const { active: activeSkills, states: skillStates } = buildSkillContext();
@@ -554,8 +562,8 @@ export function predictDifficulty(monster) {
   const monsterDmg = Math.max(1, (monster.damage - (stats.armor || 0)) * relicDmgTakenMult());
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   // Sum all elemental %damages for difficulty preview (same model as resolveFight)
-  const elemBonus = (((stats.fireDmg || 0) + (stats.frostDmg || 0) + (stats.voidDmg || 0)
-                   + (stats.poisonDmg || 0) + (stats.lightningDmg || 0)) / 100) * relicElemMult();
+  const elemBonus = Math.min(ELEM_DMG_CAP, (((stats.fireDmg || 0) + (stats.frostDmg || 0) + (stats.voidDmg || 0)
+                   + (stats.poisonDmg || 0) + (stats.lightningDmg || 0)) / 100) * relicElemMult());
   const avgDmg = playerDmg * (1 + critChance + elemBonus);
   const turnsToKill = Math.ceil(monster.hp / avgDmg);
   const damageTaken = monsterDmg * Math.max(0, turnsToKill - 1);
