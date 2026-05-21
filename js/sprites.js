@@ -551,11 +551,21 @@ export function composeCharacterWithGearSVG(equipment, sizePx = 120) {
   // Item sprites use scale2x (32×32) and are drawn at scale(1) → 32 logical px.
   // Offsets target the 64×64 character layout: head rows 5-25, torso 26-44,
   // arms 30-43. The weapon sits over the right hand around row 28-44.
+  // Legacy 16×16 items (scaled 2×) fill their sprite, so offsets place the
+  // top-left near the body part. HD 64×64 items (scaled 0.5×) are CENTERED in
+  // their canvas, so they need offsets that center the sprite on the
+  // character (whose canvas center-X ≈ 47). Hence two position tables.
   const slotPositions = {
     helmet: { x: 24, y: 0 },
     armor:  { x: 24, y: 18 },
     weapon: { x: 60, y: 14 },
     shield: { x: 0,  y: 20 },
+  };
+  const hdSlotPositions = {
+    helmet: { x: 31, y: -2 },  // centered on the head
+    armor:  { x: 31, y: 14 },  // centered on the torso
+    weapon: { x: 46, y: 12 },  // held to the right
+    shield: { x: 8,  y: 14 },  // left arm
   };
 
   const drawSequence = [
@@ -579,10 +589,10 @@ export function composeCharacterWithGearSVG(equipment, sizePx = 120) {
     }
     const item = equipment[step.slot];
     if (!item) continue;
-    const pos = slotPositions[step.slot];
+    const isHD = !!item.hdParts;
+    const pos = (isHD ? hdSlotPositions : slotPositions)[step.slot];
     if (!pos) continue;
     if (item.parts && hasCompositionFor(item.baseTypeId)) {
-      const isHD = !!item.hdParts;
       const layers = getCompositionLayers(item.baseTypeId, item.parts, item.material?.id, item.element?.id, { hd: isHD });
       const inner = [];
       for (const layer of layers) {

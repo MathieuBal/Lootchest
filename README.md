@@ -73,16 +73,33 @@ Chaque boss de biome remplace l'emoji par un sprite dédié :
 - 🔥 **Seigneur Démon** : tête cornue rouge, yeux blancs incandescents
 - 🌌 **Maître du Néant** : œil cosmique, 4 tentacules, sparkles
 
-### ⚔️ Pièces d'armes composées
-Système de composition par parts (blade + guard + grip + pommel pour
-les épées, head + handle + wrap pour les haches, etc.). Chaque arme
-loot a un sprite **unique** selon les parts roulées au drop. Voir
-`parts.js` pour les variants par catégorie.
+### ⚔️ Items composés HD (64×64)
+Chaque item est composé de plusieurs **parts** procédurales construites
+au pixel via primitives (rect, ellipse, line, outline) à **64×64** :
+- Armes : blade/guard/grip/pommel (épée, dague), head/handle/wrap (hache),
+  head/shaft (baguette), limbs/grip/tips (arc)
+- Armures : crown/visor/jaw (heaume), chest/shoulders/lower (plastron),
+  top/body/trim (robe), dome/brim/accent (coiffe)…
+- Boucliers : body/rim/boss (pavois, targe)
+- Accessoires : ring/gem (anneau), chain/body (amulette)…
+
+**17 types composés**, tous en 64×64 (`partsHD.js`). Chaque part :
+- a 5-6 niveaux de shading par couleur
+- déclare des `roles` (outline/shadow/mid/light/highlight/accent) qui
+  permettent le **retint matériau** (la même lame en Or, Obsidienne,
+  Cristal…)
+- reçoit une **couche d'overlay élémentaire animée** pour les armes
+  (braises feu, cristaux givre, arcs foudre, tendrils néant)
+
+Les anciennes parts 16×16 (`parts.js`) restent en fallback pour les
+items des sauvegardes pré-HD.
 
 ### Optimisations rendu
 - Fusion des runs horizontaux dans `gridToRects` : 1 `<rect width="N">`
   au lieu de N rects de 1px → **-64% rects sur le perso, -77% sur le coffre**
 - Cache des rects pour layouts immutables (perso + 10 tiers + 5 bosses)
+- `scale2x` : upscale intelligent des sprites 16×16 legacy en grand affichage
+- Builder partagé (`builder.js`) entre perso/coffre/boss/parts HD
 
 ---
 
@@ -338,11 +355,17 @@ js/
   skills.js       12 compétences passives avec hooks de combat
   talents.js      multiplicateurs + categoryPoints + categoryMastery
   bounties.js     generateBounty, trackProgress, rerollBounty
-  sprites.js      builder procédural (rect/ellipse/outline) :
-                  perso 64×64, coffres 64×64 ×10 tiers décorés,
-                  5 boss 48×48, composition perso+équipement
-  parts.js        WEAPON_PARTS — composition visuelle des armes par
-                  parts (blade/guard/grip/pommel…) ; ~150 variants.
+  builder.js      primitives pixel partagées (makeCanvas, rect,
+                  ellipse, line, outline, canvasToLayout…)
+  sprites.js      perso 64×64, coffres 64×64 ×10 tiers décorés,
+                  5 boss 48×48, composition perso+équipement,
+                  scale2x, dispatch HD/legacy
+  partsHD.js      HD_WEAPON_PARTS — 17 types composés en 64×64
+                  procédural (armes + armures + boucliers + accessoires)
+                  + overlays élémentaires HD par famille d'arme
+  parts.js        WEAPON_PARTS legacy 16×16 (fallback saves pré-HD).
+                  getCompositionLayers(type, parts, mat, elem, {hd})
+                  dispatch vers partsHD selon item.hdParts.
                   Helpers rollPart/rollWeaponParts/recomputePartStats
                   exposent quality (d20) + statSources.
   materials.js    10 matériaux (Fer → Os de Dragon) avec stats,

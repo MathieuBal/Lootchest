@@ -356,7 +356,7 @@ function buildRegularItem(chestTier, rarity) {
     const statMult = RARITY_BY_ID[rarity].statMult;
     // HD parts (64×64 procedural) when the weapon type has them registered.
     // Currently: swords. Other weapons fall back to legacy 16×16.
-    const useHD = baseType.id === 'sword';
+    const useHD = ['sword','axe','wand','dagger','bow','helm','cap','crown','plate','tunic','robe','tower','buckler','band','signet','pendant','talisman'].includes(baseType.id);
     const { parts, baseStats, statSources } = rollWeaponParts(baseType.id, chestTier, statMult, { hd: useHD });
     // Faction first — drives coherence on material/element via tag bias.
     const faction = rollFaction(chestTier, rarity);
@@ -447,7 +447,7 @@ function buildUniqueLegendary(chestTier) {
   };
   // Visual-only composed sprite for uniques whose base type has parts (weapons + armor).
   if (hasCompositionFor(tpl.baseTypeId)) {
-    const useHD = tpl.baseTypeId === 'sword';
+    const useHD = ['sword','axe','wand','dagger','bow','helm','cap','crown','plate','tunic','robe','tower','buckler','band','signet','pendant','talisman'].includes(tpl.baseTypeId);
     const rolled = rollWeaponParts(tpl.baseTypeId, chestTier, 1, { hd: useHD });
     if (rolled) {
       item.parts = rolled.parts;
@@ -469,7 +469,7 @@ function buildSetPiece(chestTier, rarity) {
   // Composed item path (weapons + armor): parts contribute baseStats AND visual.
   if (hasCompositionFor(piece.baseTypeId)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
-    const useHD = piece.baseTypeId === 'sword';
+    const useHD = ['sword','axe','wand','dagger','bow','helm','cap','crown','plate','tunic','robe','tower','buckler','band','signet','pendant','talisman'].includes(piece.baseTypeId);
     const rolled = rollWeaponParts(piece.baseTypeId, chestTier, statMult, { hd: useHD });
     // Set pieces keep their canonical name (the set IS their faction-equivalent
     // identity). They still get all three layers for stats + tooltip lines.
