@@ -812,9 +812,12 @@ function ovLoot() {
   const stats = itemTotalStats(item);
   const chips = Object.entries(stats).slice(0, 6).map(([k, v]) =>
     `<span class="chip"><span class="chip-ico">${STAT_ICON[k] || '◆'}</span>${v > 0 ? '+' : ''}${v}${PCT_STATS.has(k) ? '%' : ''}</span>`).join('');
-  const isHi = ['epic', 'legendary', 'ancestral'].includes(item.rarity);
-  return `<div class="loot rar-${r.cssClass}" style="--rc:${r.color}">
-    <div class="loot-rays ${isHi ? 'on' : ''}"></div>
+  // Ray intensity scales with rarity (commons get a faint shimmer, ancestrals blaze).
+  const rayTier = { common: 0, magic: 1, rare: 2, epic: 3, legendary: 4, ancestral: 5 }[item.rarity] || 0;
+  return `<div class="loot rar-${r.cssClass}" style="--rc:${r.color}" data-ray="${rayTier}">
+    <div class="loot-rays"></div>
+    <div class="loot-rays fine"></div>
+    <div class="loot-bloom"></div>
     <div class="loot-stamp display" style="color:${r.color}">${r.name.toUpperCase()}</div>
     <div class="loot-art rar-glow-${r.cssClass} pixel">${itemVisualHTML(item, 128)}</div>
     <div class="loot-name display rt-${r.cssClass}">${item.name}</div>
@@ -1188,6 +1191,25 @@ export function setOpenButtonEnabled(on) {
   const b = $('#btn-open');
   if (b) b.classList.toggle('is-disabled', !on || !hasKey());
 }
+// Chest-open burst: lid-lift jolt + expanding white flash. Animates a floating
+// CLONE of the sprite (appended to body) because opening the chest mutates
+// state → renderAll() rebuilds the live sprite and would cut the animation off.
+export function playChestOpen() {
+  const sprite = $('#chest-sprite');
+  if (!sprite) return;
+  const r = sprite.getBoundingClientRect();
+  const ghost = document.createElement('div');
+  ghost.className = 'chest-ghost chest-opening pixel';
+  ghost.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px`;
+  ghost.innerHTML = sprite.innerHTML;
+  const burst = document.createElement('div');
+  burst.className = 'chest-burst';
+  burst.style.left = (r.left + r.width / 2) + 'px';
+  burst.style.top = (r.top + r.height / 2) + 'px';
+  document.body.append(ghost, burst);
+  setTimeout(() => { ghost.remove(); burst.remove(); }, 640);
+}
+
 export function startCooldownAnim() {
   const fill = $('#cooldown-fill');
   if (!fill) return;

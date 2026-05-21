@@ -232,6 +232,7 @@ function openChestFlow() {
   const result = openChest();
   if (!result) return;
   const { item, orbs } = result;
+  UI.playChestOpen();
   flashAndCooldown(item);
   soundDrop(item.rarity);
   const center = UI.getChestCenter();
@@ -249,7 +250,8 @@ function openChestFlow() {
   const action = autoActionFor(item.rarity);
   if (action === 'sell') { sellDrop(item); soundCoin(); return; }
   if (action === 'salvage') { salvageDrop(item); soundForge(); return; }
-  UI.showDropPopup(item);
+  // Let the lid-lift + flash read before the reveal slides in.
+  setTimeout(() => UI.showDropPopup(item), 300);
 }
 
 function flashAndCooldown(item) {
