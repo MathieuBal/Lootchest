@@ -543,6 +543,20 @@ input, select { font-family: inherit; }
 .ob-title { font-weight: 700; font-size: 13px; margin: 4px 0; }
 .ob-desc { font-size: 9px; }
 
+/* Auto-vente & gestion */
+.as-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.as-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--surface-sunken); border: 1px solid var(--border-soft); }
+.as-name { font-weight: 700; font-size: 13px; }
+.as-never { color: var(--ink-500); font-style: italic; }
+.as-unlock { padding: 6px 12px; }
+.as-seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
+.as-seg button { border: none; background: var(--surface-raised); color: var(--ink-300); padding: 6px 11px; font-size: 12px; font-weight: 600; border-right: 1px solid var(--border); }
+.as-seg button:last-child { border-right: none; }
+.as-seg button.on { background: var(--gold-200); color: #2a1a08; }
+.as-bulk { display: inline-flex; gap: 4px; }
+.as-bulkbtn { padding: 6px 8px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface-raised); color: var(--ink-200); font-size: 11px; font-weight: 600; }
+.as-bulkbtn[disabled] { opacity: .35; }
+
 /* Settings */
 .set-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 13px; border-bottom: 1px solid var(--border-soft); }
 .set-row input { width: 18px; height: 18px; accent-color: var(--gold-300); }

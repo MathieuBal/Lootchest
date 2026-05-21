@@ -22,6 +22,7 @@ import { equipItem, unequipSlot, autoEquipBest } from './character.js';
 import {
   sellItem, sellAllOfRarities, addToInventory, sellDrop,
   salvageItem, salvageAllOfRarities, toggleLockItem, autoActionFor, salvageDrop,
+  unlockAutoSell, toggleAutoSell, setAutoMode, isAutoSellOn,
 } from './inventory.js';
 import * as UI from './ui.js';
 
@@ -121,8 +122,21 @@ document.body.addEventListener('click', async (e) => {
     if (n > 0) { soundClick(); floatingText(`Équipé ×${n}`, innerWidth / 2, innerHeight / 2, '#f5c842'); }
     return;
   }
-  if (t.closest('#btn-sell-filter')) { bulkSell(false); return; }
-  if (t.closest('#btn-salvage-filter')) { bulkSell(true); return; }
+  // ── Auto-vente & gestion en masse ──
+  const asUnlock = t.closest('[data-autosell-unlock]');
+  if (asUnlock && !asUnlock.disabled) { if (unlockAutoSell(asUnlock.dataset.autosellUnlock)) { soundUpgrade(); } return; }
+  const asSeg = t.closest('[data-autosell]');
+  if (asSeg) {
+    const [rar, target] = asSeg.dataset.autosell.split(':');
+    const on = isAutoSellOn(rar);
+    if (target === 'off') { if (on) toggleAutoSell(rar); }
+    else { if (!on) toggleAutoSell(rar); setAutoMode(rar, target); }
+    soundClick(); return;
+  }
+  const bSell = t.closest('[data-bulk-sell]');
+  if (bSell && !bSell.disabled) { if (sellAllOfRarities(new Set([bSell.dataset.bulkSell])) > 0) soundCoin(); return; }
+  const bSalv = t.closest('[data-bulk-salvage]');
+  if (bSalv && !bSalv.disabled) { const { totalShards } = salvageAllOfRarities(new Set([bSalv.dataset.bulkSalvage])); if (totalShards > 0) soundForge(); return; }
 
   // Item tile → desktop selects the inline detail panel; mobile opens the sheet.
   const tile = t.closest('[data-item-id]');
@@ -386,20 +400,6 @@ function forgeAction(actionId) {
   if (!item) return;
   if (action.interactive && action.id === 'maitre') { if (action.can(item)) { UI.setForgeMode('master-craft'); soundClick(); } return; }
   if (action.apply && action.apply(item)) { soundForge(); if (['transmutation', 'regal'].includes(action.id)) soundDrop(item.rarity); }
-}
-
-function bulkSell(salvage) {
-  const filter = UI.getInvFilter();
-  let raritySet;
-  if (filter === 'all') raritySet = new Set(RARITIES.map(r => r.id));
-  else raritySet = new Set(RARITIES.slice(0, RARITIES.length).map(r => r.id)); // category filters: all rarities within
-  // Don't bulk-destroy ancestrals unless explicitly the only filter
-  raritySet.delete('ancestral');
-  if (!salvage && state.settings?.confirmDestructiveSell && (raritySet.has('epic') || raritySet.has('legendary'))) {
-    if (!confirm('Vendre en masse des objets épiques+ ? (verrouille tes pépites d\'abord)')) return;
-  }
-  if (salvage) { const { totalShards } = salvageAllOfRarities(raritySet); if (totalShards > 0) soundForge(); }
-  else { const earned = sellAllOfRarities(raritySet); if (earned > 0) soundCoin(); }
 }
 
 function ascendFlow() {

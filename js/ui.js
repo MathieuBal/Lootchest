@@ -6,7 +6,7 @@ import { state, notify } from './state.js';
 import {
   RARITIES, RARITY_BY_ID, SLOTS, SLOT_BY_ID,
   CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, PITY_THRESHOLD,
-  ACHIEVEMENTS, biomeForFloor, BIOMES,
+  ACHIEVEMENTS, biomeForFloor, BIOMES, AUTOSELL_UNLOCK_COSTS,
   CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID,
   SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, TALENT_CATEGORIES,
   TALENT_MASTERY_THRESHOLD, UNIQUE_LEGENDARIES,
@@ -15,7 +15,7 @@ import { computeStats, computePower, computeSetSummary, itemPowerContribution, c
 import { getCurrentTier, getNextTier, canUpgrade, canOpen, hasKey, cooldownRemaining, nextTierLockedBy } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
 import { FORGE_ACTIONS, availableMasterCraftAffixes } from './forge.js';
-import { shardYield } from './inventory.js';
+import { shardYield, autoActionFor } from './inventory.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talents.js';
@@ -498,8 +498,7 @@ function screenInventory() {
     </div>
     <div class="inv-grid">${grid}</div>
     <div class="inv-bulk">
-      <button class="btn-ghost" id="btn-sell-filter">💰 Vendre filtre</button>
-      <button class="btn-ghost" id="btn-salvage-filter">💎 Recycler filtre</button>
+      <button class="btn-ghost" data-overlay="autosell">⚙ Auto-vente & gestion</button>
     </div>
   </div>`;
 }
@@ -723,7 +722,7 @@ function dtInventory() {
       </div>
       <div class="filter-chips">${filters.map(([id, lbl]) => `<button class="fchip${invFilter === id ? ' active' : ''}" data-filter="${id}">${lbl}</button>`).join('')}</div>
       <div class="inv-grid dt-grid">${grid}</div>
-      <div class="inv-bulk"><button class="btn-ghost" id="btn-sell-filter">💰 Vendre filtre</button><button class="btn-ghost" id="btn-salvage-filter">💎 Recycler filtre</button></div>
+      <div class="inv-bulk"><button class="btn-ghost" data-overlay="autosell">⚙ Auto-vente & gestion</button></div>
     </div>
     <aside class="dt-panel dt-detail">
       ${selected ? detailBody(selected) : '<div class="empty-state"><div class="empty-icon">🗡</div><div>Sélectionne un objet</div></div>'}
@@ -759,6 +758,7 @@ const OVERLAYS = {
   settings: ovSettings,
   help: ovHelp,
   menu: ovMenu,
+  autosell: ovAutosell,
 };
 
 function overlayShell(title, inner, { wide = false, dark = false } = {}) {
@@ -1050,6 +1050,43 @@ function ovOnboarding() {
     </div>`;
 }
 
+// ── Auto-vente & gestion en masse (fonctionnalité restaurée) ──
+function ovAutosell() {
+  const rows = RARITIES.map(r => {
+    const cost = AUTOSELL_UNLOCK_COSTS[r.id];
+    const inInv = state.inventory.filter(i => i.rarity === r.id && !i.locked).length;
+    let control;
+    if (cost === null) {
+      control = `<span class="as-never smallcap">protégé</span>`;
+    } else {
+      const conf = state.autoSell?.[r.id] || {};
+      if (!conf.unlocked) {
+        const can = (state.gold || 0) >= cost;
+        control = `<button class="btn-ghost as-unlock" data-autosell-unlock="${r.id}" ${can ? '' : 'disabled'}>${cost === 0 ? 'Activer' : '🔓 ' + fmt(cost) + ' 💰'}</button>`;
+      } else {
+        const act = autoActionFor(r.id); // 'off' | 'sell' | 'salvage'
+        control = `<div class="as-seg">
+          <button class="${act === 'off' ? 'on' : ''}" data-autosell="${r.id}:off">Off</button>
+          <button class="${act === 'sell' ? 'on' : ''}" data-autosell="${r.id}:sell">💰</button>
+          <button class="${act === 'salvage' ? 'on' : ''}" data-autosell="${r.id}:salvage">💎</button>
+        </div>`;
+      }
+    }
+    const bulk = (cost === null) ? '' : `<div class="as-bulk">
+      <button class="as-bulkbtn" data-bulk-sell="${r.id}" title="Vendre tout (${inInv})" ${inInv ? '' : 'disabled'}>💰×${inInv}</button>
+      <button class="as-bulkbtn" data-bulk-salvage="${r.id}" title="Recycler tout (${inInv})" ${inInv ? '' : 'disabled'}>💎×${inInv}</button>
+    </div>`;
+    return `<div class="as-row">
+      <span class="as-name rt-${r.cssClass}">${r.name}</span>
+      ${control}
+      ${bulk}
+    </div>`;
+  }).join('');
+  return overlayShell('Auto-vente & gestion', `
+    <p class="smallcap">À l'ouverture d'un coffre, les drops d'une rareté en mode 💰/💎 sont automatiquement vendus ou recyclés. Les objets verrouillés 🔒 sont toujours épargnés.</p>
+    <div class="as-list">${rows}</div>`, { wide: true });
+}
+
 // ── Settings ─────────────────────────────────────────────────
 function ovSettings() {
   const s = state.settings || {};
@@ -1084,6 +1121,7 @@ function ovHelp() {
 function ovMenu() {
   return `<div class="overlay-backdrop" data-close-overlay="1"></div>
     <div class="menu-sheet">
+      <button data-overlay="autosell">⚙ Auto-vente</button>
       <button data-overlay="help">❓ Aide</button>
       <button data-overlay="achievements">🏆 Succès</button>
       <button data-overlay="settings">⚙ Paramètres</button>
