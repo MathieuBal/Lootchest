@@ -4,6 +4,7 @@ import { computeStats, activeSetEffects } from './character.js';
 import { PLAYER_BASE, biomeForFloor, MONSTER_AFFIXES } from './data.js';
 import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
+import { relicDamageMult, relicHpMult, relicDmgTakenMult, relicElemMult, relicGoldMult, relicLifesteal } from './relics.js';
 import { buildSkillContext } from './skills.js';
 import { activeLegendaryEffectIds } from './legendaryEffects.js';
 import { trackProgress as bountyTrack, syncAbsoluteProgress as bountySync } from './bounties.js';
@@ -85,7 +86,7 @@ export function generateMonster(floor) {
     for (let i = 0; i < affixCount && pool.length; i++) {
       const idx = Math.floor(rng() * pool.length);
       const def = pool.splice(idx, 1)[0];
-      mechanics.push(def.build({ dmg }));
+      mechanics.push(def.build({ dmg: damage }));
     }
   }
   const affixCount = boss ? 0 : mechanics.length;
@@ -119,10 +120,11 @@ export function generateMonster(floor) {
 // events: array of { type: 'player_hit' | 'monster_hit', dmg, isCrit?, monsterHp, playerHp }
 export function resolveFight(monster) {
   const stats = computeStats();
-  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier());
-  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier()) - monster.armor);
+  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult());
+  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult()) - monster.armor);
   const playerArmor = (stats.armor || 0);
-  const monsterDmg = Math.max(1, monster.damage - playerArmor);
+  const monsterDmg = Math.max(1, Math.round((monster.damage - playerArmor) * relicDmgTakenMult()));
+  const lifestealPct = relicLifesteal();
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   // All elemental damages stack additively — each is a % damage bonus rolled
   // 0..max per swing (random multiplier, identical mechanic to fire).
@@ -131,7 +133,7 @@ export function resolveFight(monster) {
   const voidBonus    = (stats.voidDmg     || 0) / 100;
   const poisonBonus  = (stats.poisonDmg   || 0) / 100;
   const lightBonus   = (stats.lightningDmg|| 0) / 100;
-  const elemBonus    = fireBonus + frostBonus + voidBonus + poisonBonus + lightBonus;
+  const elemBonus    = (fireBonus + frostBonus + voidBonus + poisonBonus + lightBonus) * relicElemMult();
 
   // Skill context (active skills + per-fight state)
   const { active: activeSkills, states: skillStates } = buildSkillContext();
@@ -293,6 +295,14 @@ export function resolveFight(monster) {
     mHp = Math.max(0, mHp - hit);
     events.push({ type: 'player_hit', dmg: hit, isCrit, forceCrit, monsterHp: mHp, playerHp: pHp, mults, blocked: monsterShielded });
 
+    // Relic: lifesteal → heal a share of damage dealt
+    if (lifestealPct > 0 && hit > 0) {
+      const healed = Math.max(1, Math.round(hit * lifestealPct));
+      const before = pHp;
+      pHp = Math.min(playerMaxHp, pHp + healed);
+      if (pHp > before) events.push({ type: 'set_drain', amount: pHp - before, emoji: '🩸', playerHp: pHp, monsterHp: mHp });
+    }
+
     // Monster affix: thorns → reflect a share of your hit back at you
     for (const m of mechanics) {
       if (m.type === 'thorns' && hit > 0) {
@@ -448,7 +458,7 @@ export function attemptCurrentFloor() {
         state.codex.bosses[biome.id] = (state.codex.bosses[biome.id] || 0) + 1;
       }
     }
-    monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier());
+    monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier() * relicGoldMult());
     // Legendary effect: goldenTouch → +30% gold per kill (compounds with other multipliers)
     if (activeLegendaryEffectIds().has('goldenTouch')) {
       monster.goldReward = Math.round(monster.goldReward * 1.30);
@@ -510,13 +520,13 @@ export function setCurrentFloor(floor) {
 // Predict difficulty for UI ("Facile" / "Risqué" / "Difficile" / "Suicide")
 export function predictDifficulty(monster) {
   const stats = computeStats();
-  const playerMaxHp = PLAYER_BASE.hp + (stats.vitality || 0) * 5;
-  const playerDmg = Math.max(1, PLAYER_BASE.damage + (stats.damage || 0) - monster.armor);
-  const monsterDmg = Math.max(1, monster.damage - (stats.armor || 0));
+  const playerMaxHp = (PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult();
+  const playerDmg = Math.max(1, (PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() - monster.armor);
+  const monsterDmg = Math.max(1, (monster.damage - (stats.armor || 0)) * relicDmgTakenMult());
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   // Sum all elemental %damages for difficulty preview (same model as resolveFight)
-  const elemBonus = ((stats.fireDmg || 0) + (stats.frostDmg || 0) + (stats.voidDmg || 0)
-                   + (stats.poisonDmg || 0) + (stats.lightningDmg || 0)) / 100;
+  const elemBonus = (((stats.fireDmg || 0) + (stats.frostDmg || 0) + (stats.voidDmg || 0)
+                   + (stats.poisonDmg || 0) + (stats.lightningDmg || 0)) / 100) * relicElemMult();
   const avgDmg = playerDmg * (1 + critChance + elemBonus);
   const turnsToKill = Math.ceil(monster.hp / avgDmg);
   const damageTaken = monsterDmg * Math.max(0, turnsToKill - 1);

@@ -10,6 +10,7 @@ import {
   CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID,
   SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, TALENT_CATEGORIES,
   TALENT_MASTERY_THRESHOLD, UNIQUE_LEGENDARIES,
+  RELIC_BY_ID,
 } from './data.js';
 import { computeStats, computePower, computeSetSummary, itemPowerContribution, computeStatsBreakdown } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, canOpen, hasKey, cooldownRemaining, nextTierLockedBy } from './chest.js';
@@ -768,6 +769,7 @@ const OVERLAYS = {
   codex: ovCodex,
   achievements: ovAchievements,
   ascension: ovAscension,
+  relicChoice: ovRelicChoice,
   onboarding: ovOnboarding,
   settings: ovSettings,
   help: ovHelp,
@@ -1042,11 +1044,48 @@ function ovAscension() {
         <div class="asc-cell"><span class="smallcap">Drops raretés</span><span class="mono">+${bonus}%</span></div>
         <div class="asc-cell"><span class="smallcap">Or de vente</span><span class="mono">+${bonus}%</span></div>
         <div class="asc-cell"><span class="smallcap">Points talent</span><span class="mono">+2</span></div>
-        <div class="asc-cell"><span class="smallcap">Coffre</span><span class="mono">+1 tier</span></div>
+        <div class="asc-cell"><span class="smallcap">Relique</span><span class="mono">1 au choix</span></div>
       </div>
+      ${ownedRelicsBlock()}
       <button class="btn-gold ${ready ? 'pulse-gold' : 'is-disabled'}" id="btn-ascend">
         ${ready ? '🌟 Ascensionner' : `🔒 T${reqs.minChestTier} + étage ${reqs.minFloor}`}
       </button>
+    </div>`;
+}
+
+// Compact list of relics the player already owns (with stack counts).
+function ownedRelicsBlock() {
+  const owned = state.prestige?.relics || {};
+  const entries = Object.entries(owned).filter(([, n]) => n > 0);
+  if (!entries.length) return '';
+  const chips = entries.map(([id, n]) => {
+    const r = RELIC_BY_ID[id];
+    if (!r) return '';
+    return `<span class="relic-chip" title="${r.desc}">${r.emoji} ${r.name}${n > 1 ? ` ×${n}` : ''}</span>`;
+  }).join('');
+  return `<div class="asc-relics"><div class="smallcap">🏺 Reliques actives</div><div class="relic-chips">${chips}</div></div>`;
+}
+
+// ── Relic choice (after ascension) ───────────────────────────
+function ovRelicChoice() {
+  const choice = state.prestige?.pendingRelicChoice || [];
+  const cards = choice.map(id => {
+    const r = RELIC_BY_ID[id];
+    if (!r) return '';
+    const have = state.prestige?.relics?.[id] || 0;
+    return `<button class="relic-card" data-relic="${id}">
+        <div class="relic-emoji">${r.emoji}</div>
+        <div class="relic-name display">${r.name}${have ? ` <span class="smallcap">(×${have})</span>` : ''}</div>
+        <div class="relic-desc smallcap">${r.desc}</div>
+      </button>`;
+  }).join('');
+  return `<div class="overlay-backdrop"></div>
+    <div class="sheet dark">
+      <div class="sheet-head"><span class="display">🏺 Choisis une relique</span></div>
+      <div class="sheet-body scroll">
+        <p class="smallcap">Modificateur permanent et cumulable. Il survit à chaque ascension et oriente ton build.</p>
+        <div class="relic-grid">${cards}</div>
+      </div>
     </div>`;
 }
 

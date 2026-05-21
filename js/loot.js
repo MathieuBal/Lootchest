@@ -12,6 +12,7 @@ import { rollElement, rollElementStats, elementStatSource, mergeElementStats, EL
 import { rollFaction, rollFactionStats, factionStatSource, mergeFactionStats, FACTIONS } from './factions.js';
 import { rollLegendaryEffect } from './legendaryEffects.js';
 import { rareDropMultiplier, pityReduction } from './talents.js';
+import { relicDropMult } from './relics.js';
 import { trackProgress as bountyTrack } from './bounties.js';
 
 let _id = 0;
@@ -39,7 +40,7 @@ function pickRandom(arr) {
 export function rollRarity(chestTier) {
   const tier = CHEST_TIERS.find(t => t.tier === chestTier);
   const prestigeLevel = state.prestige?.level || 0;
-  const rareMult = prestigeRareMult(prestigeLevel) * rareDropMultiplier();
+  const rareMult = prestigeRareMult(prestigeLevel) * rareDropMultiplier() * relicDropMult();
   const rarePlusSet = new Set(['rare', 'epic', 'legendary', 'ancestral']);
   const entries = Object.entries(tier.weights)
     .filter(([_, w]) => w > 0)

@@ -57,6 +57,8 @@ export const state = {
   prestige: {
     level: 0,
     totalAscensions: 0,
+    relics: {},                // { relicId: count } — permanent build modifiers
+    pendingRelicChoice: null,  // [relicId, relicId, relicId] awaiting a pick
   },
   shards: {
     common: 0,
@@ -138,6 +140,8 @@ export function replaceState(newState) {
     if (state.stats[k] === undefined) state.stats[k] = 0;
   }
   if (!state.prestige) state.prestige = { level: 0, totalAscensions: 0 };
+  if (!state.prestige.relics) state.prestige.relics = {};
+  if (state.prestige.pendingRelicChoice === undefined) state.prestige.pendingRelicChoice = null;
   if (!state.shards) state.shards = {};
   for (const k of ['common','magic','rare','epic','legendary','ancestral']) {
     if (state.shards[k] === undefined) state.shards[k] = 0;
@@ -175,7 +179,7 @@ export function resetState() {
   state.ui = { leftTab: 'chest', muted: state.ui?.muted || false };
   state.achievements = { unlocked: {} };
   state.stats = { legendaryDropped: 0, ancestralDropped: 0, uniquesDropped: 0, itemsSold: 0, totalGoldEarned: 0, forgesPerformed: 0, maxSetEquipped: 0 };
-  state.prestige = { level: 0, totalAscensions: 0 };
+  state.prestige = { level: 0, totalAscensions: 0, relics: {}, pendingRelicChoice: null };
   state.shards = { common: 0, magic: 0, rare: 0, epic: 0, legendary: 0, ancestral: 0 };
   state.orbs = { transmu: 0, augm: 0, alte: 0, regal: 0, chaos: 0, divin: 0, exil: 0, pierre: 0, maitre: 0 };
   state.talents = {};

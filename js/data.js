@@ -779,6 +779,25 @@ export const PRESTIGE_BONUS_PER_LEVEL = {
 export function prestigeGoldMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.goldMult * (level || 0); }
 export function prestigeRareMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.rareDropWeightMult * (level || 0); }
 
+// === Reliques d'Ascension ===
+// À chaque ascension, le joueur choisit 1 relique parmi 3. Permanentes et
+// cumulables (un même id peut être pris plusieurs fois → effets additifs),
+// elles survivent au reset d'ascension : c'est le levier de build long terme.
+// `mods` : damagePct / hpPct / dmgTakenPct / goldPct / dropPct (fractions),
+//          critFlat / armorFlat (valeurs plates), elemPct, lifesteal (fraction).
+export const RELICS = [
+  { id: 'berserker',    emoji: '⚔️', name: 'Pacte du Berserker', desc: '+40% dégâts · −15% PV max',          mods: { damagePct: 0.40, hpPct: -0.15 } },
+  { id: 'midas',        emoji: '💰', name: 'Main de Midas',       desc: '+50% or',                            mods: { goldPct: 0.50 } },
+  { id: 'deadeye',      emoji: '🎯', name: 'Œil de Lynx',         desc: '+12% chance de critique',            mods: { critFlat: 12 } },
+  { id: 'elementalist', emoji: '✨',  name: 'Élémentaliste',       desc: '+30% dégâts élémentaires',           mods: { elemPct: 0.30 } },
+  { id: 'bulwark',      emoji: '🛡', name: 'Rempart',             desc: '+25% PV max · +20 armure',           mods: { hpPct: 0.25, armorFlat: 20 } },
+  { id: 'fortune',      emoji: '🍀', name: 'Fortune',             desc: '+30% drops rares',                   mods: { dropPct: 0.30 } },
+  { id: 'vampire',      emoji: '🩸', name: 'Soif de Sang',        desc: 'Vol de vie 5% des dégâts',           mods: { lifesteal: 0.05 } },
+  { id: 'glasscannon',  emoji: '💥', name: 'Canon de Verre',      desc: '+80% dégâts · +40% dégâts subis',     mods: { damagePct: 0.80, dmgTakenPct: 0.40 } },
+];
+
+export const RELIC_BY_ID = Object.fromEntries(RELICS.map(r => [r.id, r]));
+
 
 // Auto-sell unlock costs (per rarity). Common is free from start.
 export const AUTOSELL_UNLOCK_COSTS = {

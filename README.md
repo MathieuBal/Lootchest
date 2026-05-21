@@ -286,6 +286,27 @@ tous les talents de cette catégorie.
 - Chaque ascension débloque un tier de coffre supérieur (T6 Stellaire →
   T10 Divin) et octroie +2 points de talent.
 
+#### 🏺 Reliques d'Ascension
+À chaque ascension, choisis **1 relique parmi 3** (tirage aléatoire). Les
+reliques sont **permanentes, cumulables** (un même effet pris plusieurs
+fois s'additionne) et **survivent au reset** : c'est le levier de build
+long terme qui rend chaque lignée de prestige différente.
+
+| Relique               | Effet                                  |
+|-----------------------|----------------------------------------|
+| ⚔️ Pacte du Berserker | +40 % dégâts · −15 % PV max            |
+| 💥 Canon de Verre     | +80 % dégâts · +40 % dégâts subis      |
+| 🎯 Œil de Lynx        | +12 % chance de critique               |
+| ✨ Élémentaliste      | +30 % dégâts élémentaires              |
+| 🛡 Rempart            | +25 % PV max · +20 armure              |
+| 🩸 Soif de Sang       | Vol de vie 5 % des dégâts              |
+| 💰 Main de Midas      | +50 % or                               |
+| 🍀 Fortune            | +30 % drops rares                      |
+
+Les reliques offensives/défensives/économiques s'excluent par le coût
+d'opportunité du choix — empiler 🛡 Rempart donne un tank, enchaîner
+💥 Canon de Verre un glass-cannon, etc.
+
 ### 📋 Contrats
 3 contrats actifs en permanence (tuer X monstres, looter Y légendaires,
 atteindre l'étage Z…). Progression auto en jouant, récompenses en or /
@@ -369,7 +390,9 @@ js/
   achievements.js checkAchievements, onAchievementUnlocked
   forge.js        10 actions (Pierre préserve identité visuelle
                   via rescaleItemToTier)
-  prestige.js     canAscend, ascend (reset + keys = 10)
+  prestige.js     canAscend, ascend (reset + keys = 10 + choix relique)
+  relics.js       reliques d'ascension : relicTotals + multiplicateurs
+                  (dégâts/PV/or/drop/crit/élément/vol de vie), choix 1/3
   skills.js       12 compétences passives avec hooks de combat
   talents.js      multiplicateurs + categoryPoints + categoryMastery
   bounties.js     generateBounty, trackProgress, rerollBounty
