@@ -188,7 +188,9 @@ plafonné à 8h) + le **donjon comme robinet principal** (kills/boss lâchent
   d'emplacements. **Gated par le donjon** (améliorer la Mairie exige d'avoir
   atteint l'étage `niveau × 5`) → le perso et le village montent ensemble.
 - **🏠 Maisons** → ouvriers (+3/niveau). **🪓 Scierie** → bois. **⛏️ Carrière**
-  → pierre. **🗝️ Serrurerie** → clés de coffre.
+  → pierre. **🗝️ Serrurerie** → clés. **🏭 Fonderie** → ⚙️ métal.
+  **🔮 Atelier d'orbes** → orbes de forge. **⚔️ Caserne** → +4% dégâts & PV
+  par niveau (permanent, le village renforce le perso).
 - **👷 Ouvriers limités** à affecter : chaque bâtiment en emploie au plus son
   niveau → on **spécialise** (le goulot d'allocation).
 - Coûts géométriques (bois/pierre/⚙️ métal/or) → l'or et les ressources

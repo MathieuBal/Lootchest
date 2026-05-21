@@ -1082,6 +1082,7 @@ function ovVillage() {
       <span>🪵 ${fmt(wood)} <span class="smallcap">+${(r.wood).toFixed(0)}</span></span>
       <span>🪨 ${fmt(stone)} <span class="smallcap">+${(r.stone).toFixed(0)}</span></span>
       <span>⚙️ ${fmt(metal)} <span class="smallcap">+${(r.metal).toFixed(1)}</span></span>
+      ${r.orbs > 0 ? `<span>🔮 <span class="smallcap">+${(r.orbs).toFixed(2)}/min</span></span>` : ''}
       <span>👷 ${Village.workersUsed()}/${Village.workerCap()}</span>
     </div>`;
   const townhall = `<div class="vlg-card vlg-townhall">
@@ -1109,6 +1110,7 @@ function ovVillage() {
     if (b.kind === 'houses') prod = `<div class="smallcap">Ouvriers : ${Village.workerCap()}</div>`;
     else if (b.kind === 'producer') { const rn = Village.ratePerMin(b.id); prod = `<div class="smallcap">Production : ${rn ? `+${rn.toFixed(1)}/min` : '0 (assigne des ouvriers)'}</div>`; }
     else if (b.id === 'forge') prod = lvl ? `<div class="smallcap">Tier de craft : ${Village.maxCraftTier()} · rareté max : ${RARITIES[Village.maxCraftRarityIndex()]?.name || '—'}</div>` : '';
+    else if (b.id === 'barracks') prod = lvl ? `<div class="smallcap gold-text">+${lvl * 4}% dégâts · +${lvl * 4}% PV (permanent)</div>` : '';
     const workerRow = b.kind === 'producer' && lvl > 0 ? `<div class="vlg-workers">
         <span class="smallcap">👷 ${Village.workersOn(b.id)}/${Village.maxWorkersOn(b.id)}</span>
         <button class="vlg-wbtn" data-village-assign="${b.id}" data-delta="-1" ${Village.canUnassign(b.id) ? '' : 'disabled'}>−</button>

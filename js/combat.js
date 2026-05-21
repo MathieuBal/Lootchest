@@ -5,6 +5,7 @@ import { PLAYER_BASE, biomeForFloor, MONSTER_AFFIXES } from './data.js';
 import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
 import { relicDamageMult, relicHpMult, relicDmgTakenMult, relicElemMult, relicGoldMult, relicLifesteal } from './relics.js';
+import { villageCombatBonus } from './village.js';
 import { buildSkillContext } from './skills.js';
 import { activeLegendaryEffectIds } from './legendaryEffects.js';
 import { trackProgress as bountyTrack, syncAbsoluteProgress as bountySync } from './bounties.js';
@@ -145,8 +146,9 @@ export function resolveFight(monster, opts = {}) {
   const takenMod = mods.dmgTakenMult || 1;
   const maxHpMod = mods.maxHpMult || 1;
   const stats = computeStats();
-  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * maxHpMod);
-  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * dmgMod * (1 - armorMitigation(monster.armor))));
+  const vlg = villageCombatBonus();
+  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * vlg.hpMult * maxHpMod);
+  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * vlg.dmgMult * dmgMod * (1 - armorMitigation(monster.armor))));
   const playerArmor = (stats.armor || 0);
   const monsterDmg = Math.max(1, Math.round(monster.damage * relicDmgTakenMult() * takenMod * (1 - armorMitigation(playerArmor))));
   const lifestealPct = relicLifesteal();
@@ -568,8 +570,9 @@ export function setCurrentFloor(floor) {
 // Predict difficulty for UI ("Facile" / "Risqué" / "Difficile" / "Suicide")
 export function predictDifficulty(monster) {
   const stats = computeStats();
-  const playerMaxHp = (PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult();
-  const playerDmg = Math.max(1, (PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * (1 - armorMitigation(monster.armor)));
+  const vlg = villageCombatBonus();
+  const playerMaxHp = (PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * vlg.hpMult;
+  const playerDmg = Math.max(1, (PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * vlg.dmgMult * (1 - armorMitigation(monster.armor)));
   const monsterDmg = Math.max(1, monster.damage * relicDmgTakenMult() * (1 - armorMitigation(stats.armor || 0)));
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   // Sum all elemental %damages for difficulty preview (same model as resolveFight)

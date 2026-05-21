@@ -8,7 +8,7 @@
 // is itself gated by dungeon depth — so the character and the village level up
 // together instead of the player rushing the dungeon in 10 minutes.
 import { state, notify } from './state.js';
-import { RARITIES, RARITY_BY_ID, SLOT_BY_ID } from './data.js';
+import { RARITIES, RARITY_BY_ID, SLOT_BY_ID, CURRENCY_TYPES } from './data.js';
 import { craftItem } from './loot.js';
 
 export const OFFLINE_CAP_MIN = 480; // passive production accrues at most 8h offline
@@ -29,8 +29,12 @@ export const BUILDINGS = [
     desc: 'Forge des clés de coffre (par ouvrier/min).' },
   { id: 'forge',     emoji: '⚒️', name: 'Forge',      kind: 'station',  townhallReq: 3, perWorker: 0,
     desc: 'Forge tes propres armes & armures (niveau = tier max).' },
+  { id: 'barracks',  emoji: '⚔️', name: 'Caserne',    kind: 'station',  townhallReq: 4, perWorker: 0,
+    desc: '+4% dégâts & +4% PV max par niveau (permanent).' },
   { id: 'foundry',   emoji: '🏭', name: 'Fonderie',   kind: 'producer', townhallReq: 5, produces: 'metal', perWorker: 2,
     desc: 'Produit du métal (par ouvrier/min).' },
+  { id: 'orbworks',  emoji: '🔮', name: "Atelier d'orbes", kind: 'producer', townhallReq: 6, produces: 'orbs', perWorker: 0.3,
+    desc: 'Produit des orbes de forge (par ouvrier/min).' },
 ];
 export const BUILDING_BY_ID = Object.fromEntries(BUILDINGS.map(b => [b.id, b]));
 export const PRODUCERS = BUILDINGS.filter(b => b.kind === 'producer'); // count against build slots
@@ -77,7 +81,9 @@ export function buildCost(id) {
   if (id === 'quarry')    return { wood: Math.round(40 * k), stone: Math.round(20 * k), metal: 0, gold: g(120, 2.1) };
   if (id === 'locksmith') return { wood: Math.round(60 * k), stone: Math.round(60 * k), metal: 0, gold: g(400, 2.2) };
   if (id === 'forge')     return { wood: Math.round(80 * k), stone: Math.round(120 * k), metal: Math.round(20 * Math.max(0, lvl) * k / 1.7), gold: g(800, 2.3) };
+  if (id === 'barracks')  return { wood: Math.round(90 * k), stone: Math.round(110 * k), metal: Math.round(15 * Math.max(0, lvl) * k / 1.7), gold: g(700, 2.3) };
   if (id === 'foundry')   return { wood: Math.round(100 * k), stone: Math.round(140 * k), metal: 0, gold: g(1000, 2.3) };
+  if (id === 'orbworks')  return { wood: Math.round(120 * k), stone: Math.round(120 * k), metal: Math.round(30 * Math.max(0, lvl) * k / 1.7), gold: g(1500, 2.4) };
   return { wood: 0, stone: 0, metal: 0, gold: 0 };
 }
 
@@ -159,9 +165,21 @@ export function ratePerMin(id) {
   return b.perWorker * lvl * workers;
 }
 export function rates() {
-  const out = { wood: 0, stone: 0, metal: 0, keys: 0 };
+  const out = { wood: 0, stone: 0, metal: 0, keys: 0, orbs: 0 };
   for (const b of PRODUCERS) out[b.produces] += ratePerMin(b.id);
   return out;
+}
+
+// Caserne: permanent combat buff folded into resolveFight (like relics/talents).
+export function villageCombatBonus() {
+  const lvl = levelOf('barracks');
+  return { dmgMult: 1 + lvl * 0.04, hpMult: 1 + lvl * 0.04 };
+}
+
+function grantRandomOrb() {
+  const total = CURRENCY_TYPES.reduce((s, c) => s + c.baseDropChance, 0);
+  let r = Math.random() * total;
+  for (const c of CURRENCY_TYPES) { r -= c.baseDropChance; if (r <= 0) { state.orbs[c.id] = (state.orbs[c.id] || 0) + 1; return; } }
 }
 
 function addResource(key, amount) {
@@ -179,14 +197,18 @@ export function accruePassive() {
   v().lastTick = now;
   if (dtMin <= 0) return { wood: 0, stone: 0, keys: 0 };
   const r = rates();
-  const gained = { wood: r.wood * dtMin, stone: r.stone * dtMin, metal: r.metal * dtMin, keys: r.keys * dtMin };
+  const gained = { wood: r.wood * dtMin, stone: r.stone * dtMin, metal: r.metal * dtMin, keys: r.keys * dtMin, orbs: r.orbs * dtMin };
   v().resources.wood = (v().resources.wood || 0) + gained.wood;
   v().resources.stone = (v().resources.stone || 0) + gained.stone;
   v().resources.metal = (v().resources.metal || 0) + gained.metal;
-  // Keys: accumulate fractional buffer, pay out whole keys.
+  // Keys & orbs: accumulate fractional buffers, pay out whole units.
   v()._keyBuf = (v()._keyBuf || 0) + gained.keys;
-  const whole = Math.floor(v()._keyBuf);
-  if (whole > 0) { state.keys = (state.keys || 0) + whole; v()._keyBuf -= whole; }
+  const wholeKeys = Math.floor(v()._keyBuf);
+  if (wholeKeys > 0) { state.keys = (state.keys || 0) + wholeKeys; v()._keyBuf -= wholeKeys; }
+  v()._orbBuf = (v()._orbBuf || 0) + gained.orbs;
+  let wholeOrbs = Math.floor(v()._orbBuf);
+  v()._orbBuf -= wholeOrbs;
+  while (wholeOrbs-- > 0) grantRandomOrb();
   return gained;
 }
 
