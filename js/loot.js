@@ -3,7 +3,7 @@ import {
   RARITIES, RARITY_BY_ID, SLOTS, BASE_TYPES, AFFIXES,
   NAME_PREFIXES, NAME_SUFFIXES, CHEST_TIERS, PITY_THRESHOLD,
   UNIQUE_LEGENDARIES, UNIQUE_DROP_CHANCE,
-  SETS, SET_DROP_CHANCE, prestigeRareMult,
+  SETS, SET_DROP_CHANCE, prestigeRareMult, tierScale,
 } from './data.js';
 import { state } from './state.js';
 import { rollWeaponParts, hasCompositionFor, recomputePartStats } from './parts.js';
@@ -64,7 +64,7 @@ function rollAffixes(rarity, chestTier) {
   for (let i = 0; i < n && pool.length > 0; i++) {
     const idx = Math.floor(Math.random() * pool.length);
     const aff = pool.splice(idx, 1)[0];
-    const value = randInt(aff.min, aff.max) * chestTier;
+    const value = Math.round(randInt(aff.min, aff.max) * tierScale(chestTier));
     picked.push({
       id: aff.id,
       stat: aff.stat,
@@ -81,7 +81,7 @@ function scaleBaseStats(baseStats, chestTier, rarity) {
   const mult = RARITY_BY_ID[rarity].statMult;
   const result = {};
   for (const [k, v] of Object.entries(baseStats)) {
-    result[k] = Math.max(1, Math.round(v * chestTier * mult));
+    result[k] = Math.max(1, Math.round(v * tierScale(chestTier) * mult));
   }
   return result;
 }
@@ -100,7 +100,7 @@ function applyLayerContribution(item, layerKey, table, sourceType, baseStats, st
   const t = (d20 - 1) / 19;
   const stats = {};
   for (const [stat, [min, max]] of Object.entries(def.statBias || {})) {
-    stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * item.chestTier * statMult));
+    stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * tierScale(item.chestTier) * statMult));
   }
   for (const [k, v] of Object.entries(stats)) baseStats[k] = (baseStats[k] || 0) + v;
   if (Object.keys(stats).length > 0) {
@@ -175,6 +175,15 @@ export function generateItemFromChest(chestTier) {
 export function generateItem(chestTier) {
   const rarity = rollRarity(chestTier);
   const item = buildItem(chestTier, rarity);
+  trackDropStats(item);
+  return item;
+}
+
+// Village Forge: craft a regular item of a chosen slot, at a given tier &
+// rarity (both decided by the player + forge level). Deterministic slot, no
+// unique/set rolls — you control what you make.
+export function craftItem(slot, chestTier, rarity) {
+  const item = buildRegularItem(chestTier, rarity, slot);
   trackDropStats(item);
   return item;
 }
@@ -330,7 +339,7 @@ export function rebuildItemAffixesPlus(item) {
     const idx = Math.floor(Math.random() * pool.length);
     const aff = pool.splice(idx, 1)[0];
     const minHigh = Math.ceil((aff.min + aff.max) / 2);
-    const value = randInt(minHigh, aff.max) * item.chestTier;
+    const value = Math.round(randInt(minHigh, aff.max) * tierScale(item.chestTier));
     picked.push({ id: aff.id, stat: aff.stat, label: aff.label, value, percent: aff.percent, type: aff.type });
   }
   item.affixes = picked;
@@ -348,8 +357,8 @@ function buildItem(chestTier, rarity) {
   return buildRegularItem(chestTier, rarity);
 }
 
-function buildRegularItem(chestTier, rarity) {
-  const slot = rollSlot();
+function buildRegularItem(chestTier, rarity, forceSlot) {
+  const slot = (forceSlot && BASE_TYPES[forceSlot]) ? forceSlot : rollSlot();
   const baseType = pickRandom(BASE_TYPES[slot]);
 
   // Composed item path: any base type registered in WEAPON_PARTS (weapons + armor).

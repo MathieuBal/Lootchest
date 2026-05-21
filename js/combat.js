@@ -5,9 +5,26 @@ import { PLAYER_BASE, biomeForFloor, MONSTER_AFFIXES } from './data.js';
 import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
 import { relicDamageMult, relicHpMult, relicDmgTakenMult, relicElemMult, relicGoldMult, relicLifesteal } from './relics.js';
+import { villageCombatBonus } from './village.js';
 import { buildSkillContext } from './skills.js';
 import { activeLegendaryEffectIds } from './legendaryEffects.js';
 import { trackProgress as bountyTrack, syncAbsoluteProgress as bountySync } from './bounties.js';
+
+// Total elemental damage is a single additive % pool applied per swing. Without a
+// cap, stacking elemental rolls across 8 slots reached +1300% (a ×14 multiplier),
+// which one-shot everything. Cap the pool so elemental is strong but not absurd.
+export const ELEM_DMG_CAP = 1.5; // max +150% from elemental
+
+// Armor as % mitigation with diminishing returns, instead of flat subtraction.
+// Flat subtraction was binary: high armor = near-invincible, low armor vs a
+// high-armor monster = an unkillable wall. This curve always lets some damage
+// through (capped at 85%) and never fully blocks. Tunable K (higher = armor
+// worth less).
+export const ARMOR_K = 380;
+export function armorMitigation(armor) {
+  const a = Math.max(0, armor || 0);
+  return Math.min(0.85, a / (a + ARMOR_K));
+}
 
 export function isBossFloor(floor) {
   return floor > 0 && floor % 5 === 0;
@@ -52,6 +69,9 @@ export function generateMonster(floor) {
   const boss = isBossFloor(floor);
   const base = pickStableMonster(floor);
   const scale = 1 + (floor - 1) * 0.28;
+  // HP scales faster than damage so geared fights last several turns instead of
+  // being one-shot, without making monster damage spike into one-shotting the player.
+  const hpScale = 1 + (floor - 1) * 0.55;
   const bossMult = boss ? 2.6 : 1;
   const hard = !!state.settings?.hardMode;
   const hardCombat = hard ? 1.5 : 1;
@@ -99,7 +119,7 @@ export function generateMonster(floor) {
     emoji: base.emoji,
     eliteIcon: elite?.icon || null,
     eliteId: elite?.id || null,
-    hp: Math.round(base.hpBase * scale * bossMult * hardCombat * elHp),
+    hp: Math.round(base.hpBase * hpScale * bossMult * hardCombat * elHp),
     damage,
     armor: Math.round(((base.armorBase || 0) + elArm) * scale * bossMult * hardCombat),
     goldReward: Math.round(base.goldBase * scale * (boss ? 6 : (elite ? 2.5 : 1)) * hardLoot * elGold * affixBoost),
@@ -118,12 +138,19 @@ export function generateMonster(floor) {
 
 // Returns { won, log[], turns, damageTaken, playerMaxHp, events[] }
 // events: array of { type: 'player_hit' | 'monster_hit', dmg, isCrit?, monsterHp, playerHp }
-export function resolveFight(monster) {
+// opts: { startHp, mods } — startHp carries HP across dive fights; mods are dive
+// boons { damageMult, dmgTakenMult, maxHpMult } (default identity).
+export function resolveFight(monster, opts = {}) {
+  const mods = opts.mods || {};
+  const dmgMod = mods.damageMult || 1;
+  const takenMod = mods.dmgTakenMult || 1;
+  const maxHpMod = mods.maxHpMult || 1;
   const stats = computeStats();
-  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult());
-  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult()) - monster.armor);
+  const vlg = villageCombatBonus();
+  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * vlg.hpMult * maxHpMod);
+  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * vlg.dmgMult * dmgMod * (1 - armorMitigation(monster.armor))));
   const playerArmor = (stats.armor || 0);
-  const monsterDmg = Math.max(1, Math.round((monster.damage - playerArmor) * relicDmgTakenMult()));
+  const monsterDmg = Math.max(1, Math.round(monster.damage * relicDmgTakenMult() * takenMod * (1 - armorMitigation(playerArmor))));
   const lifestealPct = relicLifesteal();
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   // All elemental damages stack additively — each is a % damage bonus rolled
@@ -133,7 +160,7 @@ export function resolveFight(monster) {
   const voidBonus    = (stats.voidDmg     || 0) / 100;
   const poisonBonus  = (stats.poisonDmg   || 0) / 100;
   const lightBonus   = (stats.lightningDmg|| 0) / 100;
-  const elemBonus    = (fireBonus + frostBonus + voidBonus + poisonBonus + lightBonus) * relicElemMult();
+  const elemBonus    = Math.min(ELEM_DMG_CAP, (fireBonus + frostBonus + voidBonus + poisonBonus + lightBonus) * relicElemMult());
 
   // Skill context (active skills + per-fight state)
   const { active: activeSkills, states: skillStates } = buildSkillContext();
@@ -160,7 +187,7 @@ export function resolveFight(monster) {
   }
 
   const monsterMaxHp = monster.hp;
-  let pHp = playerMaxHp;
+  let pHp = opts.startHp != null ? Math.max(1, Math.min(playerMaxHp, Math.round(opts.startHp))) : playerMaxHp;
   let mHp = monsterMaxHp;
   let turns = 0;
   const maxTurns = 200;
@@ -511,6 +538,29 @@ export function attemptCurrentFloor() {
   return { result, monster, droppedItem, advanced, milestone };
 }
 
+// === Deep Dive (roguelite endurance run) ===
+// A dive monster is a normal monster at a deeper effective floor, plus a "dive
+// tax" so the run stays challenging even for a maxed character. depth starts at 1.
+export function generateDiveMonster(baseFloor, depth) {
+  const floor = baseFloor + depth;
+  const m = generateMonster(floor);
+  const tax = 1 + depth * 0.05;
+  m.hp = Math.round(m.hp * 1.15 * tax);
+  m.damage = Math.round(m.damage * 1.10 * tax);
+  m.goldReward = Math.round(m.goldReward * (1 + depth * 0.12));
+  m.isDive = true;
+  m.diveDepth = depth;
+  return m;
+}
+
+// Resolve one dive fight without touching run progression or granting rewards
+// (the dive controller banks rewards itself). Carries HP via startHp + boon mods.
+export function attemptDiveFight(baseFloor, depth, startHp, mods) {
+  const monster = generateDiveMonster(baseFloor, depth);
+  const result = resolveFight(monster, { startHp, mods });
+  return { monster, result, won: result.won, hpLeft: result.playerHpLeft, maxHp: result.playerMaxHp };
+}
+
 export function setCurrentFloor(floor) {
   const f = Math.max(1, Math.min(state.combat.highestUnlocked, floor | 0));
   state.combat.currentFloor = f;
@@ -520,13 +570,14 @@ export function setCurrentFloor(floor) {
 // Predict difficulty for UI ("Facile" / "Risqué" / "Difficile" / "Suicide")
 export function predictDifficulty(monster) {
   const stats = computeStats();
-  const playerMaxHp = (PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult();
-  const playerDmg = Math.max(1, (PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() - monster.armor);
-  const monsterDmg = Math.max(1, (monster.damage - (stats.armor || 0)) * relicDmgTakenMult());
+  const vlg = villageCombatBonus();
+  const playerMaxHp = (PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * vlg.hpMult;
+  const playerDmg = Math.max(1, (PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * vlg.dmgMult * (1 - armorMitigation(monster.armor)));
+  const monsterDmg = Math.max(1, monster.damage * relicDmgTakenMult() * (1 - armorMitigation(stats.armor || 0)));
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   // Sum all elemental %damages for difficulty preview (same model as resolveFight)
-  const elemBonus = (((stats.fireDmg || 0) + (stats.frostDmg || 0) + (stats.voidDmg || 0)
-                   + (stats.poisonDmg || 0) + (stats.lightningDmg || 0)) / 100) * relicElemMult();
+  const elemBonus = Math.min(ELEM_DMG_CAP, (((stats.fireDmg || 0) + (stats.frostDmg || 0) + (stats.voidDmg || 0)
+                   + (stats.poisonDmg || 0) + (stats.lightningDmg || 0)) / 100) * relicElemMult());
   const avgDmg = playerDmg * (1 + critChance + elemBonus);
   const turnsToKill = Math.ceil(monster.hp / avgDmg);
   const damageTaken = monsterDmg * Math.max(0, turnsToKill - 1);

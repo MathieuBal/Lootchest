@@ -779,6 +779,16 @@ export const PRESTIGE_BONUS_PER_LEVEL = {
 export function prestigeGoldMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.goldMult * (level || 0); }
 export function prestigeRareMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.rareDropWeightMult * (level || 0); }
 
+// Item stat scaling per chest tier. Previously stats scaled linearly (× tier),
+// which — compounded with rarity statMult and 8 equipment slots — made player
+// damage explode (~×20 over T1→T5) and one-shot all content. This sublinear
+// curve flattens the power growth so matched-tier combat stays tense.
+// Tunable: lower TIER_SCALE_K = flatter curve = harder/slower fights.
+export const TIER_SCALE_K = 0.5;
+export function tierScale(chestTier) {
+  return 1 + ((chestTier || 1) - 1) * TIER_SCALE_K;
+}
+
 // === Reliques d'Ascension ===
 // À chaque ascension, le joueur choisit 1 relique parmi 3. Permanentes et
 // cumulables (un même id peut être pris plusieurs fois → effets additifs),

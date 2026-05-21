@@ -2,6 +2,7 @@
 // Each skill is unlocked by reaching certain stat or talent thresholds.
 import { state } from './state.js';
 import { computeStats } from './character.js';
+import { getSlottedAbilities } from './abilities.js';
 
 // Skills are checked in order; multiple can be active at once.
 // Hooks: onTurnStart, onPlayerAttack, onDamageCalc, onMonsterAttack.
@@ -177,9 +178,10 @@ export function getActiveSkills() {
   return SKILLS.filter(s => s.isUnlocked(stats, talents));
 }
 
-// Build per-fight state for each active skill (init persistent vars).
+// Build per-fight state for each active hook (passive skills + slotted abilities).
+// Abilities share the skill hook shape, so they merge into the same active list.
 export function buildSkillContext() {
-  const active = getActiveSkills();
+  const active = [...getActiveSkills(), ...getSlottedAbilities()];
   const states = new Map();
   for (const s of active) {
     states.set(s.id, s.initState ? s.initState() : {});

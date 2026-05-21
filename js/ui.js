@@ -21,6 +21,9 @@ import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talents.js';
 import { SKILLS, getActiveSkills } from './skills.js';
+import { ABILITIES, ABILITY_SLOTS, getLoadout, isSlotted, isAbilityUnlocked } from './abilities.js';
+import { canDive, getSession, DIVE_BOON_BY_ID } from './dive.js';
+import * as Village from './village.js';
 import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
@@ -442,6 +445,7 @@ function screenDungeon() {
       </div>
       <button class="btn-gold btn-fight" id="btn-fight">⚔ Combattre</button>
       ${beaten ? `<button class="btn-ghost btn-loop ${state.combat.loopMode ? 'on' : ''}" id="btn-loop" title="Combat en boucle">🔁</button>` : ''}
+      ${canDive() ? `<button class="btn-ghost btn-dive" data-dive="start" title="Plongée des Profondeurs (best ${state.dive?.bestDepth || 0})">🌊</button>` : ''}
     </div>
   </div>`;
 }
@@ -583,6 +587,8 @@ function screenMeta() {
     { ov: 'stats', icon: '⚡', name: 'Statistiques', sub: `Puissance ${fmt(power)}` },
     { ov: 'talents', icon: '🌳', name: 'Talents', sub: tp ? `${tp} point${tp > 1 ? 's' : ''} dispo` : 'Arbre de talents' },
     { ov: 'skills', icon: '📜', name: 'Compétences', sub: `${skills}/${SKILLS.length} actives` },
+    { ov: 'abilities', icon: '✦', name: 'Capacités', sub: `${getLoadout().length}/${ABILITY_SLOTS} équipées` },
+    { ov: 'village', icon: '🏛️', name: 'Village', sub: `Mairie niv ${Village.townhall()}` },
     { ov: 'contracts', icon: '📋', name: 'Contrats', sub: `${(state.bounties?.active || []).length} actifs` },
     { ov: 'codex', icon: '📖', name: 'Codex', sub: 'Découvertes' },
     { ov: 'achievements', icon: '🏆', name: 'Succès', sub: `${ap.unlocked}/${ap.total}` },
@@ -687,6 +693,7 @@ function dtDungeon() {
       <div class="fight-dock">
         <button class="btn-gold btn-fight" id="btn-fight">⚔ Combattre</button>
         ${beaten ? `<button class="btn-ghost btn-loop ${state.combat.loopMode ? 'on' : ''}" id="btn-loop">🔁 Boucle</button>` : ''}
+        ${canDive() ? `<button class="btn-ghost btn-dive" data-dive="start" title="best ${state.dive?.bestDepth || 0}">🌊 Plongée</button>` : ''}
       </div>
     </div>
     <aside class="dt-panel">
@@ -765,6 +772,10 @@ const OVERLAYS = {
   stats: ovStats,
   talents: ovTalents,
   skills: ovSkills,
+  abilities: ovAbilities,
+  diveBoon: ovDiveBoon,
+  diveSummary: ovDiveSummary,
+  village: ovVillage,
   contracts: ovContracts,
   codex: ovCodex,
   achievements: ovAchievements,
@@ -965,6 +976,182 @@ function ovSkills() {
     </div>`;
   }).join('');
   return overlayShell(`Compétences · ${active.size}/${SKILLS.length}`, `<div class="skills-grid">${grid}</div>`, { wide: true });
+}
+
+// ── Abilities loadout (player-chosen active abilities) ───────
+function ovAbilities() {
+  const loadout = getLoadout();
+  const slots = [];
+  for (let i = 0; i < ABILITY_SLOTS; i++) {
+    const id = loadout[i];
+    const a = id ? ABILITIES.find(x => x.id === id) : null;
+    slots.push(a
+      ? `<button class="ab-slot filled" data-ability="${a.id}" title="Retirer"><span class="ab-ico">${a.emoji}</span><span class="smallcap">${a.name}</span></button>`
+      : `<div class="ab-slot empty"><span class="ab-ico">＋</span><span class="smallcap">Vide</span></div>`);
+  }
+  const full = loadout.length >= ABILITY_SLOTS;
+  const grid = ABILITIES.map(a => {
+    const unlocked = isAbilityUnlocked(a.id);
+    const on = isSlotted(a.id);
+    const cls = on ? ' active' : (unlocked ? '' : ' locked');
+    const stateLabel = on ? '<div class="skill-state gold-text smallcap">ÉQUIPÉE</div>'
+      : (unlocked ? (full ? '<div class="skill-state smallcap">Slots pleins</div>' : '<div class="skill-state smallcap">Tap pour équiper</div>')
+                  : `<div class="skill-state smallcap">🔒 ${a.unlockText || 'Verrouillée'}</div>`);
+    const attr = unlocked ? `data-ability="${a.id}"` : '';
+    return `<button class="skill${cls}" ${attr} ${unlocked ? '' : 'disabled'}>
+      <span class="skill-ico">${a.emoji}</span>
+      <div class="skill-info"><div class="skill-name">${a.name}</div><div class="skill-desc smallcap">${a.desc}</div>${stateLabel}</div>
+    </button>`;
+  }).join('');
+  const inner = `<p class="smallcap">Équipe jusqu'à ${ABILITY_SLOTS} capacités actives. Elles se déclenchent automatiquement en combat — le choix du loadout est ta décision de build.</p>
+    <div class="ab-slots">${slots.join('')}</div>
+    <div class="skills-grid">${grid}</div>`;
+  return overlayShell(`Capacités · ${loadout.length}/${ABILITY_SLOTS}`, inner, { wide: true });
+}
+
+// ── Deep Dive: boon checkpoint ───────────────────────────────
+function ovDiveBoon() {
+  const s = getSession();
+  const choice = (s && s.pendingBoon) || [];
+  const secured = s ? s.securedGold : 0;
+  const pending = s ? s.pendingGold : 0;
+  const cards = choice.map(id => {
+    const b = DIVE_BOON_BY_ID[id];
+    if (!b) return '';
+    return `<button class="relic-card" data-dive-boon="${id}">
+        <div class="relic-emoji">${b.emoji}</div>
+        <div class="relic-name display">${b.name}</div>
+        <div class="relic-desc smallcap">${b.desc}</div>
+      </button>`;
+  }).join('');
+  return `<div class="overlay-backdrop"></div>
+    <div class="sheet dark">
+      <div class="sheet-head"><span class="display">🌊 Point de contrôle · profondeur ${s ? s.depth : 0}</span></div>
+      <div class="sheet-body scroll">
+        <p class="smallcap">Butin sécurisé : <b class="gold-text">${fmt(secured)} 💰</b>. Choisis un bonus pour continuer, ou récupère ton or et sors.</p>
+        <div class="relic-grid">${cards}</div>
+        <button class="btn-ghost dive-exit-btn" data-dive="exit">💰 Récupérer ${fmt(secured)} or & sortir</button>
+      </div>
+    </div>`;
+}
+
+// ── Deep Dive: end summary ───────────────────────────────────
+function ovDiveSummary(params) {
+  const s = (params && params.summary) || {};
+  const orbBits = Object.entries(s.orbs || {}).map(([id, q]) => { const o = CURRENCY_BY_ID[id]; return o ? `${o.emoji}×${q}` : ''; }).filter(Boolean).join(' · ');
+  const isBest = s.depth && s.depth >= (state.dive?.bestDepth || 0);
+  return `<div class="overlay-backdrop" data-close-overlay="1"></div>
+    <div class="sheet dark">
+      <div class="sheet-head"><span class="display">🌊 ${s.died ? 'Plongée terminée' : 'Remonté sain et sauf'}</span><button class="sheet-close" data-close-overlay="1">✕</button></div>
+      <div class="sheet-body scroll" style="text-align:center">
+        <div style="font-size:46px;margin:6px 0">${s.died ? '💀' : '🏆'}</div>
+        <div class="display" style="font-size:24px">Profondeur ${s.depth || 0}</div>
+        ${isBest ? '<div class="gold-text smallcap">★ Nouveau record !</div>' : `<div class="smallcap">Record : ${state.dive?.bestDepth || 0}</div>`}
+        <div class="asc-grid" style="margin:14px auto">
+          <div class="asc-cell"><span class="smallcap">Or récupéré</span><span class="mono">${fmt(s.gold || 0)}</span></div>
+          <div class="asc-cell"><span class="smallcap">Orbes</span><span class="mono">${orbBits || '—'}</span></div>
+        </div>
+        ${s.died ? '<p class="smallcap">Mort : tu n\'as gardé que la moitié du butin non sécurisé.</p>' : ''}
+        <button class="btn-gold" data-close-overlay="1">Continuer</button>
+      </div>
+    </div>`;
+}
+
+// ── Village (management / idle layer) ────────────────────────
+let forgeCraftRarity = 'magic';
+export function setForgeCraftRarity(r) { forgeCraftRarity = r; renderOverlay(); }
+export function getForgeCraftRarity() { return forgeCraftRarity; }
+function costStr(c) {
+  const bits = [];
+  if (c.wood) bits.push(`🪵 ${fmt(c.wood)}`);
+  if (c.stone) bits.push(`🪨 ${fmt(c.stone)}`);
+  if (c.metal) bits.push(`⚙️ ${fmt(c.metal)}`);
+  if (c.gold) bits.push(`💰 ${fmt(c.gold)}`);
+  return bits.join(' · ') || '—';
+}
+function ovVillage() {
+  const { wood, stone, metal } = Village.woodStone();
+  const r = Village.rates();
+  const age = Village.currentAge();
+  const thLvl = Village.townhall();
+  const thCost = Village.townhallCost();
+  const floorMet = Village.townhallFloorMet();
+  const thCan = Village.canUpgradeTownhall();
+  const header = `<div class="vlg-res">
+      <span>${age.emoji} <span class="smallcap">${age.name}</span></span>
+      <span>🪵 ${fmt(wood)} <span class="smallcap">+${(r.wood).toFixed(0)}</span></span>
+      <span>🪨 ${fmt(stone)} <span class="smallcap">+${(r.stone).toFixed(0)}</span></span>
+      <span>⚙️ ${fmt(metal)} <span class="smallcap">+${(r.metal).toFixed(1)}</span></span>
+      ${r.orbs > 0 ? `<span>🔮 <span class="smallcap">+${(r.orbs).toFixed(2)}/min</span></span>` : ''}
+      <span>👷 ${Village.workersUsed()}/${Village.workerCap()}</span>
+    </div>`;
+  const townhall = `<div class="vlg-card vlg-townhall">
+      <div class="vlg-b-head"><span class="vlg-emoji">🏛️</span>
+        <div><div class="vlg-name">Mairie · niv ${thLvl}</div>
+          <div class="smallcap">Plafonne les bâtiments à niv ${thLvl} · ${Village.producersBuilt()}/${Village.buildingSlots()} emplacements</div></div></div>
+      <div class="smallcap">Améliorer → niv ${thLvl + 1} : ${costStr(thCost)}</div>
+      <div class="smallcap ${floorMet ? 'gold-text' : 'vlg-locked'}">${floorMet ? '✓' : '🔒'} requiert étage ${Village.townhallFloorReq()}</div>
+      <button class="btn-gold" data-village-townhall ${thCan ? '' : 'disabled'}>Améliorer la Mairie</button>
+    </div>`;
+  const cards = Village.BUILDINGS.map(b => {
+    const lvl = Village.levelOf(b.id);
+    const unlocked = Village.isUnlocked(b.id);
+    if (!unlocked) {
+      return `<div class="vlg-card vlg-unbuilt">
+        <div class="vlg-b-head"><span class="vlg-emoji">${b.emoji}</span>
+          <div><div class="vlg-name">${b.name}</div><div class="vlg-desc smallcap">${b.desc}</div></div></div>
+        <div class="smallcap vlg-locked">🔒 Débloqué à la Mairie niv ${b.townhallReq}</div>
+      </div>`;
+    }
+    const cost = Village.buildCost(b.id);
+    const can = Village.canBuild(b.id);
+    const capped = lvl >= Village.maxBuildingLevel();
+    let prod = '';
+    if (b.kind === 'houses') prod = `<div class="smallcap">Ouvriers : ${Village.workerCap()}</div>`;
+    else if (b.kind === 'producer') { const rn = Village.ratePerMin(b.id); prod = `<div class="smallcap">Production : ${rn ? `+${rn.toFixed(1)}/min` : '0 (assigne des ouvriers)'}</div>`; }
+    else if (b.id === 'forge') prod = lvl ? `<div class="smallcap">Tier de craft : ${Village.maxCraftTier()} · rareté max : ${RARITIES[Village.maxCraftRarityIndex()]?.name || '—'}</div>` : '';
+    else if (b.id === 'barracks') prod = lvl ? `<div class="smallcap gold-text">+${lvl * 4}% dégâts · +${lvl * 4}% PV (permanent)</div>` : '';
+    const workerRow = b.kind === 'producer' && lvl > 0 ? `<div class="vlg-workers">
+        <span class="smallcap">👷 ${Village.workersOn(b.id)}/${Village.maxWorkersOn(b.id)}</span>
+        <button class="vlg-wbtn" data-village-assign="${b.id}" data-delta="-1" ${Village.canUnassign(b.id) ? '' : 'disabled'}>−</button>
+        <button class="vlg-wbtn" data-village-assign="${b.id}" data-delta="1" ${Village.canAssign(b.id) ? '' : 'disabled'}>+</button>
+      </div>` : '';
+    const btnLabel = lvl === 0 ? 'Construire' : (capped ? `Niv max (Mairie ${Village.townhall()})` : `Améliorer → niv ${lvl + 1}`);
+    return `<div class="vlg-card${lvl === 0 ? ' vlg-unbuilt' : ''}">
+      <div class="vlg-b-head"><span class="vlg-emoji">${b.emoji}</span>
+        <div><div class="vlg-name">${b.name}${lvl ? ` · niv ${lvl}` : ''}</div><div class="vlg-desc smallcap">${b.desc}</div></div></div>
+      ${prod}
+      ${workerRow}
+      <div class="smallcap">${capped ? '' : 'Coût : ' + costStr(cost)}</div>
+      <button class="btn-ghost" data-village-build="${b.id}" ${can ? '' : 'disabled'}>${btnLabel}</button>
+    </div>`;
+  }).join('');
+  const inner = `${header}
+    <p class="smallcap">Le donjon alimente surtout tes ressources (kills/boss). Les bâtiments produisent en continu (hors-ligne plafonné 8h). Affecte tes ouvriers — chaque bâtiment en emploie au plus son niveau.</p>
+    ${townhall}
+    <div class="vlg-grid">${cards}</div>
+    ${forgeCraftPanel()}`;
+  return overlayShell('🏛️ Village', inner, { wide: true });
+}
+
+// Forge crafting panel — pick rarity (capped by forge level) + a slot to craft.
+function forgeCraftPanel() {
+  if (Village.forgeLevel() < 1) return '';
+  const maxRi = Village.maxCraftRarityIndex();
+  if (!RARITIES.some(r => r.id === forgeCraftRarity && RARITIES.indexOf(r) <= maxRi)) forgeCraftRarity = 'magic';
+  const rarityBtns = RARITIES.slice(0, maxRi + 1).map(r =>
+    `<button class="vlg-rar${r.id === forgeCraftRarity ? ' on' : ''}" data-village-craft-rarity="${r.id}" style="--c:${r.color}">${r.name}</button>`).join('');
+  const cost = Village.craftCost(Village.maxCraftTier(), forgeCraftRarity);
+  const slotBtns = SLOTS.map(s => {
+    const can = Village.canCraft(s.id, forgeCraftRarity);
+    return `<button class="vlg-craft-slot" data-village-craft="${s.id}" ${can ? '' : 'disabled'} title="${s.name}">${s.emoji}<span class="smallcap">${s.name}</span></button>`;
+  }).join('');
+  return `<div class="vlg-card vlg-forgepanel">
+      <div class="vlg-name">⚒️ Forger un objet · tier ${Village.maxCraftTier()}</div>
+      <div class="vlg-rar-row">${rarityBtns}</div>
+      <div class="smallcap">Coût par objet : ${costStr(cost)}</div>
+      <div class="vlg-craft-grid">${slotBtns}</div>
+    </div>`;
 }
 
 // ── ④ Contracts ──────────────────────────────────────────────

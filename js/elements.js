@@ -9,7 +9,7 @@
 //
 // Same explainability contract as parts and materials.
 
-import { RARITY_BY_ID } from './data.js';
+import { RARITY_BY_ID, tierScale } from './data.js';
 
 // `none` is by far the most common — keeps elemental items special.
 // `minChestTier` gates rare elements so they don't appear early.
@@ -94,7 +94,7 @@ export function rollElementStats(element, chestTier, statMult) {
   const t = (d20 - 1) / 19;
   const stats = {};
   for (const [stat, [min, max]] of Object.entries(element.statBias || {})) {
-    stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * chestTier * statMult));
+    stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * tierScale(chestTier) * statMult));
   }
   return { stats, quality: t, d20 };
 }

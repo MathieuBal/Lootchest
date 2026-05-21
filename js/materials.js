@@ -6,7 +6,7 @@
 // Combat consumes only `item.baseStats` — materials are 100% additive on top
 // of part stats. Same explainability contract as `statSources`.
 
-import { RARITY_BY_ID } from './data.js';
+import { RARITY_BY_ID, tierScale } from './data.js';
 
 // `weight` is the base draw weight. `minChestTier` gates rare materials so
 // they don't appear on tier-1 wood chests.
@@ -127,7 +127,7 @@ export function rollMaterialStats(material, chestTier, statMult) {
   const t = (d20 - 1) / 19;
   const stats = {};
   for (const [stat, [min, max]] of Object.entries(material.statBias || {})) {
-    stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * chestTier * statMult));
+    stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * tierScale(chestTier) * statMult));
   }
   return { stats, quality: t, d20 };
 }

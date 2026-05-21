@@ -5,13 +5,21 @@ import { state, subscribe, resetState, notify } from './state.js';
 import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS, CURRENCY_BY_ID } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
 import { openChest, upgradeChest, canOpen } from './chest.js';
-import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
+import { attemptCurrentFloor, setCurrentFloor, attemptDiveFight } from './combat.js';
+import {
+  startDive, isDiving, getSession, recordWin, openBoonChoice, chooseBoon,
+  finalizeDive, nextStartHp, diveMods, diveDepth,
+} from './dive.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
 import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
 import { upgradeTalent } from './talents.js';
 import { refreshBoardIfEmpty, rerollBounty, onBountyComplete } from './bounties.js';
 import { canAscend, ascend } from './prestige.js';
 import { chooseRelic } from './relics.js';
+import { toggleAbility } from './abilities.js';
+import {
+  accruePassive, grantDungeonResources, buildOrUpgrade, upgradeTownhall, assignWorker, craftForge,
+} from './village.js';
 import {
   unlockAudio, toggleMuted, isMuted, setMuted,
   soundChestOpen, soundDrop, soundCoin, soundHit, soundCrit,
@@ -49,6 +57,10 @@ setMuted(!!state.ui?.muted);
 UI.mountApp();
 checkAchievements();
 refreshBoardIfEmpty();
+
+// Village passive production: accrue offline gains once, then trickle on a timer.
+accruePassive();
+setInterval(() => { accruePassive(); notify(); }, 5000);
 
 if (!state.ui.hasSeenWelcome) UI.navOverlay('onboarding');
 else if (state.prestige?.pendingRelicChoice?.length) UI.navOverlay('relicChoice');
@@ -191,6 +203,30 @@ document.body.addEventListener('click', async (e) => {
   const relicBtn = t.closest('[data-relic]');
   if (relicBtn) { chooseRelicFlow(relicBtn.dataset.relic); return; }
 
+  // Ability loadout toggle
+  const abBtn = t.closest('[data-ability]');
+  if (abBtn) { if (toggleAbility(abBtn.dataset.ability)) { soundClick(); notify(); } return; }
+
+  // Village
+  const vbuild = t.closest('[data-village-build]');
+  if (vbuild && !vbuild.disabled) { if (buildOrUpgrade(vbuild.dataset.villageBuild)) { soundUpgrade(); } return; }
+  if (t.closest('[data-village-townhall]')) { if (upgradeTownhall()) { soundUpgrade(); } return; }
+  const vasg = t.closest('[data-village-assign]');
+  if (vasg && !vasg.disabled) { if (assignWorker(vasg.dataset.villageAssign, parseInt(vasg.dataset.delta, 10))) soundClick(); return; }
+  if (t.closest('[data-village-craft-rarity]')) { UI.setForgeCraftRarity(t.closest('[data-village-craft-rarity]').dataset.villageCraftRarity); soundClick(); return; }
+  const vcraft = t.closest('[data-village-craft]');
+  if (vcraft && !vcraft.disabled) {
+    const item = craftForge(vcraft.dataset.villageCraft, UI.getForgeCraftRarity());
+    if (item) { soundForge(); UI.showDropPopup(item); }
+    return;
+  }
+
+  // Deep Dive
+  if (t.closest('[data-dive="start"]')) { beginDive(); return; }
+  if (t.closest('[data-dive="exit"]')) { diveExit(); return; }
+  const boonBtn = t.closest('[data-dive-boon]');
+  if (boonBtn) { diveBoonPick(boonBtn.dataset.diveBoon); return; }
+
   // Onboarding start
   if (t.closest('#btn-welcome-start')) { dismissWelcome(); soundClick(); return; }
 
@@ -275,7 +311,7 @@ function resumeLoop() {
 
 let fighting = false;
 async function fightFlow() {
-  if (fighting) return;
+  if (fighting || isDiving()) return;
   fighting = true;
   try {
     const { result, monster, droppedItem, advanced, milestone } = attemptCurrentFloor();
@@ -303,6 +339,8 @@ async function fightFlow() {
       spawnParticles(monster.isBoss ? '#ff7a1a' : '#ffe14a', c.x, c.y, monster.isBoss ? 40 : 20);
       floatingText(`+${monster.goldReward} 💰`, c.x, c.y - 30, '#f5c842');
       if (monster.keyDrop) { floatingText(`+${monster.keyDrop} 🗝`, c.x + 40, c.y - 30, '#ffd060'); soundCoin(); UI.appendCombatLog([`🗝 +${monster.keyDrop} clé${monster.keyDrop > 1 ? 's' : ''}`], 'reward'); }
+      const res = grantDungeonResources(monster.floor, monster.isBoss, monster.isElite);
+      if (res) UI.appendCombatLog([`🪵 +${res.wood} · 🪨 +${res.stone}`], 'reward');
       if (monster.isBoss) screenShake(8, 350);
     } else {
       soundLose(); UI.setCombatCall('DÉFAITE', '#ff5050'); screenShake(10, 400);
@@ -339,6 +377,77 @@ async function fightFlow() {
   } finally {
     fighting = false;
   }
+}
+
+// ── Deep Dive controller ─────────────────────────────────────
+let diving = false;
+function beginDive() {
+  if (state.combat.loopMode) { state.combat.loopMode = false; }
+  if (!startDive()) return;
+  soundAscension();
+  UI.showToast('🌊', 'Plongée lancée', 'Descends aussi profond que possible !');
+  diveFlow();
+}
+
+async function diveFlow() {
+  if (diving || !isDiving()) return;
+  diving = true;
+  try {
+    const s = getSession();
+    const startHp = nextStartHp();
+    const { monster, result, won, maxHp } = attemptDiveFight(s.baseFloor, s.depth + 1, startHp, diveMods());
+    UI.openCombat(monster);
+    await sleep(60);
+    const monsterMaxHp = monster.hp;
+    UI.showCombatBars(maxHp, monsterMaxHp);
+    if (startHp != null) UI.updatePlayerHp(startHp, maxHp); // begin from carried HP
+
+    const events = result.events || [];
+    const fast = !!state.settings?.fastCombat;
+    const perEvent = fast ? 12 : Math.max(40, Math.min(140, 1200 / Math.max(1, events.length)));
+    for (const ev of events) {
+      await sleep(perEvent);
+      handleCombatEvent(ev, monsterMaxHp, maxHp);
+    }
+    await sleep(260);
+    UI.appendCombatLog(result.log, won ? 'win' : 'lose');
+
+    if (won) {
+      const rec = recordWin(monster, result);
+      soundWin();
+      UI.setCombatCall(`Profondeur ${rec.depth}`, '#5ad8e8');
+      const c = UI.getMonsterEmojiCenter();
+      spawnParticles('#5ad8e8', c.x, c.y, 18);
+      floatingText(`+${rec.gold} 💰`, c.x, c.y - 30, '#f5c842');
+      UI.appendCombatLog([`🌊 Profondeur ${rec.depth} · butin en jeu sécurisé`], 'reward');
+      await sleep(600);
+      UI.closeCombat();
+      if (rec.checkpoint) {
+        openBoonChoice();
+        UI.navOverlay('diveBoon');     // pauses the loop until the player picks/exits
+      } else if (isDiving()) {
+        setTimeout(diveFlow, 320);
+      }
+    } else {
+      soundLose(); UI.setCombatCall('VAINCU', '#ff5050'); screenShake(10, 400);
+      await sleep(600);
+      UI.closeCombat();
+      const summary = finalizeDive(true);
+      UI.navOverlay('diveSummary', { summary });
+    }
+  } finally {
+    diving = false;
+  }
+}
+
+function diveBoonPick(id) {
+  if (chooseBoon(id)) { soundUpgrade(); UI.closeOverlay(); setTimeout(diveFlow, 200); }
+}
+
+function diveExit() {
+  const summary = finalizeDive(false);
+  UI.closeOverlay();
+  if (summary) UI.navOverlay('diveSummary', { summary });
 }
 
 function handleCombatEvent(ev, monsterMaxHp, playerMaxHp) {
@@ -465,6 +574,8 @@ document.addEventListener('keydown', (e) => {
   if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
   if (e.key === 'Escape') {
     if (UI.getCurrentDrop()) { addToInventory(UI.getCurrentDrop()); UI.hideDropPopup(); return; }
+    // At a dive checkpoint, Escape = cash out (don't strand the run).
+    if (isDiving() && getSession()?.pendingBoon) { diveExit(); return; }
     UI.closeOverlay(); return;
   }
   if (e.ctrlKey || e.altKey || e.metaKey) return;
