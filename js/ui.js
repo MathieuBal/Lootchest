@@ -6,7 +6,7 @@ import { state, notify } from './state.js';
 import {
   RARITIES, RARITY_BY_ID, SLOTS, SLOT_BY_ID,
   CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, PITY_THRESHOLD,
-  ACHIEVEMENTS, biomeForFloor, BIOMES,
+  ACHIEVEMENTS, biomeForFloor, BIOMES, AUTOSELL_UNLOCK_COSTS,
   CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID,
   SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, TALENT_CATEGORIES,
   TALENT_MASTERY_THRESHOLD, UNIQUE_LEGENDARIES,
@@ -15,7 +15,7 @@ import { computeStats, computePower, computeSetSummary, itemPowerContribution, c
 import { getCurrentTier, getNextTier, canUpgrade, canOpen, hasKey, cooldownRemaining, nextTierLockedBy } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
 import { FORGE_ACTIONS, availableMasterCraftAffixes } from './forge.js';
-import { shardYield } from './inventory.js';
+import { shardYield, autoActionFor } from './inventory.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talents.js';
@@ -25,6 +25,7 @@ import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacter
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
 import { MATERIALS } from './materials.js';
 import { ELEMENTS } from './elements.js';
+import { FACTIONS } from './factions.js';
 import { getCompositionLayers } from './parts.js';
 
 // ─────────────────────────────────────────────────────────────
@@ -239,15 +240,13 @@ function renderMobile() {
 }
 
 function renderDesktop() {
-  // Desktop sections come in ⑤ — for now reuse mobile screens inside a centered
-  // frame so the game stays fully usable at wide widths.
-  const screen = SCREENS[nav.tab] ? SCREENS[nav.tab]() : '';
+  const builder = DESKTOP_SCREENS[nav.tab] || (() => `<div class="dt-center">${SCREENS[nav.tab] ? SCREENS[nav.tab]() : ''}</div>`);
   appEl.innerHTML = `
     <div class="desktop-shell">
       ${railNav()}
       <div class="desktop-main">
         ${topHUD()}
-        <main class="screen scroll" data-screen="${nav.tab}">${screen}</main>
+        <main class="screen scroll" data-screen="${nav.tab}">${builder()}</main>
       </div>
     </div>`;
 }
@@ -499,8 +498,7 @@ function screenInventory() {
     </div>
     <div class="inv-grid">${grid}</div>
     <div class="inv-bulk">
-      <button class="btn-ghost" id="btn-sell-filter">💰 Vendre filtre</button>
-      <button class="btn-ghost" id="btn-salvage-filter">💎 Recycler filtre</button>
+      <button class="btn-ghost" data-overlay="autosell">⚙ Auto-vente & gestion</button>
     </div>
   </div>`;
 }
@@ -542,10 +540,13 @@ function screenForge() {
         <span class="fa-cost mono">${orb ? have : (a.shards || '')}</span>
       </button>`;
     }).join('');
+    const r = RARITY_BY_ID[item.rarity];
     body = `<div class="forge-work">
-      <div class="forge-slot">${itemTileHTML(item, { px: 88, big: true })}</div>
-      <div class="forge-item-name rt-${RARITY_BY_ID[item.rarity].cssClass}">${item.name}</div>
-      <div class="forge-detail">${itemDetailsHTML(item)}</div>
+      <div class="forge-slot rar-glow-${r.cssClass} pixel">${itemVisualHTML(item, 84)}</div>
+      <div class="forge-item-name display rt-${r.cssClass}">${item.name}</div>
+      <div class="forge-item-sub smallcap">T${item.chestTier} · ${SLOT_BY_ID[item.slot].name} · ${r.name}</div>
+      ${compChips(item) ? `<div class="detail-chips">${compChips(item)}</div>` : ''}
+      <div class="forge-detail">${statBars(item)}</div>
       <div class="forge-actions">${actions}</div>
       <button class="btn-ghost" id="forge-deselect">← Changer d'objet</button>
     </div>`;
@@ -595,6 +596,141 @@ function screenMeta() {
 }
 
 // ═════════════════════════════════════════════════════════════
+// ⑤ DESKTOP LAYOUTS — rail + multi-column (info visible without clicks)
+// ═════════════════════════════════════════════════════════════
+let invSelectedId = null;
+export function selectInvItem(id) { invSelectedId = id; renderAll(); }
+
+const DESKTOP_SCREENS = {
+  hub: dtHub,
+  dungeon: dtDungeon,
+  inventory: dtInventory,
+};
+
+// ⑮ Hub desktop — center chest · right info panel
+function dtHub() {
+  const tier = getCurrentTier();
+  const stats = computeStats();
+  const power = computePower(stats);
+  const pityMax = Math.max(1, PITY_THRESHOLD - pityReduction());
+  const pity = Math.min(pityMax, state.pity?.sinceLegendary || 0);
+  const weights = tier.weights;
+  const rows = RARITIES.filter(r => (weights[r.id] || 0) > 0).map(r =>
+    `<div class="dt-droprow"><span class="rt-${r.cssClass}">${r.name}</span><div class="dt-droptrack"><i style="width:${weights[r.id]}%;background:${r.color}"></i></div><span class="mono">${weights[r.id]}%</span></div>`).join('');
+  const next = getNextTier();
+  const canUp = canUpgrade();
+  const enoughKeys = (state.keys || 0) > 0;
+  return `<div class="dt-cols hub-dt">
+    <div class="dt-stage">
+      <div class="stage-tier smallcap gold-text">Tier ${tier.tier} · ${tier.name}</div>
+      <div class="stage-title display">Coffre ${tier.name}</div>
+      <div class="chest-hero${enoughKeys ? ' has-key' : ''}"><div class="chest-sprite pixel" id="chest-sprite">${chestSpriteSVG(tier.tier, 220)}</div></div>
+      <div class="open-bar">
+        <button class="btn-key" data-nav="dungeon"><span class="cur-glyph">🗝</span><span class="mono">${fmt(state.keys)}</span></button>
+        <button class="btn-gold btn-open ${enoughKeys ? '' : 'is-disabled'}" id="btn-open"><span class="open-ico">⬢</span> Ouvrir <span class="open-cost">· 1 clé</span></button>
+      </div>
+      <div class="chest-cooldown"><div class="chest-cooldown-fill" id="cooldown-fill"></div></div>
+    </div>
+    <aside class="dt-panel">
+      <div class="dt-card panel"><div class="smallcap">Puissance</div><div class="mono power-val gold-text">${fmt(power)}</div></div>
+      <div class="dt-card panel"><div class="smallcap">Taux de butin</div>${rows}</div>
+      <div class="dt-card panel"><div class="smallcap">Pity légendaire</div>
+        <div class="pity-row"><div class="pity-bar"><div class="pity-fill" style="width:${(pity / pityMax) * 100}%"></div></div><span class="mono">${pity}/${pityMax}</span></div></div>
+      <button class="btn-ghost btn-upgrade ${canUp ? 'ready' : ''}" id="btn-upgrade" ${next && canUp ? '' : 'disabled'}>
+        ⬆ ${next ? `${next.name} · ${fmt(next.upgradeCost)} 💰` : 'Tier max'}</button>
+    </aside>
+  </div>`;
+}
+
+// ⑱ Dungeon desktop — biome list · floor detail · monster preview
+function dtDungeon() {
+  const cur = state.combat.currentFloor;
+  const highest = state.combat.highestUnlocked;
+  const monster = generateMonster(cur);
+  const diff = predictDifficulty(monster);
+  const biome = biomeForFloor(cur);
+  const beaten = cur < highest;
+  const biomeList = BIOMES.map(b => {
+    const [lo, hi] = b.floors;
+    const unlocked = highest >= lo;
+    const active = cur >= lo && cur <= (hi > 900 ? 99999 : hi);
+    return `<button class="dt-biome${active ? ' active' : ''}${unlocked ? '' : ' locked'}" data-floor="${unlocked ? Math.max(lo, Math.min(highest, hi > 900 ? highest : hi)) : lo}" ${unlocked ? '' : 'disabled'}>
+      <span class="biome-emoji">${b.emoji}</span><div><div class="biome-name">${b.name}</div><div class="smallcap">${lo}–${hi > 900 ? '∞' : hi}</div></div>${unlocked ? '' : '<span class="biome-lock">🔒</span>'}</button>`;
+  }).join('');
+  const top = biome.floors[1] > 900 ? biome.floors[0] + 9 : biome.floors[1];
+  const floors = [];
+  for (let f = biome.floors[0]; f <= top; f++) {
+    const boss = isBossFloor(f), unlocked = f <= highest, sel = f === cur;
+    floors.push(`<button class="floor${unlocked ? '' : ' locked'}${sel ? ' sel' : ''}${boss ? ' boss' : ''}" data-floor="${f}" ${unlocked ? '' : 'disabled'}>${boss ? '★' : (unlocked ? f : '🔒')}</button>`);
+  }
+  return `<div class="dt-cols dungeon-dt">
+    <aside class="dt-panel dt-biomelist">${biomeList}</aside>
+    <div class="dt-floordetail">
+      <div class="dh-floor"><span class="smallcap">${biome.emoji} ${biome.name} · Étage</span><span class="mono dh-floornum">${cur}</span></div>
+      <div class="floor-grid">${floors.join('')}</div>
+      <div class="dh-stats smallcap">🗡 ${fmt(state.combat.kills)} · 💀 ${fmt(state.combat.deaths)} · 👑 ${fmt(state.combat.bossKills)}</div>
+      <div class="fight-dock">
+        <button class="btn-gold btn-fight" id="btn-fight">⚔ Combattre</button>
+        ${beaten ? `<button class="btn-ghost btn-loop ${state.combat.loopMode ? 'on' : ''}" id="btn-loop">🔁 Boucle</button>` : ''}
+      </div>
+    </div>
+    <aside class="dt-panel">
+      <div class="dt-card panel mob-preview">
+        <div class="mob-sprite-lg pixel">${hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, 96) : `<span style="font-size:72px">${monster.emoji}</span>`}</div>
+        <div class="ft-name">${monster.name}${monster.isBoss ? ' 👑' : ''}${monster.isElite ? ' ⭐' : ''}</div>
+        <div class="ft-diff" style="color:${diff.color}">${diff.label}</div>
+        <div class="mob-stats smallcap">❤ ${fmt(monster.hp)} · ⚔ ${fmt(monster.damage)} · 🛡 ${fmt(monster.armor)}</div>
+        ${monster.mechanic ? `<div class="mob-mech smallcap">${monster.mechanic.desc || ''}</div>` : ''}
+      </div>
+    </aside>
+  </div>`;
+}
+
+// ⑰ Inventory desktop — paper-doll+stats · 8-col grid · item detail (no click needed)
+function dtInventory() {
+  const stats = computeStats();
+  const power = computePower(stats);
+  const paperDoll = SLOTS.map(s => {
+    const it = state.equipment[s.id];
+    return `<div class="doll-slot${it ? ' filled' : ''}" data-slot-id="${s.id}">
+      ${it ? itemTileHTML(it, { px: 40 }) : `<span class="doll-empty">${s.emptyEmoji}</span>`}<span class="doll-label smallcap">${s.name}</span></div>`;
+  }).join('');
+  const sets = computeSetSummary().filter(s => s.count >= 2).map(s => `<span class="chip" style="--c:${s.color}">${s.setName} ${s.count}/${s.totalPieces}</span>`).join('');
+  const statLines = Object.entries(stats).filter(([, v]) => v).map(([k, v]) =>
+    `<div class="dt-statline"><span>${STAT_ICON[k] || ''} ${statLabel(k)}</span><span class="mono">${v}${PCT_STATS.has(k) ? '%' : ''}</span></div>`).join('');
+  const list = filteredInventory();
+  if (invSelectedId && !list.some(i => i.id === invSelectedId) && !state.equipment[SLOT_BY_ID[invSelectedId] ? '' : '']) { /* keep selection if equipped */ }
+  const selected = findAnyItem(invSelectedId) || list[0];
+  const filters = [['all', `Tout ${state.inventory.length}`], ['weapon', 'Armes'], ['armor', 'Armure'], ['access', 'Access.'], ['shield', 'Boucliers'], ['locked', '🔒']];
+  const grid = list.length ? list.map(i => itemTileHTML(i, { px: 52 })).join('') : '<div class="empty-state"><div class="empty-icon">🎒</div><div>Inventaire vide</div></div>';
+  return `<div class="dt-cols inv-dt">
+    <aside class="dt-panel">
+      <div class="dt-card panel"><div class="pd-head"><span class="display">Équipement</span><span class="mono gold-text">⚡ ${fmt(power)}</span></div>
+        <div class="doll-grid">${paperDoll}</div>${sets ? `<div class="doll-sets">${sets}</div>` : ''}</div>
+      <div class="dt-card panel"><div class="smallcap">Statistiques</div>${statLines}</div>
+    </aside>
+    <div class="dt-invmain">
+      <div class="inv-toolbar">
+        <input class="inv-search" id="inv-search" placeholder="🔍 Rechercher…" value="${invSearch}" />
+        <select class="inv-sort" id="inv-sort">
+          <option value="rarity"${invSort === 'rarity' ? ' selected' : ''}>Rareté</option>
+          <option value="power"${invSort === 'power' ? ' selected' : ''}>Puissance</option>
+          <option value="value"${invSort === 'value' ? ' selected' : ''}>Valeur</option>
+          <option value="tier"${invSort === 'tier' ? ' selected' : ''}>Tier</option>
+        </select>
+        <button class="btn-ghost" id="btn-auto-equip">⚡ Auto</button>
+      </div>
+      <div class="filter-chips">${filters.map(([id, lbl]) => `<button class="fchip${invFilter === id ? ' active' : ''}" data-filter="${id}">${lbl}</button>`).join('')}</div>
+      <div class="inv-grid dt-grid">${grid}</div>
+      <div class="inv-bulk"><button class="btn-ghost" data-overlay="autosell">⚙ Auto-vente & gestion</button></div>
+    </div>
+    <aside class="dt-panel dt-detail">
+      ${selected ? detailBody(selected) : '<div class="empty-state"><div class="empty-icon">🗡</div><div>Sélectionne un objet</div></div>'}
+    </aside>
+  </div>`;
+}
+
+// ═════════════════════════════════════════════════════════════
 // OVERLAYS
 // ═════════════════════════════════════════════════════════════
 function renderOverlay() {
@@ -622,6 +758,7 @@ const OVERLAYS = {
   settings: ovSettings,
   help: ovHelp,
   menu: ovMenu,
+  autosell: ovAutosell,
 };
 
 function overlayShell(title, inner, { wide = false, dark = false } = {}) {
@@ -692,24 +829,73 @@ function ovLoot() {
   </div>`;
 }
 
-// ── ⑥ Item detail (interim) ──────────────────────────────────
+// Composition chips: material 🔩 / element ✨ / faction 🏷 / legendary effect ✦.
+function compChips(item) {
+  const chips = [];
+  if (item.material) { const m = MATERIALS[item.material.id]; if (m) chips.push(`<span class="comp-chip" style="--c:${m.tintColor}">${m.icon || '🔩'} ${m.name}</span>`); }
+  if (item.element && item.element.id !== 'none') { const e = ELEMENTS[item.element.id]; if (e) chips.push(`<span class="comp-chip" style="--c:${e.glowColor}">${e.icon || '✨'} ${e.name}</span>`); }
+  if (item.faction && item.faction.id && item.faction.id !== 'none') { const f = FACTIONS[item.faction.id]; chips.push(`<span class="comp-chip" style="--c:var(--ink-300)">🏷 ${f?.name || item.faction.name}</span>`); }
+  if (item.legendaryEffect) chips.push(`<span class="comp-chip" style="--c:var(--r-legendary)">✦ ${item.legendaryEffect.name}</span>`);
+  return chips.join('');
+}
+// Horizontal stat bars, scaled to the largest stat on the item.
+function statBars(item) {
+  const total = itemTotalStats(item);
+  const entries = Object.entries(total).filter(([, v]) => v);
+  if (!entries.length) return '';
+  const max = Math.max(...entries.map(([, v]) => Math.abs(v)));
+  return entries.map(([k, v]) => `<div class="sb-row">
+    <span class="sb-label">${STAT_ICON[k] || '◆'} ${statLabel(k)}</span>
+    <div class="sb-track"><i style="width:${Math.max(6, (Math.abs(v) / max) * 100)}%"></i></div>
+    <span class="sb-val mono">${v > 0 ? '+' : ''}${v}${PCT_STATS.has(k) ? '%' : ''}</span>
+  </div>`).join('');
+}
+
+// Shared item-detail body (used by the mobile sheet + the desktop inv panel).
+function detailBody(item) {
+  const equipped = !!Object.values(state.equipment).find(i => i && i.id === item.id);
+  const r = RARITY_BY_ID[item.rarity];
+  const slot = SLOT_BY_ID[item.slot];
+  const power = Math.round(itemPowerContribution(item));
+  const cur = state.equipment[item.slot];
+  let delta = null;
+  if (cur && cur.id !== item.id) delta = power - Math.round(itemPowerContribution(cur));
+  const eff = item.legendaryEffect && LEGENDARY_EFFECTS[item.legendaryEffect.id];
+  return `<div class="detail rar-${r.cssClass}">
+    <div class="detail-hero">
+      <div class="detail-frame rar-glow-${r.cssClass} pixel">${itemVisualHTML(item, 120)}</div>
+      <div class="detail-stamp display" style="color:${r.color}">${r.name.toUpperCase()}</div>
+      <div class="detail-name display rt-${r.cssClass}">${item.name}${item.uniqueId ? '<span class="unique-badge">UNIQUE</span>' : ''}</div>
+      <div class="detail-slot smallcap">T${item.chestTier} · ${slot.name}</div>
+    </div>
+    <div class="detail-power">
+      <span class="dp-num mono gold-text">⚡ ${fmt(power)}</span>
+      ${delta !== null ? `<span class="dp-delta ${delta >= 0 ? 'up' : 'down'} mono">${delta >= 0 ? '▲ +' : '▼ '}${fmt(delta)} vs équipé</span>` : ''}
+    </div>
+    ${compChips(item) ? `<div class="detail-chips">${compChips(item)}</div>` : ''}
+    <div class="detail-stats">${statBars(item)}</div>
+    ${sourcesHTML(item)}
+    ${eff ? `<div class="detail-legendary"><span class="dl-title">✦ ${eff.name}</span><span class="dl-desc">${eff.desc}</span></div>` : ''}
+    ${item.flavor ? `<blockquote class="detail-flavor">"${item.flavor}"</blockquote>` : ''}
+    <div class="detail-value smallcap">💰 ${fmt(item.goldValue)} or · 💎 ${shardYield(item)} ${r.name}</div>
+  </div>
+  <div class="detail-actionbar">
+    <button class="btn-gold" data-item-action="equip">${equipped ? 'Déséquiper' : 'Équiper'}</button>
+    <button class="btn-ghost" data-item-action="sell" ${item.locked ? 'disabled' : ''}>💰 ${fmt(item.goldValue)}</button>
+    <button class="btn-ghost" data-item-action="salvage" ${item.locked ? 'disabled' : ''}>💎 ${shardYield(item)}</button>
+    <button class="btn-ghost ${item.locked ? 'locked' : ''}" data-item-action="lock">${item.locked ? '🔓' : '🔒'}</button>
+  </div>`;
+}
+
+// ── ⑥ Item detail — replaces the text-wall tooltip (mobile sheet) ──
 function ovItemDetail(p) {
   const item = findAnyItem(p.itemId);
   if (!item) return overlayShell('Objet', '<div class="empty-state">Objet introuvable</div>');
-  const equipped = !!Object.values(state.equipment).find(i => i && i.id === item.id);
-  const r = RARITY_BY_ID[item.rarity];
-  const actions = `<div class="detail-actions">
-    <button class="btn-gold" data-item-action="equip">${equipped ? 'Déséquiper' : 'Équiper'}</button>
-    <button class="btn-ghost" data-item-action="sell" ${item.locked ? 'disabled' : ''}>Vendre · ${fmt(item.goldValue)} 💰</button>
-    <button class="btn-ghost" data-item-action="salvage" ${item.locked ? 'disabled' : ''}>💎 ${shardYield(item)}</button>
-    <button class="btn-ghost" data-item-action="lock">${item.locked ? '🔓' : '🔒'}</button>
-  </div>`;
-  const inner = `<div class="detail">
-    <div class="detail-art rar-glow-${r.cssClass} pixel">${itemVisualHTML(item, 120)}</div>
-    ${itemDetailsHTML(item)}
-    ${actions}
-  </div>`;
-  return overlayShell(item.name, inner);
+  return `<div class="overlay-backdrop" data-close-overlay="1"></div>
+    <div class="sheet item-sheet">
+      <div class="sheet-grip"></div>
+      <div class="sheet-body scroll">${detailBody(item)}</div>
+    </div>`;
 }
 
 // ── ③ Stats breakdown ────────────────────────────────────────
@@ -783,24 +969,32 @@ function ovContracts() {
   return overlayShell('Contrats', list, { wide: true });
 }
 
-// ── ④ Codex ──────────────────────────────────────────────────
+// ── ④ Codex (tabs Uniques / Sets / Boss) ─────────────────────
+let codexTab = 'uniques';
+export function setCodexTab(t) { codexTab = t; renderOverlay(); }
 function ovCodex() {
-  const uniques = UNIQUE_LEGENDARIES.map(u => {
-    const found = state.codex?.uniques?.[u.id];
-    return `<div class="codex-cell${found ? '' : ' unknown'}">${found ? `<span class="pixel">${u.emoji}</span>` : '?'}</div>`;
-  }).join('');
-  const sets = SETS.map(s => {
-    const seen = state.codex?.sets?.[s.id];
-    return `<div class="codex-cell${seen ? '' : ' unknown'}" style="${seen ? `--c:${s.color}` : ''}">${seen ? s.emoji : '?'}</div>`;
-  }).join('');
-  const bosses = BIOMES.map(b => {
-    const k = state.codex?.bosses?.[b.id];
-    return `<div class="codex-cell${k ? '' : ' unknown'}">${k ? b.boss.emoji : '?'}</div>`;
-  }).join('');
+  let grid, count, total;
+  if (codexTab === 'uniques') {
+    total = UNIQUE_LEGENDARIES.length;
+    count = UNIQUE_LEGENDARIES.filter(u => state.codex?.uniques?.[u.id]).length;
+    grid = UNIQUE_LEGENDARIES.map(u => { const f = state.codex?.uniques?.[u.id];
+      return `<div class="codex-cell${f ? '' : ' unknown'}" title="${f ? u.name : '???'}">${f ? u.emoji : '?'}</div>`; }).join('');
+  } else if (codexTab === 'sets') {
+    total = SETS.length;
+    count = SETS.filter(s => state.codex?.sets?.[s.id]).length;
+    grid = SETS.map(s => { const seen = state.codex?.sets?.[s.id];
+      return `<div class="codex-cell${seen ? '' : ' unknown'}" title="${seen ? s.name : '???'}" style="${seen ? `--c:${s.color}` : ''}">${seen ? s.emoji : '?'}</div>`; }).join('');
+  } else {
+    total = BIOMES.length;
+    count = BIOMES.filter(b => state.codex?.bosses?.[b.id]).length;
+    grid = BIOMES.map(b => { const k = state.codex?.bosses?.[b.id];
+      return `<div class="codex-cell${k ? '' : ' unknown'}" title="${k ? b.boss.name : '???'}">${k ? b.boss.emoji : '?'}</div>`; }).join('');
+  }
+  const tabs = [['uniques', 'Uniques'], ['sets', 'Sets'], ['bosses', 'Boss']];
   return overlayShell('Codex', `
-    <div class="smallcap codex-h">Uniques</div><div class="codex-grid">${uniques}</div>
-    <div class="smallcap codex-h">Sets</div><div class="codex-grid">${sets}</div>
-    <div class="smallcap codex-h">Boss</div><div class="codex-grid">${bosses}</div>`, { wide: true });
+    <div class="codex-tabs">${tabs.map(([id, lbl]) => `<button class="codex-tab${codexTab === id ? ' active' : ''}" data-codex-tab="${id}">${lbl}</button>`).join('')}</div>
+    <div class="codex-count smallcap">${count}/${total} découverts</div>
+    <div class="codex-grid">${grid}</div>`, { wide: true });
 }
 
 // ── Achievements ─────────────────────────────────────────────
@@ -856,6 +1050,43 @@ function ovOnboarding() {
     </div>`;
 }
 
+// ── Auto-vente & gestion en masse (fonctionnalité restaurée) ──
+function ovAutosell() {
+  const rows = RARITIES.map(r => {
+    const cost = AUTOSELL_UNLOCK_COSTS[r.id];
+    const inInv = state.inventory.filter(i => i.rarity === r.id && !i.locked).length;
+    let control;
+    if (cost === null) {
+      control = `<span class="as-never smallcap">protégé</span>`;
+    } else {
+      const conf = state.autoSell?.[r.id] || {};
+      if (!conf.unlocked) {
+        const can = (state.gold || 0) >= cost;
+        control = `<button class="btn-ghost as-unlock" data-autosell-unlock="${r.id}" ${can ? '' : 'disabled'}>${cost === 0 ? 'Activer' : '🔓 ' + fmt(cost) + ' 💰'}</button>`;
+      } else {
+        const act = autoActionFor(r.id); // 'off' | 'sell' | 'salvage'
+        control = `<div class="as-seg">
+          <button class="${act === 'off' ? 'on' : ''}" data-autosell="${r.id}:off">Off</button>
+          <button class="${act === 'sell' ? 'on' : ''}" data-autosell="${r.id}:sell">💰</button>
+          <button class="${act === 'salvage' ? 'on' : ''}" data-autosell="${r.id}:salvage">💎</button>
+        </div>`;
+      }
+    }
+    const bulk = (cost === null) ? '' : `<div class="as-bulk">
+      <button class="as-bulkbtn" data-bulk-sell="${r.id}" title="Vendre tout (${inInv})" ${inInv ? '' : 'disabled'}>💰×${inInv}</button>
+      <button class="as-bulkbtn" data-bulk-salvage="${r.id}" title="Recycler tout (${inInv})" ${inInv ? '' : 'disabled'}>💎×${inInv}</button>
+    </div>`;
+    return `<div class="as-row">
+      <span class="as-name rt-${r.cssClass}">${r.name}</span>
+      ${control}
+      ${bulk}
+    </div>`;
+  }).join('');
+  return overlayShell('Auto-vente & gestion', `
+    <p class="smallcap">À l'ouverture d'un coffre, les drops d'une rareté en mode 💰/💎 sont automatiquement vendus ou recyclés. Les objets verrouillés 🔒 sont toujours épargnés.</p>
+    <div class="as-list">${rows}</div>`, { wide: true });
+}
+
 // ── Settings ─────────────────────────────────────────────────
 function ovSettings() {
   const s = state.settings || {};
@@ -890,6 +1121,7 @@ function ovHelp() {
 function ovMenu() {
   return `<div class="overlay-backdrop" data-close-overlay="1"></div>
     <div class="menu-sheet">
+      <button data-overlay="autosell">⚙ Auto-vente</button>
       <button data-overlay="help">❓ Aide</button>
       <button data-overlay="achievements">🏆 Succès</button>
       <button data-overlay="settings">⚙ Paramètres</button>
