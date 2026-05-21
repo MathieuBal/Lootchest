@@ -124,10 +124,12 @@ document.body.addEventListener('click', async (e) => {
   if (t.closest('#btn-sell-filter')) { bulkSell(false); return; }
   if (t.closest('#btn-salvage-filter')) { bulkSell(true); return; }
 
-  // Item tile → open detail (works in inventory grid + paper doll)
+  // Item tile → desktop selects the inline detail panel; mobile opens the sheet.
   const tile = t.closest('[data-item-id]');
   if (tile && t.closest('.inv-grid, .doll-slot')) {
-    UI.navOverlay('item', { itemId: tile.dataset.itemId }); soundClick(); return;
+    if (UI.getMode() === 'desktop') UI.selectInvItem(tile.dataset.itemId);
+    else UI.navOverlay('item', { itemId: tile.dataset.itemId });
+    soundClick(); return;
   }
   // Forge: pick item
   if (tile && t.closest('.forge-pick')) { UI.setForgeSelected(tile.dataset.itemId); soundClick(); return; }
@@ -151,6 +153,10 @@ document.body.addEventListener('click', async (e) => {
     if (item && applyMasterCraft(item, mcRow.dataset.affixId)) { soundForge(); soundDrop(item.rarity); UI.setForgeMode('actions'); }
     return;
   }
+
+  // Codex tabs
+  const cxTab = t.closest('[data-codex-tab]');
+  if (cxTab) { UI.setCodexTab(cxTab.dataset.codexTab); soundClick(); return; }
 
   // Talents
   const talBtn = t.closest('[data-talent]');
@@ -366,7 +372,9 @@ function itemAction(action) {
   } else if (action === 'salvage') {
     if (salvageItem(item) > 0) soundForge(); UI.closeOverlay();
   } else if (action === 'lock') {
-    toggleLockItem(item.id); soundClick(); UI.navOverlay('item', { itemId: item.id });
+    toggleLockItem(item.id); soundClick();
+    // Mobile: refresh the open sheet. Desktop: the inline panel re-renders via notify().
+    if (UI.getMode() !== 'desktop') UI.navOverlay('item', { itemId: item.id });
   }
 }
 

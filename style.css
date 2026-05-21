@@ -130,7 +130,53 @@ input, select { font-family: inherit; }
 .rail-btn.active { background: var(--surface-raised); border-color: var(--border); color: var(--gold-200); box-shadow: var(--sh-gold); }
 .rail-spacer { flex: 1; }
 .desktop-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.desktop-main .screen { max-width: 760px; width: 100%; margin: 0 auto; }
+.dt-center { max-width: 760px; width: 100%; margin: 0 auto; }
+
+/* Desktop multi-column screens */
+.dt-cols { display: grid; gap: 16px; height: 100%; align-items: start; }
+.dt-panel { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.dt-card { padding: 14px; }
+.dt-card .smallcap { margin-bottom: 8px; display: block; }
+.power-val { font-size: 20px; font-weight: 700; }
+
+/* ⑮ Hub desktop */
+.hub-dt { grid-template-columns: 1fr 340px; }
+.dt-stage { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 20px; }
+.dt-stage .chest-sprite { width: 220px; height: 220px; }
+.dt-stage .open-bar { width: 100%; max-width: 360px; margin-top: 12px; }
+.dt-stage .chest-cooldown { width: 100%; max-width: 360px; }
+.dt-droprow { display: flex; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 6px; }
+.dt-droprow span:first-child { width: 78px; font-weight: 600; }
+.dt-droptrack { flex: 1; height: 8px; border-radius: 4px; background: var(--surface-sunken); overflow: hidden; }
+.dt-droptrack i { display: block; height: 100%; }
+.dt-droprow .mono { width: 36px; text-align: right; color: var(--ink-300); }
+
+/* ⑱ Dungeon desktop */
+.dungeon-dt { grid-template-columns: 280px 1fr 280px; }
+.dt-biomelist { gap: 8px; }
+.dt-biome { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: var(--r-md); border: 1px solid var(--border-soft); background: var(--surface-sunken); color: var(--ink-100); text-align: left; }
+.dt-biome.active { border-color: var(--gold-400); box-shadow: var(--sh-gold); }
+.dt-biome.locked { opacity: .5; }
+.dt-floordetail { display: flex; flex-direction: column; gap: 14px; background: linear-gradient(180deg, var(--surface), var(--surface-sunken)); border: 1px solid var(--border-soft); border-radius: var(--r-md); padding: 16px; }
+.mob-preview { align-items: center; text-align: center; gap: 6px; }
+.mob-sprite-lg { width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+.mob-stats, .mob-mech { color: var(--ink-300); }
+
+/* ⑰ Inventory desktop */
+.inv-dt { grid-template-columns: 320px 1fr 340px; }
+.dt-invmain { display: flex; flex-direction: column; gap: 10px; min-height: 0; height: 100%; }
+.dt-grid { grid-template-columns: repeat(6, 1fr); }
+.dt-statline { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; border-bottom: 1px solid var(--border-soft); }
+.dt-statline .mono { color: var(--gold-200); font-weight: 600; }
+.dt-detail { background: linear-gradient(180deg, var(--surface), var(--bg-1)); border: 1px solid var(--border-soft); border-radius: var(--r-md); padding: 14px; overflow-y: auto; scrollbar-width: none; }
+.dt-detail::-webkit-scrollbar { display: none; }
+.dt-detail .detail-actionbar { position: static; background: none; padding-top: 12px; }
+
+/* Codex tabs */
+.codex-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.codex-tab { flex: 1; padding: 8px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface-raised); color: var(--ink-300); font-weight: 600; font-size: 12px; }
+.codex-tab.active { background: var(--gold-200); color: #2a1a08; border-color: var(--gold-200); }
+.codex-count { margin-bottom: 8px; }
 
 /* ═══════════════ ① HUB ═══════════════ */
 .hub { display: flex; flex-direction: column; gap: 12px; height: 100%; }
