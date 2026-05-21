@@ -21,6 +21,7 @@ import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talents.js';
 import { SKILLS, getActiveSkills } from './skills.js';
+import { ABILITIES, ABILITY_SLOTS, getLoadout, isSlotted, isAbilityUnlocked } from './abilities.js';
 import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
@@ -583,6 +584,7 @@ function screenMeta() {
     { ov: 'stats', icon: '⚡', name: 'Statistiques', sub: `Puissance ${fmt(power)}` },
     { ov: 'talents', icon: '🌳', name: 'Talents', sub: tp ? `${tp} point${tp > 1 ? 's' : ''} dispo` : 'Arbre de talents' },
     { ov: 'skills', icon: '📜', name: 'Compétences', sub: `${skills}/${SKILLS.length} actives` },
+    { ov: 'abilities', icon: '✦', name: 'Capacités', sub: `${getLoadout().length}/${ABILITY_SLOTS} équipées` },
     { ov: 'contracts', icon: '📋', name: 'Contrats', sub: `${(state.bounties?.active || []).length} actifs` },
     { ov: 'codex', icon: '📖', name: 'Codex', sub: 'Découvertes' },
     { ov: 'achievements', icon: '🏆', name: 'Succès', sub: `${ap.unlocked}/${ap.total}` },
@@ -765,6 +767,7 @@ const OVERLAYS = {
   stats: ovStats,
   talents: ovTalents,
   skills: ovSkills,
+  abilities: ovAbilities,
   contracts: ovContracts,
   codex: ovCodex,
   achievements: ovAchievements,
@@ -965,6 +968,37 @@ function ovSkills() {
     </div>`;
   }).join('');
   return overlayShell(`Compétences · ${active.size}/${SKILLS.length}`, `<div class="skills-grid">${grid}</div>`, { wide: true });
+}
+
+// ── Abilities loadout (player-chosen active abilities) ───────
+function ovAbilities() {
+  const loadout = getLoadout();
+  const slots = [];
+  for (let i = 0; i < ABILITY_SLOTS; i++) {
+    const id = loadout[i];
+    const a = id ? ABILITIES.find(x => x.id === id) : null;
+    slots.push(a
+      ? `<button class="ab-slot filled" data-ability="${a.id}" title="Retirer"><span class="ab-ico">${a.emoji}</span><span class="smallcap">${a.name}</span></button>`
+      : `<div class="ab-slot empty"><span class="ab-ico">＋</span><span class="smallcap">Vide</span></div>`);
+  }
+  const full = loadout.length >= ABILITY_SLOTS;
+  const grid = ABILITIES.map(a => {
+    const unlocked = isAbilityUnlocked(a.id);
+    const on = isSlotted(a.id);
+    const cls = on ? ' active' : (unlocked ? '' : ' locked');
+    const stateLabel = on ? '<div class="skill-state gold-text smallcap">ÉQUIPÉE</div>'
+      : (unlocked ? (full ? '<div class="skill-state smallcap">Slots pleins</div>' : '<div class="skill-state smallcap">Tap pour équiper</div>')
+                  : `<div class="skill-state smallcap">🔒 ${a.unlockText || 'Verrouillée'}</div>`);
+    const attr = unlocked ? `data-ability="${a.id}"` : '';
+    return `<button class="skill${cls}" ${attr} ${unlocked ? '' : 'disabled'}>
+      <span class="skill-ico">${a.emoji}</span>
+      <div class="skill-info"><div class="skill-name">${a.name}</div><div class="skill-desc smallcap">${a.desc}</div>${stateLabel}</div>
+    </button>`;
+  }).join('');
+  const inner = `<p class="smallcap">Équipe jusqu'à ${ABILITY_SLOTS} capacités actives. Elles se déclenchent automatiquement en combat — le choix du loadout est ta décision de build.</p>
+    <div class="ab-slots">${slots.join('')}</div>
+    <div class="skills-grid">${grid}</div>`;
+  return overlayShell(`Capacités · ${loadout.length}/${ABILITY_SLOTS}`, inner, { wide: true });
 }
 
 // ── ④ Contracts ──────────────────────────────────────────────

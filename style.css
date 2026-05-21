@@ -500,6 +500,18 @@ input, select { font-family: inherit; }
 .skill-name { font-weight: 700; font-size: 12px; }
 .skill-desc { font-size: 9px; margin: 2px 0; }
 .skill-state { font-size: 8px; }
+.skill[data-ability]:not(.locked) { cursor: pointer; transition: transform .1s ease, border-color .1s ease; }
+.skill[data-ability]:not(.locked):hover { transform: translateY(-2px); border-color: var(--gold-400); }
+
+/* Ability loadout slots */
+.ab-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 4px 0 12px; }
+.ab-slot { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 64px;
+  padding: 10px; border-radius: var(--r-sm); text-align: center; }
+.ab-slot.filled { cursor: pointer; border: 1px solid var(--gold-400); background: linear-gradient(160deg, rgba(240,196,99,.14), var(--surface-sunken));
+  box-shadow: inset 0 0 12px rgba(240,196,99,.12); }
+.ab-slot.filled:hover { border-color: #ff8a5a; }
+.ab-slot.empty { border: 1px dashed var(--border-soft); background: var(--surface-sunken); opacity: .7; }
+.ab-slot .ab-ico { font-size: 24px; }
 
 /* ④ Contracts */
 .contract { padding: 12px; margin-bottom: 10px; border-width: 1px; border-style: solid; }

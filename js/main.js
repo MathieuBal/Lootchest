@@ -12,6 +12,7 @@ import { upgradeTalent } from './talents.js';
 import { refreshBoardIfEmpty, rerollBounty, onBountyComplete } from './bounties.js';
 import { canAscend, ascend } from './prestige.js';
 import { chooseRelic } from './relics.js';
+import { toggleAbility } from './abilities.js';
 import {
   unlockAudio, toggleMuted, isMuted, setMuted,
   soundChestOpen, soundDrop, soundCoin, soundHit, soundCrit,
@@ -190,6 +191,10 @@ document.body.addEventListener('click', async (e) => {
   // Relic choice (after ascension)
   const relicBtn = t.closest('[data-relic]');
   if (relicBtn) { chooseRelicFlow(relicBtn.dataset.relic); return; }
+
+  // Ability loadout toggle
+  const abBtn = t.closest('[data-ability]');
+  if (abBtn) { if (toggleAbility(abBtn.dataset.ability)) { soundClick(); notify(); } return; }
 
   // Onboarding start
   if (t.closest('#btn-welcome-start')) { dismissWelcome(); soundClick(); return; }

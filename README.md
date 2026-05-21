@@ -269,6 +269,26 @@ S'activent automatiquement en combat selon stats/talents :
 | 11| Adrénaline       | Tous les 3 tours : +75% dégâts                  |
 | 12| Ultime Résistance| 60% esquive sous 25% PV                         |
 
+Les compétences sont **automatiques** (débloquées par seuils de stats). Les
+**capacités**, elles, se **choisissent**.
+
+### ✦ Capacités actives (loadout de 3)
+Contrairement aux compétences passives, les capacités sont **équipées par le
+joueur** (3 slots) — c'est une **décision de build** : tu en débloques 8 au fil
+de la progression mais n'en emportes que 3. Elles se déclenchent en combat via
+le même moteur de hooks que les compétences.
+
+| Capacité          | Effet                                   | Déblocage        |
+|-------------------|-----------------------------------------|------------------|
+| 🗡 Frappe Puissante | Tous les 3 tours : ×2.5 dégâts        | dès le départ    |
+| ⚡ Frénésie        | Tous les 3 tours : crit garanti         | dès le départ    |
+| 💚 Second Souffle  | 1×/combat sous 40% PV : soigne 45%      | dès le départ    |
+| 💢 Cri de Guerre   | +10% dégâts/tour (max +50%)             | 100 monstres tués|
+| 🌀 Hâte            | Tous les 4 tours : +100% dégâts         | étage 15         |
+| ☠ Exécution        | Sous 35% PV ennemi : +150% dégâts       | étage 25         |
+| 🛡 Garde           | Bloque une attaque tous les 4 tours     | 75 coffres       |
+| 🌵 Riposte         | Renvoie 50% des dégâts subis            | 200 monstres tués|
+
 ### 🌳 Talents (8 améliorations passives, 3 catégories)
 Points gagnés aux paliers d'étage (25/50/75…) et à chaque ascension (+2).
 
@@ -393,7 +413,9 @@ js/
   prestige.js     canAscend, ascend (reset + keys = 10 + choix relique)
   relics.js       reliques d'ascension : relicTotals + multiplicateurs
                   (dégâts/PV/or/drop/crit/élément/vol de vie), choix 1/3
-  skills.js       12 compétences passives avec hooks de combat
+  skills.js       12 compétences passives + merge des capacités slottées
+  abilities.js    8 capacités actives (loadout de 3, déblocages par
+                  progression) partageant les hooks de combat
   talents.js      multiplicateurs + categoryPoints + categoryMastery
   bounties.js     generateBounty, trackProgress, rerollBounty
   builder.js      primitives pixel partagées (makeCanvas, rect,

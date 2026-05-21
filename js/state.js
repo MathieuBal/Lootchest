@@ -74,6 +74,8 @@ export const state = {
   },
   talents: {},        // { talentId: rank }
   talentPoints: 0,    // unspent points
+  loadout: ['ab_power_strike', 'ab_frenzy', 'ab_second_wind'], // active ability slots
+
   milestonesGranted: {}, // { milestoneLevel: true } - one-shot tracking
   codex: {
     uniques: {},      // { uniqueId: true }
@@ -152,6 +154,7 @@ export function replaceState(newState) {
   }
   if (!state.talents) state.talents = {};
   if (state.talentPoints === undefined) state.talentPoints = 0;
+  if (!Array.isArray(state.loadout)) state.loadout = ['ab_power_strike', 'ab_frenzy', 'ab_second_wind'];
   if (!state.milestonesGranted) state.milestonesGranted = {};
   if (!state.codex) state.codex = { uniques: {}, sets: {}, bosses: {} };
   if (!state.codex.uniques) state.codex.uniques = {};
@@ -184,6 +187,7 @@ export function resetState() {
   state.orbs = { transmu: 0, augm: 0, alte: 0, regal: 0, chaos: 0, divin: 0, exil: 0, pierre: 0, maitre: 0 };
   state.talents = {};
   state.talentPoints = 0;
+  state.loadout = ['ab_power_strike', 'ab_frenzy', 'ab_second_wind'];
   state.milestonesGranted = {};
   state.codex = { uniques: {}, sets: {}, bosses: {} };
   state.bounties = { active: [], completed: 0 };
