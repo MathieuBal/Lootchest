@@ -66,7 +66,7 @@ export const state = {
   },
   village: {                   // management/idle layer (gold + dungeon sink)
     townhall: 1,
-    resources: { wood: 60, stone: 40 },
+    resources: { wood: 60, stone: 40, metal: 0 },
     buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 },
     workers: { sawmill: 0, quarry: 0, locksmith: 0 },
     lastTick: 0,
@@ -157,8 +157,9 @@ export function replaceState(newState) {
   if (!state.prestige.relics) state.prestige.relics = {};
   if (state.prestige.pendingRelicChoice === undefined) state.prestige.pendingRelicChoice = null;
   if (!state.dive) state.dive = { bestDepth: 0, totalDives: 0 };
-  if (!state.village) state.village = { townhall: 1, resources: { wood: 60, stone: 40 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0 };
-  if (!state.village.resources) state.village.resources = { wood: 60, stone: 40 };
+  if (!state.village) state.village = { townhall: 1, resources: { wood: 60, stone: 40, metal: 0 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0 };
+  if (!state.village.resources) state.village.resources = { wood: 60, stone: 40, metal: 0 };
+  if (state.village.resources.metal === undefined) state.village.resources.metal = 0;
   if (!state.village.buildings) state.village.buildings = { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 };
   if (!state.village.workers) state.village.workers = { sawmill: 0, quarry: 0, locksmith: 0 };
   if (!state.village.townhall) state.village.townhall = 1;
@@ -209,6 +210,6 @@ export function resetState() {
   state.milestonesGranted = {};
   state.codex = { uniques: {}, sets: {}, bosses: {} };
   state.bounties = { active: [], completed: 0 };
-  state.village = { townhall: 1, resources: { wood: 60, stone: 40 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0 };
+  state.village = { townhall: 1, resources: { wood: 60, stone: 40, metal: 0 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0 };
   notify();
 }

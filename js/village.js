@@ -8,24 +8,46 @@
 // is itself gated by dungeon depth — so the character and the village level up
 // together instead of the player rushing the dungeon in 10 minutes.
 import { state, notify } from './state.js';
+import { RARITIES, RARITY_BY_ID, SLOT_BY_ID } from './data.js';
+import { craftItem } from './loot.js';
 
 export const OFFLINE_CAP_MIN = 480; // passive production accrues at most 8h offline
 
-// Production buildings. `produces` is a resource key or 'keys'. A building runs
-// only with assigned workers; output scales with level × workers (workers per
-// building are capped at its level). Houses give worker capacity instead.
+// Buildings come in three kinds:
+//  - houses   : gives worker capacity (no production)
+//  - producer : runs with assigned workers; output = level × workers × perWorker
+//  - station  : enables an action (the Forge enables weapon crafting)
+// `townhallReq` gates when a building can first be built (the Age spine).
 export const BUILDINGS = [
-  { id: 'houses',    emoji: '🏠', name: 'Maisons',     produces: null,    perWorker: 0,
+  { id: 'houses',    emoji: '🏠', name: 'Maisons',    kind: 'houses',   townhallReq: 1, perWorker: 0,
     desc: '+3 ouvriers par niveau.' },
-  { id: 'sawmill',   emoji: '🪓', name: 'Scierie',     produces: 'wood',  perWorker: 4,
+  { id: 'sawmill',   emoji: '🪓', name: 'Scierie',    kind: 'producer', townhallReq: 1, produces: 'wood',  perWorker: 4,
     desc: 'Produit du bois (par ouvrier/min).' },
-  { id: 'quarry',    emoji: '⛏️', name: 'Carrière',    produces: 'stone', perWorker: 3,
+  { id: 'quarry',    emoji: '⛏️', name: 'Carrière',   kind: 'producer', townhallReq: 1, produces: 'stone', perWorker: 3,
     desc: 'Produit de la pierre (par ouvrier/min).' },
-  { id: 'locksmith', emoji: '🗝️', name: 'Serrurerie',  produces: 'keys',  perWorker: 0.5,
+  { id: 'locksmith', emoji: '🗝️', name: 'Serrurerie', kind: 'producer', townhallReq: 2, produces: 'keys',  perWorker: 0.5,
     desc: 'Forge des clés de coffre (par ouvrier/min).' },
+  { id: 'forge',     emoji: '⚒️', name: 'Forge',      kind: 'station',  townhallReq: 3, perWorker: 0,
+    desc: 'Forge tes propres armes & armures (niveau = tier max).' },
+  { id: 'foundry',   emoji: '🏭', name: 'Fonderie',   kind: 'producer', townhallReq: 5, produces: 'metal', perWorker: 2,
+    desc: 'Produit du métal (par ouvrier/min).' },
 ];
 export const BUILDING_BY_ID = Object.fromEntries(BUILDINGS.map(b => [b.id, b]));
-export const PRODUCERS = BUILDINGS.filter(b => b.produces); // count against build slots
+export const PRODUCERS = BUILDINGS.filter(b => b.kind === 'producer'); // count against build slots
+
+// Ages: a progression spine derived from the town hall level. Each unlocks
+// the next tier of buildings/resources.
+export const AGES = [
+  { id: 'wood',  name: 'Âge du Bois',    emoji: '🪵', minTownhall: 1 },
+  { id: 'stone', name: 'Âge de la Pierre', emoji: '🪨', minTownhall: 3 },
+  { id: 'iron',  name: 'Âge du Fer',     emoji: '⚙️', minTownhall: 5 },
+  { id: 'steel', name: "Âge de l'Acier", emoji: '🛡️', minTownhall: 8 },
+];
+export function currentAge() {
+  let age = AGES[0];
+  for (const a of AGES) if (townhall() >= a.minTownhall) age = a;
+  return age;
+}
 
 function v() { return state.village; }
 
@@ -49,11 +71,14 @@ export function workersOn(id) { return v()?.workers?.[id] || 0; }
 export function buildCost(id) {
   const lvl = levelOf(id);
   const k = Math.pow(1.7, lvl);
-  if (id === 'houses')    return { wood: Math.round(40 * k), stone: Math.round(20 * k), gold: Math.round(150 * Math.pow(2.1, lvl)) };
-  if (id === 'sawmill')   return { wood: Math.round(25 * k), stone: Math.round(35 * k), gold: Math.round(120 * Math.pow(2.1, lvl)) };
-  if (id === 'quarry')    return { wood: Math.round(40 * k), stone: Math.round(20 * k), gold: Math.round(120 * Math.pow(2.1, lvl)) };
-  if (id === 'locksmith') return { wood: Math.round(60 * k), stone: Math.round(60 * k), gold: Math.round(400 * Math.pow(2.2, lvl)) };
-  return { wood: 0, stone: 0, gold: 0 };
+  const g = (base, r) => Math.round(base * Math.pow(r, lvl));
+  if (id === 'houses')    return { wood: Math.round(40 * k), stone: Math.round(20 * k), metal: 0, gold: g(150, 2.1) };
+  if (id === 'sawmill')   return { wood: Math.round(25 * k), stone: Math.round(35 * k), metal: 0, gold: g(120, 2.1) };
+  if (id === 'quarry')    return { wood: Math.round(40 * k), stone: Math.round(20 * k), metal: 0, gold: g(120, 2.1) };
+  if (id === 'locksmith') return { wood: Math.round(60 * k), stone: Math.round(60 * k), metal: 0, gold: g(400, 2.2) };
+  if (id === 'forge')     return { wood: Math.round(80 * k), stone: Math.round(120 * k), metal: Math.round(20 * Math.max(0, lvl) * k / 1.7), gold: g(800, 2.3) };
+  if (id === 'foundry')   return { wood: Math.round(100 * k), stone: Math.round(140 * k), metal: 0, gold: g(1000, 2.3) };
+  return { wood: 0, stone: 0, metal: 0, gold: 0 };
 }
 
 export function townhallCost() {
@@ -65,23 +90,30 @@ export function townhallFloorReq() { return townhall() * 5; }
 export function townhallFloorMet() { return (state.combat?.highestUnlocked || 1) >= townhallFloorReq(); }
 
 function canAfford(cost) {
-  return (v().resources.wood || 0) >= cost.wood
-      && (v().resources.stone || 0) >= cost.stone
-      && (state.gold || 0) >= cost.gold;
+  return (v().resources.wood || 0) >= (cost.wood || 0)
+      && (v().resources.stone || 0) >= (cost.stone || 0)
+      && (v().resources.metal || 0) >= (cost.metal || 0)
+      && (state.gold || 0) >= (cost.gold || 0);
 }
 function pay(cost) {
-  v().resources.wood -= cost.wood;
-  v().resources.stone -= cost.stone;
-  state.gold -= cost.gold;
+  v().resources.wood -= (cost.wood || 0);
+  v().resources.stone -= (cost.stone || 0);
+  v().resources.metal = (v().resources.metal || 0) - (cost.metal || 0);
+  state.gold -= (cost.gold || 0);
 }
 
 // ── Build / upgrade ──────────────────────────────────────────
+export function isUnlocked(id) {
+  const b = BUILDING_BY_ID[id];
+  return !!b && townhall() >= b.townhallReq;
+}
 export function canBuild(id) {
+  const b = BUILDING_BY_ID[id];
+  if (!b || !isUnlocked(id)) return false;                     // gated by town hall / age
   const lvl = levelOf(id);
   if (lvl >= maxBuildingLevel()) return false;                 // capped by town hall
   // New producer needs a free build slot
-  const b = BUILDING_BY_ID[id];
-  if (b.produces && lvl === 0 && producersBuilt() >= buildingSlots()) return false;
+  if (b.kind === 'producer' && lvl === 0 && producersBuilt() >= buildingSlots()) return false;
   return canAfford(buildCost(id));
 }
 export function buildOrUpgrade(id) {
@@ -127,7 +159,7 @@ export function ratePerMin(id) {
   return b.perWorker * lvl * workers;
 }
 export function rates() {
-  const out = { wood: 0, stone: 0, keys: 0 };
+  const out = { wood: 0, stone: 0, metal: 0, keys: 0 };
   for (const b of PRODUCERS) out[b.produces] += ratePerMin(b.id);
   return out;
 }
@@ -147,9 +179,10 @@ export function accruePassive() {
   v().lastTick = now;
   if (dtMin <= 0) return { wood: 0, stone: 0, keys: 0 };
   const r = rates();
-  const gained = { wood: r.wood * dtMin, stone: r.stone * dtMin, keys: r.keys * dtMin };
+  const gained = { wood: r.wood * dtMin, stone: r.stone * dtMin, metal: r.metal * dtMin, keys: r.keys * dtMin };
   v().resources.wood = (v().resources.wood || 0) + gained.wood;
   v().resources.stone = (v().resources.stone || 0) + gained.stone;
+  v().resources.metal = (v().resources.metal || 0) + gained.metal;
   // Keys: accumulate fractional buffer, pay out whole keys.
   v()._keyBuf = (v()._keyBuf || 0) + gained.keys;
   const whole = Math.floor(v()._keyBuf);
@@ -169,5 +202,47 @@ export function grantDungeonResources(floor, isBoss, isElite) {
 }
 
 export function woodStone() {
-  return { wood: Math.floor(v()?.resources?.wood || 0), stone: Math.floor(v()?.resources?.stone || 0) };
+  const res = v()?.resources || {};
+  return { wood: Math.floor(res.wood || 0), stone: Math.floor(res.stone || 0), metal: Math.floor(res.metal || 0) };
+}
+
+// ── Forge: craft your own gear ───────────────────────────────
+export function forgeLevel() { return levelOf('forge'); }
+export function maxCraftTier() { return forgeLevel(); } // forge level = highest craftable tier
+// Rarity cap rises with forge level: L1-2 magic, 3-4 rare, 5-6 epic, 7-8 legendary, 9+ ancestral.
+export function maxCraftRarityIndex() {
+  const L = forgeLevel();
+  if (L >= 9) return 5;       // ancestral
+  if (L >= 7) return 4;       // legendary
+  if (L >= 5) return 3;       // epic
+  if (L >= 3) return 2;       // rare
+  if (L >= 1) return 1;       // magic
+  return 0;                   // common
+}
+const RARITY_COST_MULT = { common: 1, magic: 1.5, rare: 2.5, epic: 4, legendary: 7, ancestral: 11 };
+export function craftCost(tier, rarityId) {
+  const rm = RARITY_COST_MULT[rarityId] || 1;
+  const t = Math.max(1, tier);
+  return {
+    wood:  Math.round(40 * t * rm),
+    stone: Math.round(40 * t * rm),
+    metal: Math.round(12 * t * rm),
+    gold:  Math.round(250 * t * rm * rm),
+  };
+}
+export function canCraft(slotId, rarityId) {
+  if (forgeLevel() < 1) return false;
+  if (!SLOT_BY_ID[slotId]) return false;
+  const ri = RARITIES.findIndex(r => r.id === rarityId);
+  if (ri < 0 || ri > maxCraftRarityIndex()) return false;
+  return canAfford(craftCost(maxCraftTier(), rarityId));
+}
+// Returns the crafted item (already paid for) or null. Caller adds it to inventory.
+export function craftForge(slotId, rarityId) {
+  if (!canCraft(slotId, rarityId)) return null;
+  const tier = maxCraftTier();
+  pay(craftCost(tier, rarityId));
+  const item = craftItem(slotId, tier, rarityId);
+  notify();
+  return item;
 }

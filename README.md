@@ -191,9 +191,15 @@ plafonné à 8h) + le **donjon comme robinet principal** (kills/boss lâchent
   → pierre. **🗝️ Serrurerie** → clés de coffre.
 - **👷 Ouvriers limités** à affecter : chaque bâtiment en emploie au plus son
   niveau → on **spécialise** (le goulot d'allocation).
-- Coûts géométriques (bois/pierre/or) → l'or et les ressources restent
-  pertinents en profondeur. *(Prochaines phases : forge de craft d'armes,
-  Âges, plus de ressources.)*
+- Coûts géométriques (bois/pierre/⚙️ métal/or) → l'or et les ressources
+  restent pertinents en profondeur.
+- **🏺 Âges** (Bois → Pierre → Fer → Acier) dérivés du niveau de Mairie :
+  débloquent les paliers de bâtiments (la Forge à la Mairie 3, la Fonderie
+  → ⚙️ métal à la Mairie 5).
+- **⚒️ Forge de craft** : forge **tes propres armes & armures** — choisis le
+  slot et la rareté (plafonnée par le niveau de Forge), tier = niveau de
+  Forge, payé en ressources. Sink majeur + alternative déterministe au RNG
+  des coffres.
 
 ### 🎒 Inventaire & Items
 

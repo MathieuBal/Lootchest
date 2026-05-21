@@ -179,6 +179,15 @@ export function generateItem(chestTier) {
   return item;
 }
 
+// Village Forge: craft a regular item of a chosen slot, at a given tier &
+// rarity (both decided by the player + forge level). Deterministic slot, no
+// unique/set rolls — you control what you make.
+export function craftItem(slot, chestTier, rarity) {
+  const item = buildRegularItem(chestTier, rarity, slot);
+  trackDropStats(item);
+  return item;
+}
+
 function trackDropStats(item) {
   if (!state.stats) return;
   if (item.rarity === 'legendary') state.stats.legendaryDropped += 1;
@@ -348,8 +357,8 @@ function buildItem(chestTier, rarity) {
   return buildRegularItem(chestTier, rarity);
 }
 
-function buildRegularItem(chestTier, rarity) {
-  const slot = rollSlot();
+function buildRegularItem(chestTier, rarity, forceSlot) {
+  const slot = (forceSlot && BASE_TYPES[forceSlot]) ? forceSlot : rollSlot();
   const baseType = pickRandom(BASE_TYPES[slot]);
 
   // Composed item path: any base type registered in WEAPON_PARTS (weapons + armor).

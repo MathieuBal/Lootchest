@@ -1058,24 +1058,30 @@ function ovDiveSummary(params) {
 }
 
 // ── Village (management / idle layer) ────────────────────────
+let forgeCraftRarity = 'magic';
+export function setForgeCraftRarity(r) { forgeCraftRarity = r; renderOverlay(); }
+export function getForgeCraftRarity() { return forgeCraftRarity; }
 function costStr(c) {
   const bits = [];
   if (c.wood) bits.push(`🪵 ${fmt(c.wood)}`);
   if (c.stone) bits.push(`🪨 ${fmt(c.stone)}`);
+  if (c.metal) bits.push(`⚙️ ${fmt(c.metal)}`);
   if (c.gold) bits.push(`💰 ${fmt(c.gold)}`);
   return bits.join(' · ') || '—';
 }
 function ovVillage() {
-  const { wood, stone } = Village.woodStone();
+  const { wood, stone, metal } = Village.woodStone();
   const r = Village.rates();
+  const age = Village.currentAge();
   const thLvl = Village.townhall();
   const thCost = Village.townhallCost();
   const floorMet = Village.townhallFloorMet();
   const thCan = Village.canUpgradeTownhall();
   const header = `<div class="vlg-res">
-      <span>🪵 ${fmt(wood)} <span class="smallcap">+${(r.wood).toFixed(0)}/min</span></span>
-      <span>🪨 ${fmt(stone)} <span class="smallcap">+${(r.stone).toFixed(0)}/min</span></span>
-      <span>🗝️ <span class="smallcap">+${(r.keys).toFixed(1)}/min</span></span>
+      <span>${age.emoji} <span class="smallcap">${age.name}</span></span>
+      <span>🪵 ${fmt(wood)} <span class="smallcap">+${(r.wood).toFixed(0)}</span></span>
+      <span>🪨 ${fmt(stone)} <span class="smallcap">+${(r.stone).toFixed(0)}</span></span>
+      <span>⚙️ ${fmt(metal)} <span class="smallcap">+${(r.metal).toFixed(1)}</span></span>
       <span>👷 ${Village.workersUsed()}/${Village.workerCap()}</span>
     </div>`;
   const townhall = `<div class="vlg-card vlg-townhall">
@@ -1088,15 +1094,22 @@ function ovVillage() {
     </div>`;
   const cards = Village.BUILDINGS.map(b => {
     const lvl = Village.levelOf(b.id);
+    const unlocked = Village.isUnlocked(b.id);
+    if (!unlocked) {
+      return `<div class="vlg-card vlg-unbuilt">
+        <div class="vlg-b-head"><span class="vlg-emoji">${b.emoji}</span>
+          <div><div class="vlg-name">${b.name}</div><div class="vlg-desc smallcap">${b.desc}</div></div></div>
+        <div class="smallcap vlg-locked">🔒 Débloqué à la Mairie niv ${b.townhallReq}</div>
+      </div>`;
+    }
     const cost = Village.buildCost(b.id);
     const can = Village.canBuild(b.id);
     const capped = lvl >= Village.maxBuildingLevel();
-    const isProducer = !!b.produces;
-    const rateNow = isProducer ? Village.ratePerMin(b.id) : 0;
-    const prod = b.id === 'houses'
-      ? `<div class="smallcap">Ouvriers : ${Village.workerCap()}</div>`
-      : `<div class="smallcap">Production : ${rateNow ? `+${rateNow.toFixed(1)}/min` : '0 (assigne des ouvriers)'}</div>`;
-    const workerRow = isProducer && lvl > 0 ? `<div class="vlg-workers">
+    let prod = '';
+    if (b.kind === 'houses') prod = `<div class="smallcap">Ouvriers : ${Village.workerCap()}</div>`;
+    else if (b.kind === 'producer') { const rn = Village.ratePerMin(b.id); prod = `<div class="smallcap">Production : ${rn ? `+${rn.toFixed(1)}/min` : '0 (assigne des ouvriers)'}</div>`; }
+    else if (b.id === 'forge') prod = lvl ? `<div class="smallcap">Tier de craft : ${Village.maxCraftTier()} · rareté max : ${RARITIES[Village.maxCraftRarityIndex()]?.name || '—'}</div>` : '';
+    const workerRow = b.kind === 'producer' && lvl > 0 ? `<div class="vlg-workers">
         <span class="smallcap">👷 ${Village.workersOn(b.id)}/${Village.maxWorkersOn(b.id)}</span>
         <button class="vlg-wbtn" data-village-assign="${b.id}" data-delta="-1" ${Village.canUnassign(b.id) ? '' : 'disabled'}>−</button>
         <button class="vlg-wbtn" data-village-assign="${b.id}" data-delta="1" ${Village.canAssign(b.id) ? '' : 'disabled'}>+</button>
@@ -1114,8 +1127,29 @@ function ovVillage() {
   const inner = `${header}
     <p class="smallcap">Le donjon alimente surtout tes ressources (kills/boss). Les bâtiments produisent en continu (hors-ligne plafonné 8h). Affecte tes ouvriers — chaque bâtiment en emploie au plus son niveau.</p>
     ${townhall}
-    <div class="vlg-grid">${cards}</div>`;
+    <div class="vlg-grid">${cards}</div>
+    ${forgeCraftPanel()}`;
   return overlayShell('🏛️ Village', inner, { wide: true });
+}
+
+// Forge crafting panel — pick rarity (capped by forge level) + a slot to craft.
+function forgeCraftPanel() {
+  if (Village.forgeLevel() < 1) return '';
+  const maxRi = Village.maxCraftRarityIndex();
+  if (!RARITIES.some(r => r.id === forgeCraftRarity && RARITIES.indexOf(r) <= maxRi)) forgeCraftRarity = 'magic';
+  const rarityBtns = RARITIES.slice(0, maxRi + 1).map(r =>
+    `<button class="vlg-rar${r.id === forgeCraftRarity ? ' on' : ''}" data-village-craft-rarity="${r.id}" style="--c:${r.color}">${r.name}</button>`).join('');
+  const cost = Village.craftCost(Village.maxCraftTier(), forgeCraftRarity);
+  const slotBtns = SLOTS.map(s => {
+    const can = Village.canCraft(s.id, forgeCraftRarity);
+    return `<button class="vlg-craft-slot" data-village-craft="${s.id}" ${can ? '' : 'disabled'} title="${s.name}">${s.emoji}<span class="smallcap">${s.name}</span></button>`;
+  }).join('');
+  return `<div class="vlg-card vlg-forgepanel">
+      <div class="vlg-name">⚒️ Forger un objet · tier ${Village.maxCraftTier()}</div>
+      <div class="vlg-rar-row">${rarityBtns}</div>
+      <div class="smallcap">Coût par objet : ${costStr(cost)}</div>
+      <div class="vlg-craft-grid">${slotBtns}</div>
+    </div>`;
 }
 
 // ── ④ Contracts ──────────────────────────────────────────────

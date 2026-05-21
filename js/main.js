@@ -18,7 +18,7 @@ import { canAscend, ascend } from './prestige.js';
 import { chooseRelic } from './relics.js';
 import { toggleAbility } from './abilities.js';
 import {
-  accruePassive, grantDungeonResources, buildOrUpgrade, upgradeTownhall, assignWorker,
+  accruePassive, grantDungeonResources, buildOrUpgrade, upgradeTownhall, assignWorker, craftForge,
 } from './village.js';
 import {
   unlockAudio, toggleMuted, isMuted, setMuted,
@@ -213,6 +213,13 @@ document.body.addEventListener('click', async (e) => {
   if (t.closest('[data-village-townhall]')) { if (upgradeTownhall()) { soundUpgrade(); } return; }
   const vasg = t.closest('[data-village-assign]');
   if (vasg && !vasg.disabled) { if (assignWorker(vasg.dataset.villageAssign, parseInt(vasg.dataset.delta, 10))) soundClick(); return; }
+  if (t.closest('[data-village-craft-rarity]')) { UI.setForgeCraftRarity(t.closest('[data-village-craft-rarity]').dataset.villageCraftRarity); soundClick(); return; }
+  const vcraft = t.closest('[data-village-craft]');
+  if (vcraft && !vcraft.disabled) {
+    const item = craftForge(vcraft.dataset.villageCraft, UI.getForgeCraftRarity());
+    if (item) { soundForge(); UI.showDropPopup(item); }
+    return;
+  }
 
   // Deep Dive
   if (t.closest('[data-dive="start"]')) { beginDive(); return; }
