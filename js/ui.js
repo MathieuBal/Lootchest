@@ -25,6 +25,7 @@ import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacter
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
 import { MATERIALS } from './materials.js';
 import { ELEMENTS } from './elements.js';
+import { FACTIONS } from './factions.js';
 import { getCompositionLayers } from './parts.js';
 
 // ─────────────────────────────────────────────────────────────
@@ -542,10 +543,13 @@ function screenForge() {
         <span class="fa-cost mono">${orb ? have : (a.shards || '')}</span>
       </button>`;
     }).join('');
+    const r = RARITY_BY_ID[item.rarity];
     body = `<div class="forge-work">
-      <div class="forge-slot">${itemTileHTML(item, { px: 88, big: true })}</div>
-      <div class="forge-item-name rt-${RARITY_BY_ID[item.rarity].cssClass}">${item.name}</div>
-      <div class="forge-detail">${itemDetailsHTML(item)}</div>
+      <div class="forge-slot rar-glow-${r.cssClass} pixel">${itemVisualHTML(item, 84)}</div>
+      <div class="forge-item-name display rt-${r.cssClass}">${item.name}</div>
+      <div class="forge-item-sub smallcap">T${item.chestTier} · ${SLOT_BY_ID[item.slot].name} · ${r.name}</div>
+      ${compChips(item) ? `<div class="detail-chips">${compChips(item)}</div>` : ''}
+      <div class="forge-detail">${statBars(item)}</div>
       <div class="forge-actions">${actions}</div>
       <button class="btn-ghost" id="forge-deselect">← Changer d'objet</button>
     </div>`;
@@ -692,24 +696,70 @@ function ovLoot() {
   </div>`;
 }
 
-// ── ⑥ Item detail (interim) ──────────────────────────────────
+// Composition chips: material 🔩 / element ✨ / faction 🏷 / legendary effect ✦.
+function compChips(item) {
+  const chips = [];
+  if (item.material) { const m = MATERIALS[item.material.id]; if (m) chips.push(`<span class="comp-chip" style="--c:${m.tintColor}">${m.icon || '🔩'} ${m.name}</span>`); }
+  if (item.element && item.element.id !== 'none') { const e = ELEMENTS[item.element.id]; if (e) chips.push(`<span class="comp-chip" style="--c:${e.glowColor}">${e.icon || '✨'} ${e.name}</span>`); }
+  if (item.faction && item.faction.id && item.faction.id !== 'none') { const f = FACTIONS[item.faction.id]; chips.push(`<span class="comp-chip" style="--c:var(--ink-300)">🏷 ${f?.name || item.faction.name}</span>`); }
+  if (item.legendaryEffect) chips.push(`<span class="comp-chip" style="--c:var(--r-legendary)">✦ ${item.legendaryEffect.name}</span>`);
+  return chips.join('');
+}
+// Horizontal stat bars, scaled to the largest stat on the item.
+function statBars(item) {
+  const total = itemTotalStats(item);
+  const entries = Object.entries(total).filter(([, v]) => v);
+  if (!entries.length) return '';
+  const max = Math.max(...entries.map(([, v]) => Math.abs(v)));
+  return entries.map(([k, v]) => `<div class="sb-row">
+    <span class="sb-label">${STAT_ICON[k] || '◆'} ${statLabel(k)}</span>
+    <div class="sb-track"><i style="width:${Math.max(6, (Math.abs(v) / max) * 100)}%"></i></div>
+    <span class="sb-val mono">${v > 0 ? '+' : ''}${v}${PCT_STATS.has(k) ? '%' : ''}</span>
+  </div>`).join('');
+}
+
+// ── ⑥ Item detail — replaces the text-wall tooltip ───────────
 function ovItemDetail(p) {
   const item = findAnyItem(p.itemId);
   if (!item) return overlayShell('Objet', '<div class="empty-state">Objet introuvable</div>');
   const equipped = !!Object.values(state.equipment).find(i => i && i.id === item.id);
   const r = RARITY_BY_ID[item.rarity];
-  const actions = `<div class="detail-actions">
+  const slot = SLOT_BY_ID[item.slot];
+  const power = Math.round(itemPowerContribution(item));
+  const cur = state.equipment[item.slot];
+  let delta = null;
+  if (cur && cur.id !== item.id) delta = power - Math.round(itemPowerContribution(cur));
+  const eff = item.legendaryEffect && LEGENDARY_EFFECTS[item.legendaryEffect.id];
+
+  const inner = `<div class="detail rar-${r.cssClass}">
+    <div class="detail-hero">
+      <div class="detail-frame rar-glow-${r.cssClass} pixel">${itemVisualHTML(item, 120)}</div>
+      <div class="detail-stamp display" style="color:${r.color}">${r.name.toUpperCase()}</div>
+      <div class="detail-name display rt-${r.cssClass}">${item.name}${item.uniqueId ? '<span class="unique-badge">UNIQUE</span>' : ''}</div>
+      <div class="detail-slot smallcap">T${item.chestTier} · ${slot.name}</div>
+    </div>
+    <div class="detail-power">
+      <span class="dp-num mono gold-text">⚡ ${fmt(power)}</span>
+      ${delta !== null ? `<span class="dp-delta ${delta >= 0 ? 'up' : 'down'} mono">${delta >= 0 ? '▲ +' : '▼ '}${fmt(delta)} vs équipé</span>` : ''}
+    </div>
+    ${compChips(item) ? `<div class="detail-chips">${compChips(item)}</div>` : ''}
+    <div class="detail-stats">${statBars(item)}</div>
+    ${sourcesHTML(item)}
+    ${eff ? `<div class="detail-legendary"><span class="dl-title">✦ ${eff.name}</span><span class="dl-desc">${eff.desc}</span></div>` : ''}
+    ${item.flavor ? `<blockquote class="detail-flavor">"${item.flavor}"</blockquote>` : ''}
+    <div class="detail-value smallcap">💰 ${fmt(item.goldValue)} or · 💎 ${shardYield(item)} ${r.name}</div>
+  </div>
+  <div class="detail-actionbar">
     <button class="btn-gold" data-item-action="equip">${equipped ? 'Déséquiper' : 'Équiper'}</button>
-    <button class="btn-ghost" data-item-action="sell" ${item.locked ? 'disabled' : ''}>Vendre · ${fmt(item.goldValue)} 💰</button>
+    <button class="btn-ghost" data-item-action="sell" ${item.locked ? 'disabled' : ''}>💰 ${fmt(item.goldValue)}</button>
     <button class="btn-ghost" data-item-action="salvage" ${item.locked ? 'disabled' : ''}>💎 ${shardYield(item)}</button>
-    <button class="btn-ghost" data-item-action="lock">${item.locked ? '🔓' : '🔒'}</button>
+    <button class="btn-ghost ${item.locked ? 'locked' : ''}" data-item-action="lock">${item.locked ? '🔓' : '🔒'}</button>
   </div>`;
-  const inner = `<div class="detail">
-    <div class="detail-art rar-glow-${r.cssClass} pixel">${itemVisualHTML(item, 120)}</div>
-    ${itemDetailsHTML(item)}
-    ${actions}
-  </div>`;
-  return overlayShell(item.name, inner);
+  return `<div class="overlay-backdrop" data-close-overlay="1"></div>
+    <div class="sheet item-sheet">
+      <div class="sheet-grip"></div>
+      <div class="sheet-body scroll">${inner}</div>
+    </div>`;
 }
 
 // ── ③ Stats breakdown ────────────────────────────────────────
