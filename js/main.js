@@ -18,6 +18,9 @@ import { canAscend, ascend } from './prestige.js';
 import { chooseRelic } from './relics.js';
 import { toggleAbility } from './abilities.js';
 import {
+  accruePassive, grantDungeonResources, buildOrUpgrade, upgradeTownhall, assignWorker,
+} from './village.js';
+import {
   unlockAudio, toggleMuted, isMuted, setMuted,
   soundChestOpen, soundDrop, soundCoin, soundHit, soundCrit,
   soundWin, soundLose, soundAchievement, soundUpgrade, soundClick,
@@ -54,6 +57,10 @@ setMuted(!!state.ui?.muted);
 UI.mountApp();
 checkAchievements();
 refreshBoardIfEmpty();
+
+// Village passive production: accrue offline gains once, then trickle on a timer.
+accruePassive();
+setInterval(() => { accruePassive(); notify(); }, 5000);
 
 if (!state.ui.hasSeenWelcome) UI.navOverlay('onboarding');
 else if (state.prestige?.pendingRelicChoice?.length) UI.navOverlay('relicChoice');
@@ -200,6 +207,13 @@ document.body.addEventListener('click', async (e) => {
   const abBtn = t.closest('[data-ability]');
   if (abBtn) { if (toggleAbility(abBtn.dataset.ability)) { soundClick(); notify(); } return; }
 
+  // Village
+  const vbuild = t.closest('[data-village-build]');
+  if (vbuild && !vbuild.disabled) { if (buildOrUpgrade(vbuild.dataset.villageBuild)) { soundUpgrade(); } return; }
+  if (t.closest('[data-village-townhall]')) { if (upgradeTownhall()) { soundUpgrade(); } return; }
+  const vasg = t.closest('[data-village-assign]');
+  if (vasg && !vasg.disabled) { if (assignWorker(vasg.dataset.villageAssign, parseInt(vasg.dataset.delta, 10))) soundClick(); return; }
+
   // Deep Dive
   if (t.closest('[data-dive="start"]')) { beginDive(); return; }
   if (t.closest('[data-dive="exit"]')) { diveExit(); return; }
@@ -318,6 +332,8 @@ async function fightFlow() {
       spawnParticles(monster.isBoss ? '#ff7a1a' : '#ffe14a', c.x, c.y, monster.isBoss ? 40 : 20);
       floatingText(`+${monster.goldReward} 💰`, c.x, c.y - 30, '#f5c842');
       if (monster.keyDrop) { floatingText(`+${monster.keyDrop} 🗝`, c.x + 40, c.y - 30, '#ffd060'); soundCoin(); UI.appendCombatLog([`🗝 +${monster.keyDrop} clé${monster.keyDrop > 1 ? 's' : ''}`], 'reward'); }
+      const res = grantDungeonResources(monster.floor, monster.isBoss, monster.isElite);
+      if (res) UI.appendCombatLog([`🪵 +${res.wood} · 🪨 +${res.stone}`], 'reward');
       if (monster.isBoss) screenShake(8, 350);
     } else {
       soundLose(); UI.setCombatCall('DÉFAITE', '#ff5050'); screenShake(10, 400);

@@ -178,6 +178,23 @@ que ta survie le permet.
 - **Record de profondeur** persistant. La plongée est un *run* : recharger
   la page l'abandonne (seul le record est gardé).
 
+### 🏛️ Village (gestion / idle) — MVP
+Couche de gestion qui donne un **puits durable** à l'or accumulé et **temporise**
+la progression. Production **hybride** : un filet passif continu (hors-ligne
+plafonné à 8h) + le **donjon comme robinet principal** (kills/boss lâchent
+🪵 bois et 🪨 pierre).
+
+- **🏛️ Mairie** : son niveau plafonne le niveau des bâtiments et le nombre
+  d'emplacements. **Gated par le donjon** (améliorer la Mairie exige d'avoir
+  atteint l'étage `niveau × 5`) → le perso et le village montent ensemble.
+- **🏠 Maisons** → ouvriers (+3/niveau). **🪓 Scierie** → bois. **⛏️ Carrière**
+  → pierre. **🗝️ Serrurerie** → clés de coffre.
+- **👷 Ouvriers limités** à affecter : chaque bâtiment en emploie au plus son
+  niveau → on **spécialise** (le goulot d'allocation).
+- Coûts géométriques (bois/pierre/or) → l'or et les ressources restent
+  pertinents en profondeur. *(Prochaines phases : forge de craft d'armes,
+  Âges, plus de ressources.)*
+
 ### 🎒 Inventaire & Items
 
 #### Raretés
@@ -436,6 +453,8 @@ js/
                   progression) partageant les hooks de combat
   dive.js         Plongée des Profondeurs : run à attrition (report de
                   PV, boons aux points de contrôle, butin sécurisé/en jeu)
+  village.js      Village (gestion/idle) : Mairie gated par donjon,
+                  bâtiments, ouvriers, production hybride passive+donjon
   talents.js      multiplicateurs + categoryPoints + categoryMastery
   bounties.js     generateBounty, trackProgress, rerollBounty
   builder.js      primitives pixel partagées (makeCanvas, rect,

@@ -574,6 +574,26 @@ input, select { font-family: inherit; }
 .btn-dive:hover { border-color: #5ad8e8; box-shadow: 0 0 14px rgba(90,216,232,.35); }
 .dive-exit-btn { width: 100%; margin-top: 14px; }
 
+/* Village */
+.vlg-res { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; padding: 10px; margin-bottom: 8px;
+  border-radius: var(--r-sm); background: var(--surface-sunken); border: 1px solid var(--border-soft); font-weight: 600; }
+.vlg-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; }
+@media (min-width: 560px) { .vlg-grid { grid-template-columns: 1fr 1fr; } }
+.vlg-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: var(--r-sm);
+  background: var(--surface-sunken); border: 1px solid var(--border-soft); }
+.vlg-card .btn-ghost, .vlg-townhall .btn-gold { margin-top: 4px; }
+.vlg-townhall { border-color: var(--gold-400); background: linear-gradient(160deg, rgba(240,196,99,.12), var(--surface-sunken)); margin-bottom: 4px; }
+.vlg-unbuilt { opacity: .82; border-style: dashed; }
+.vlg-b-head { display: flex; align-items: center; gap: 10px; }
+.vlg-emoji { font-size: 26px; }
+.vlg-name { font-weight: 700; font-size: 13px; }
+.vlg-desc { line-height: 1.3; }
+.vlg-locked { color: #ff7a7a; }
+.vlg-workers { display: flex; align-items: center; gap: 8px; }
+.vlg-wbtn { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border-soft);
+  background: var(--surface-raised); color: var(--text); font-weight: 700; cursor: pointer; }
+.vlg-wbtn:disabled { opacity: .35; cursor: default; }
+
 /* Onboarding */
 .onboarding { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center;
   background: radial-gradient(100% 70% at 50% 0%, rgba(120,70,200,.18), #0a0610 70%); padding: 24px; overflow-y: auto; }

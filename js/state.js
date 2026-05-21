@@ -64,6 +64,14 @@ export const state = {
     bestDepth: 0,
     totalDives: 0,
   },
+  village: {                   // management/idle layer (gold + dungeon sink)
+    townhall: 1,
+    resources: { wood: 60, stone: 40 },
+    buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 },
+    workers: { sawmill: 0, quarry: 0, locksmith: 0 },
+    lastTick: 0,
+    _keyBuf: 0,
+  },
   shards: {
     common: 0,
     magic: 0,
@@ -149,6 +157,11 @@ export function replaceState(newState) {
   if (!state.prestige.relics) state.prestige.relics = {};
   if (state.prestige.pendingRelicChoice === undefined) state.prestige.pendingRelicChoice = null;
   if (!state.dive) state.dive = { bestDepth: 0, totalDives: 0 };
+  if (!state.village) state.village = { townhall: 1, resources: { wood: 60, stone: 40 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0 };
+  if (!state.village.resources) state.village.resources = { wood: 60, stone: 40 };
+  if (!state.village.buildings) state.village.buildings = { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 };
+  if (!state.village.workers) state.village.workers = { sawmill: 0, quarry: 0, locksmith: 0 };
+  if (!state.village.townhall) state.village.townhall = 1;
   if (!state.shards) state.shards = {};
   for (const k of ['common','magic','rare','epic','legendary','ancestral']) {
     if (state.shards[k] === undefined) state.shards[k] = 0;
@@ -196,5 +209,6 @@ export function resetState() {
   state.milestonesGranted = {};
   state.codex = { uniques: {}, sets: {}, bosses: {} };
   state.bounties = { active: [], completed: 0 };
+  state.village = { townhall: 1, resources: { wood: 60, stone: 40 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0 };
   notify();
 }
