@@ -138,16 +138,18 @@ document.body.addEventListener('click', async (e) => {
   const bSalv = t.closest('[data-bulk-salvage]');
   if (bSalv && !bSalv.disabled) { const { totalShards } = salvageAllOfRarities(new Set([bSalv.dataset.bulkSalvage])); if (totalShards > 0) soundForge(); return; }
 
-  // Item tile → desktop selects the inline detail panel; mobile opens the sheet.
+  // Forge: pick item (checked before the inventory grid — the forge picker
+  // reuses the .inv-grid class, so this must win).
   const tile = t.closest('[data-item-id]');
+  if (tile && t.closest('.forge-pick')) { UI.setForgeSelected(tile.dataset.itemId); soundClick(); return; }
+  if (t.closest('#forge-deselect')) { UI.setForgeSelected(null); return; }
+
+  // Item tile → desktop selects the inline detail panel; mobile opens the sheet.
   if (tile && t.closest('.inv-grid, .doll-slot')) {
     if (UI.getMode() === 'desktop') UI.selectInvItem(tile.dataset.itemId);
     else UI.navOverlay('item', { itemId: tile.dataset.itemId });
     soundClick(); return;
   }
-  // Forge: pick item
-  if (tile && t.closest('.forge-pick')) { UI.setForgeSelected(tile.dataset.itemId); soundClick(); return; }
-  if (t.closest('#forge-deselect')) { UI.setForgeSelected(null); return; }
 
   // Item detail actions
   const iAct = t.closest('[data-item-action]');
