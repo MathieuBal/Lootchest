@@ -14,6 +14,17 @@ import { trackProgress as bountyTrack, syncAbsoluteProgress as bountySync } from
 // which one-shot everything. Cap the pool so elemental is strong but not absurd.
 export const ELEM_DMG_CAP = 1.5; // max +150% from elemental
 
+// Armor as % mitigation with diminishing returns, instead of flat subtraction.
+// Flat subtraction was binary: high armor = near-invincible, low armor vs a
+// high-armor monster = an unkillable wall. This curve always lets some damage
+// through (capped at 85%) and never fully blocks. Tunable K (higher = armor
+// worth less).
+export const ARMOR_K = 380;
+export function armorMitigation(armor) {
+  const a = Math.max(0, armor || 0);
+  return Math.min(0.85, a / (a + ARMOR_K));
+}
+
 export function isBossFloor(floor) {
   return floor > 0 && floor % 5 === 0;
 }
@@ -135,9 +146,9 @@ export function resolveFight(monster, opts = {}) {
   const maxHpMod = mods.maxHpMult || 1;
   const stats = computeStats();
   const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * maxHpMod);
-  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * dmgMod) - monster.armor);
+  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * dmgMod * (1 - armorMitigation(monster.armor))));
   const playerArmor = (stats.armor || 0);
-  const monsterDmg = Math.max(1, Math.round((monster.damage - playerArmor) * relicDmgTakenMult() * takenMod));
+  const monsterDmg = Math.max(1, Math.round(monster.damage * relicDmgTakenMult() * takenMod * (1 - armorMitigation(playerArmor))));
   const lifestealPct = relicLifesteal();
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   // All elemental damages stack additively — each is a % damage bonus rolled
@@ -558,8 +569,8 @@ export function setCurrentFloor(floor) {
 export function predictDifficulty(monster) {
   const stats = computeStats();
   const playerMaxHp = (PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult();
-  const playerDmg = Math.max(1, (PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() - monster.armor);
-  const monsterDmg = Math.max(1, (monster.damage - (stats.armor || 0)) * relicDmgTakenMult());
+  const playerDmg = Math.max(1, (PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * (1 - armorMitigation(monster.armor)));
+  const monsterDmg = Math.max(1, monster.damage * relicDmgTakenMult() * (1 - armorMitigation(stats.armor || 0)));
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   // Sum all elemental %damages for difficulty preview (same model as resolveFight)
   const elemBonus = Math.min(ELEM_DMG_CAP, (((stats.fireDmg || 0) + (stats.frostDmg || 0) + (stats.voidDmg || 0)

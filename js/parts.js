@@ -8,6 +8,7 @@
 // SAME part looks different in Or vs Fer vs Obsidienne. Variants without
 // `roles` are rendered unchanged.
 
+import { tierScale } from './data.js';
 import { applyMaterialToPalette } from './materials.js';
 import { getElementOverlayLayer } from './elements.js';
 import { HD_WEAPON_PARTS, hasHDCompositionFor, getHDElementOverlayLayer } from './partsHD.js';
@@ -3096,7 +3097,7 @@ function rollPart(partDef, chestTier, statMult) {
   const t = (d20 - 1) / 19;
   const stats = {};
   for (const [stat, [min, max]] of Object.entries(variant.statBias || {})) {
-    stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * chestTier * statMult));
+    stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * tierScale(chestTier) * statMult));
   }
   return {
     partType: partDef.type,
@@ -3147,7 +3148,7 @@ export function recomputePartStats(weaponBaseTypeId, parts, chestTier, statMult,
     const t = (d20 - 1) / 19;
     const stats = {};
     for (const [stat, [min, max]] of Object.entries(variant.statBias || {})) {
-      stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * chestTier * statMult));
+      stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * tierScale(chestTier) * statMult));
     }
     return { ...p, d20, quality: t, stats };
   });
