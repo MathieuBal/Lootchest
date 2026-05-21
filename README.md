@@ -140,6 +140,24 @@ items des sauvegardes pré-HD.
 - Navigation libre entre étages débloqués.
 - **⭐ Elites** (8% sur étages ≥3, hors boss) : monstre violet, stats ×2.5,
   récompenses ×2.5, 1 clé garantie.
+- **✦ Affixes de monstres** : mécaniques de combat (et non plus de simples
+  stats) portées par les élites (toujours 1) et par les monstres normaux à
+  partir de l'étage 8 (chance croissante). Le **Néant (41+)** peut en empiler
+  **2** pour varier l'endgame. Chaque affixe augmente l'or, le drop et la
+  chance de clé (~+30 %/affixe). L'encounter est **stable** : l'aperçu
+  correspond au combat, puis se re-roll après chaque combat.
+
+  | Affixe         | Effet                                         |
+  |----------------|-----------------------------------------------|
+  | 🔄 Régénérant  | Régénère 4 % PV/tour                          |
+  | 💢 Enragé      | ×1.6 dégâts sous 35 % PV                       |
+  | 🛡 Blindé      | Immunise 1 tour sur 4                          |
+  | 🔥 Brûlant     | Brûlure passive (∝ ses dégâts)                |
+  | 🌀 Instable    | ×1.4 dégâts tous les 4 tours                   |
+  | 🌵 Épineux     | Renvoie 25 % de tes coups                      |
+  | 🩸 Vampirique  | Se soigne de 40 % de ses dégâts                |
+  | ⚡ Véloce      | 30 % de frapper deux fois                      |
+
 - **🔁 Boucle** : auto-combat sur tout étage déjà battu, s'arrête à la défaite.
 
 ### 🎒 Inventaire & Items
@@ -268,6 +286,27 @@ tous les talents de cette catégorie.
 - Chaque ascension débloque un tier de coffre supérieur (T6 Stellaire →
   T10 Divin) et octroie +2 points de talent.
 
+#### 🏺 Reliques d'Ascension
+À chaque ascension, choisis **1 relique parmi 3** (tirage aléatoire). Les
+reliques sont **permanentes, cumulables** (un même effet pris plusieurs
+fois s'additionne) et **survivent au reset** : c'est le levier de build
+long terme qui rend chaque lignée de prestige différente.
+
+| Relique               | Effet                                  |
+|-----------------------|----------------------------------------|
+| ⚔️ Pacte du Berserker | +40 % dégâts · −15 % PV max            |
+| 💥 Canon de Verre     | +80 % dégâts · +40 % dégâts subis      |
+| 🎯 Œil de Lynx        | +12 % chance de critique               |
+| ✨ Élémentaliste      | +30 % dégâts élémentaires              |
+| 🛡 Rempart            | +25 % PV max · +20 armure              |
+| 🩸 Soif de Sang       | Vol de vie 5 % des dégâts              |
+| 💰 Main de Midas      | +50 % or                               |
+| 🍀 Fortune            | +30 % drops rares                      |
+
+Les reliques offensives/défensives/économiques s'excluent par le coût
+d'opportunité du choix — empiler 🛡 Rempart donne un tank, enchaîner
+💥 Canon de Verre un glass-cannon, etc.
+
 ### 📋 Contrats
 3 contrats actifs en permanence (tuer X monstres, looter Y légendaires,
 atteindre l'étage Z…). Progression auto en jouant, récompenses en or /
@@ -351,7 +390,9 @@ js/
   achievements.js checkAchievements, onAchievementUnlocked
   forge.js        10 actions (Pierre préserve identité visuelle
                   via rescaleItemToTier)
-  prestige.js     canAscend, ascend (reset + keys = 10)
+  prestige.js     canAscend, ascend (reset + keys = 10 + choix relique)
+  relics.js       reliques d'ascension : relicTotals + multiplicateurs
+                  (dégâts/PV/or/drop/crit/élément/vol de vie), choix 1/3
   skills.js       12 compétences passives avec hooks de combat
   talents.js      multiplicateurs + categoryPoints + categoryMastery
   bounties.js     generateBounty, trackProgress, rerollBounty

@@ -11,6 +11,7 @@ import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
 import { upgradeTalent } from './talents.js';
 import { refreshBoardIfEmpty, rerollBounty, onBountyComplete } from './bounties.js';
 import { canAscend, ascend } from './prestige.js';
+import { chooseRelic } from './relics.js';
 import {
   unlockAudio, toggleMuted, isMuted, setMuted,
   soundChestOpen, soundDrop, soundCoin, soundHit, soundCrit,
@@ -50,6 +51,7 @@ checkAchievements();
 refreshBoardIfEmpty();
 
 if (!state.ui.hasSeenWelcome) UI.navOverlay('onboarding');
+else if (state.prestige?.pendingRelicChoice?.length) UI.navOverlay('relicChoice');
 
 document.addEventListener('click', unlockAudio, { once: true });
 
@@ -184,6 +186,10 @@ document.body.addEventListener('click', async (e) => {
 
   // Ascension
   if (t.closest('#btn-ascend')) { ascendFlow(); return; }
+
+  // Relic choice (after ascension)
+  const relicBtn = t.closest('[data-relic]');
+  if (relicBtn) { chooseRelicFlow(relicBtn.dataset.relic); return; }
 
   // Onboarding start
   if (t.closest('#btn-welcome-start')) { dismissWelcome(); soundClick(); return; }
@@ -346,6 +352,15 @@ function handleCombatEvent(ev, monsterMaxHp, playerMaxHp) {
     UI.updatePlayerHp(ev.playerHp, playerMaxHp);
     const c = UI.getCharacterAvatarCenter();
     floatingDamage(ev.dmg, c.x, c.y, 'player-took'); soundHit();
+    if (ev.swift) floatingText('⚡', c.x + 28, c.y - 24, '#ffe14a');
+  } else if (ev.type === 'monster_thorns') {
+    UI.updatePlayerHp(ev.playerHp, playerMaxHp);
+    const c = UI.getCharacterAvatarCenter();
+    floatingDamage(ev.amount, c.x, c.y, 'player-took'); floatingText('🌵 Épines', c.x, c.y - 40, '#7adc4a'); soundHit();
+  } else if (ev.type === 'monster_leech') {
+    UI.updateMonsterHp(ev.monsterHp, monsterMaxHp);
+    const c = UI.getMonsterEmojiCenter();
+    floatingText(`🩸 +${ev.amount}`, c.x, c.y - 30, '#ff4a6a');
   } else if (ev.type === 'skill_heal') {
     UI.updatePlayerHp(ev.playerHp, playerMaxHp);
     const c = UI.getCharacterAvatarCenter();
@@ -416,7 +431,19 @@ function ascendFlow() {
   if (ok && ascend()) {
     soundAscension(); screenShake(8, 600);
     spawnParticles('#f5c842', innerWidth / 2, innerHeight / 2, 80, { minSpeed: 200, maxSpeed: 500, size: 10 });
-    UI.closeOverlay(); UI.navTab('hub');
+    UI.navTab('hub');
+    // Present the relic choice if one is pending; else back to hub.
+    if (state.prestige?.pendingRelicChoice?.length) UI.navOverlay('relicChoice');
+    else UI.closeOverlay();
+  }
+}
+
+function chooseRelicFlow(id) {
+  if (chooseRelic(id)) {
+    soundAscension();
+    spawnParticles('#c9a3ff', innerWidth / 2, innerHeight / 2, 50, { minSpeed: 150, maxSpeed: 400, size: 8 });
+    UI.closeOverlay();
+    notify();
   }
 }
 

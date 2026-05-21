@@ -1,6 +1,7 @@
 // Character equipment management + stat computation.
 import { state, notify } from './state.js';
 import { SLOTS, POWER_WEIGHTS, SETS_BY_ID } from './data.js';
+import { relicCritFlat, relicArmorFlat } from './relics.js';
 
 export function equipItem(item) {
   const previous = state.equipment[item.slot] || null;
@@ -56,6 +57,9 @@ export function computeStats() {
   for (const b of computeSetBonuses()) {
     total[b.stat] = (total[b.stat] || 0) + b.value;
   }
+  // Add ascension relic flat stats
+  total.crit = (total.crit || 0) + relicCritFlat();
+  total.armor = (total.armor || 0) + relicArmorFlat();
   return total;
 }
 
@@ -182,5 +186,7 @@ export function computeStatsBreakdown() {
       add(b.stat, `🎭 Set ${s.setName} (${b.threshold} pièces)`, b.value);
     }
   }
+  add('crit', '🏺 Reliques', relicCritFlat());
+  add('armor', '🏺 Reliques', relicArmorFlat());
   return breakdown;
 }

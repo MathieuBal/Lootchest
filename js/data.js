@@ -215,6 +215,31 @@ export function biomeForFloor(floor) {
   return BIOMES[BIOMES.length - 1];
 }
 
+// === Monster affixes ===
+// Combat modifiers rolled on elites (always) and on deeper normal monsters
+// (chance scales with floor). They reuse the boss `mechanic` engine in combat.js
+// plus three monster-only behaviours (thorns / lifesteal / swift).
+// `build(ctx)` receives { dmg } (the monster's scaled damage) and returns a
+// mechanic object consumed by resolveFight. Each carries icon/name/desc for UI.
+export const MONSTER_AFFIXES = [
+  { id: 'regenerant', icon: '🔄', name: 'Régénérant',
+    build: () => ({ type: 'regen', percentPerTurn: 0.04, icon: '🔄', name: 'Régénérant', desc: 'Régénère 4% PV/tour' }) },
+  { id: 'enrage', icon: '💢', name: 'Enragé',
+    build: () => ({ type: 'enrage', triggerHpPct: 0.35, dmgMult: 1.6, icon: '💢', name: 'Enragé', desc: '×1.6 dégâts sous 35% PV' }) },
+  { id: 'blinde', icon: '🛡', name: 'Blindé',
+    build: () => ({ type: 'shieldCycle', everyTurns: 4, icon: '🛡', name: 'Blindé', desc: 'Immunise 1 tour sur 4' }) },
+  { id: 'brulant', icon: '🔥', name: 'Brûlant',
+    build: ({ dmg }) => ({ type: 'burn', dmgPerTurn: Math.max(2, Math.round(dmg * 0.25)), icon: '🔥', name: 'Brûlant', desc: `Brûlure ${Math.max(2, Math.round(dmg * 0.25))} dmg/tour` }) },
+  { id: 'instable', icon: '🌀', name: 'Instable',
+    build: () => ({ type: 'phaseShift', everyTurns: 4, dmgMult: 1.4, icon: '🌀', name: 'Instable', desc: '×1.4 dégâts tous les 4 tours' }) },
+  { id: 'epineux', icon: '🌵', name: 'Épineux',
+    build: () => ({ type: 'thorns', reflectPct: 0.25, icon: '🌵', name: 'Épineux', desc: 'Renvoie 25% de tes coups' }) },
+  { id: 'vampirique', icon: '🩸', name: 'Vampirique',
+    build: () => ({ type: 'lifesteal', pct: 0.4, icon: '🩸', name: 'Vampirique', desc: 'Se soigne de 40% de ses dégâts' }) },
+  { id: 'veloce', icon: '⚡', name: 'Véloce',
+    build: () => ({ type: 'swift', chance: 0.30, icon: '⚡', name: 'Véloce', desc: '30% de frapper deux fois' }) },
+];
+
 // Player base stats (without equipment)
 export const PLAYER_BASE = {
   hp: 100,
@@ -753,6 +778,25 @@ export const PRESTIGE_BONUS_PER_LEVEL = {
 
 export function prestigeGoldMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.goldMult * (level || 0); }
 export function prestigeRareMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.rareDropWeightMult * (level || 0); }
+
+// === Reliques d'Ascension ===
+// À chaque ascension, le joueur choisit 1 relique parmi 3. Permanentes et
+// cumulables (un même id peut être pris plusieurs fois → effets additifs),
+// elles survivent au reset d'ascension : c'est le levier de build long terme.
+// `mods` : damagePct / hpPct / dmgTakenPct / goldPct / dropPct (fractions),
+//          critFlat / armorFlat (valeurs plates), elemPct, lifesteal (fraction).
+export const RELICS = [
+  { id: 'berserker',    emoji: '⚔️', name: 'Pacte du Berserker', desc: '+40% dégâts · −15% PV max',          mods: { damagePct: 0.40, hpPct: -0.15 } },
+  { id: 'midas',        emoji: '💰', name: 'Main de Midas',       desc: '+50% or',                            mods: { goldPct: 0.50 } },
+  { id: 'deadeye',      emoji: '🎯', name: 'Œil de Lynx',         desc: '+12% chance de critique',            mods: { critFlat: 12 } },
+  { id: 'elementalist', emoji: '✨',  name: 'Élémentaliste',       desc: '+30% dégâts élémentaires',           mods: { elemPct: 0.30 } },
+  { id: 'bulwark',      emoji: '🛡', name: 'Rempart',             desc: '+25% PV max · +20 armure',           mods: { hpPct: 0.25, armorFlat: 20 } },
+  { id: 'fortune',      emoji: '🍀', name: 'Fortune',             desc: '+30% drops rares',                   mods: { dropPct: 0.30 } },
+  { id: 'vampire',      emoji: '🩸', name: 'Soif de Sang',        desc: 'Vol de vie 5% des dégâts',           mods: { lifesteal: 0.05 } },
+  { id: 'glasscannon',  emoji: '💥', name: 'Canon de Verre',      desc: '+80% dégâts · +40% dégâts subis',     mods: { damagePct: 0.80, dmgTakenPct: 0.40 } },
+];
+
+export const RELIC_BY_ID = Object.fromEntries(RELICS.map(r => [r.id, r]));
 
 
 // Auto-sell unlock costs (per rarity). Common is free from start.
