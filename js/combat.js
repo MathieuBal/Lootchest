@@ -1,7 +1,7 @@
 // Combat / dungeon logic. Resolution is instant (no per-turn animation in V1).
 import { state, notify } from './state.js';
 import { computeStats, activeSetEffects } from './character.js';
-import { PLAYER_BASE, biomeForFloor } from './data.js';
+import { PLAYER_BASE, biomeForFloor, MONSTER_AFFIXES } from './data.js';
 import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
 import { buildSkillContext } from './skills.js';
@@ -10,6 +10,24 @@ import { trackProgress as bountyTrack, syncAbsoluteProgress as bountySync } from
 
 export function isBossFloor(floor) {
   return floor > 0 && floor % 5 === 0;
+}
+
+// Seeded RNG so the previewed encounter (UI) matches the one actually fought.
+// Keyed on (floor, encounterNonce): the nonce bumps after each fight so
+// re-fighting / looping a floor still rerolls elite + affixes.
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function encounterRng(floor) {
+  const nonce = state.combat?.encounterNonce || 0;
+  const seed = (Math.imul(floor | 0, 374761393) + Math.imul(nonce | 0, 668265263)) >>> 0;
+  return mulberry32(seed ^ 0x9e3779b9);
 }
 
 // Pseudo-random but stable per floor: same floor always shows same monster.
@@ -29,6 +47,7 @@ const ELITE_VARIANTS = [
 ];
 
 export function generateMonster(floor) {
+  const rng = encounterRng(floor);
   const boss = isBossFloor(floor);
   const base = pickStableMonster(floor);
   const scale = 1 + (floor - 1) * 0.28;
@@ -39,13 +58,38 @@ export function generateMonster(floor) {
 
   // Elite: 8% chance on non-boss floors, scales with floor for extra danger/reward
   let elite = null;
-  if (!boss && floor >= 3 && Math.random() < 0.08) {
-    elite = ELITE_VARIANTS[Math.floor(Math.random() * ELITE_VARIANTS.length)];
+  if (!boss && floor >= 3 && rng() < 0.08) {
+    elite = ELITE_VARIANTS[Math.floor(rng() * ELITE_VARIANTS.length)];
   }
   const elDmg = elite?.dmgMult || 1;
   const elHp  = elite?.hpMult  || 1;
   const elArm = elite?.armorBonus || 0;
   const elGold = elite?.goldMult || 1;
+
+  const damage = Math.round(base.dmgBase * scale * bossMult * hardCombat * elDmg);
+
+  // Monster affixes: combat mechanics on elites (always) and deeper normals.
+  // Néant (41+) can stack a second affix for endgame variety.
+  const mechanics = [];
+  if (boss && base.mechanic) {
+    mechanics.push(base.mechanic);
+  } else if (!boss) {
+    let affixCount = 0;
+    if (elite) {
+      affixCount = floor >= 41 ? 2 : 1;
+    } else {
+      const chance = floor >= 8 ? Math.min(0.40, 0.05 + (floor - 8) * 0.012) : 0;
+      if (rng() < chance) affixCount = (floor >= 41 && rng() < 0.4) ? 2 : 1;
+    }
+    const pool = [...MONSTER_AFFIXES];
+    for (let i = 0; i < affixCount && pool.length; i++) {
+      const idx = Math.floor(rng() * pool.length);
+      const def = pool.splice(idx, 1)[0];
+      mechanics.push(def.build({ dmg }));
+    }
+  }
+  const affixCount = boss ? 0 : mechanics.length;
+  const affixBoost = 1 + 0.30 * affixCount;
 
   return {
     name: boss
@@ -55,16 +99,18 @@ export function generateMonster(floor) {
     eliteIcon: elite?.icon || null,
     eliteId: elite?.id || null,
     hp: Math.round(base.hpBase * scale * bossMult * hardCombat * elHp),
-    damage: Math.round(base.dmgBase * scale * bossMult * hardCombat * elDmg),
+    damage,
     armor: Math.round(((base.armorBase || 0) + elArm) * scale * bossMult * hardCombat),
-    goldReward: Math.round(base.goldBase * scale * (boss ? 6 : (elite ? 2.5 : 1)) * hardLoot * elGold),
+    goldReward: Math.round(base.goldBase * scale * (boss ? 6 : (elite ? 2.5 : 1)) * hardLoot * elGold * affixBoost),
     dropChance: boss
       ? 1
-      : Math.min(0.95, (0.05 + floor * 0.015) * hardLoot * (elite ? 2.5 : 1)),
+      : Math.min(0.95, (0.05 + floor * 0.015) * hardLoot * (elite ? 2.5 : 1) * affixBoost),
     isBoss: boss,
     isElite: !!elite,
     isHard: hard,
     mechanic: boss ? (base.mechanic || null) : null,
+    mechanics,
+    affixCount,
     floor,
   };
 }
@@ -117,7 +163,26 @@ export function resolveFight(monster) {
   let turns = 0;
   const maxTurns = 200;
   const events = [];
-  const mechanic = monster.mechanic;
+  const mechanics = monster.mechanics || (monster.mechanic ? [monster.mechanic] : []);
+
+  // Apply one monster attack: damage + phoenix revive + lifesteal affixes.
+  function applyMonsterHit(dmg, opts = {}) {
+    pHp = Math.max(0, pHp - dmg);
+    events.push({ type: 'monster_hit', dmg, monsterHp: mHp, playerHp: pHp, ...opts });
+    if (setEffectIds.has('phoenix_rebirth') && !phoenixUsed && pHp <= 0) {
+      phoenixUsed = true;
+      pHp = Math.round(playerMaxHp * 0.30);
+      events.push({ type: 'set_rebirth', emoji: '🔥', amount: pHp, playerHp: pHp, monsterHp: mHp });
+    }
+    for (const m of mechanics) {
+      if (m.type === 'lifesteal' && dmg > 0 && mHp > 0 && mHp < monsterMaxHp) {
+        const heal = Math.max(1, Math.round(dmg * (m.pct || 0.4)));
+        mHp = Math.min(monsterMaxHp, mHp + heal);
+        events.push({ type: 'monster_leech', amount: heal, emoji: '🩸', monsterHp: mHp, playerHp: pHp });
+      }
+    }
+  }
+
   while (turns < maxTurns) {
     turns++;
 
@@ -137,28 +202,33 @@ export function resolveFight(monster) {
       if (mHp <= 0) break;
     }
 
-    // Boss mechanic: triggers at turn start (regen / burn / shield / enrage / phaseShift)
+    // Boss + affix mechanics: trigger at turn start (regen / burn / shield / enrage / phaseShift).
+    // Multiple can stack (a monster may carry several affixes).
     let monsterDmgMod = 1;
     let monsterShielded = false;
-    if (mechanic) {
-      if (mechanic.type === 'regen' && mHp > 0 && mHp < monsterMaxHp) {
-        const heal = Math.max(1, Math.round(monsterMaxHp * (mechanic.percentPerTurn || 0.05)));
+    let playerDiedToMechanic = false;
+    for (const m of mechanics) {
+      if (m.type === 'regen' && mHp > 0 && mHp < monsterMaxHp) {
+        const heal = Math.max(1, Math.round(monsterMaxHp * (m.percentPerTurn || 0.05)));
         mHp = Math.min(monsterMaxHp, mHp + heal);
         events.push({ type: 'boss_regen', amount: heal, monsterHp: mHp, playerHp: pHp });
-      } else if (mechanic.type === 'burn') {
-        const burn = mechanic.dmgPerTurn || 5;
+      } else if (m.type === 'burn') {
+        const burn = m.dmgPerTurn || 5;
         pHp = Math.max(0, pHp - burn);
         events.push({ type: 'boss_burn', amount: burn, playerHp: pHp, monsterHp: mHp });
-        if (pHp <= 0) break;
-      } else if (mechanic.type === 'shieldCycle') {
-        monsterShielded = (turns % (mechanic.everyTurns || 3)) === 0;
-        if (monsterShielded) events.push({ type: 'boss_shield', monsterHp: mHp, playerHp: pHp });
-      } else if (mechanic.type === 'enrage') {
-        if (mHp / monsterMaxHp <= (mechanic.triggerHpPct || 0.3)) monsterDmgMod = mechanic.dmgMult || 2;
-      } else if (mechanic.type === 'phaseShift') {
-        if ((turns % (mechanic.everyTurns || 4)) === 0) monsterDmgMod = mechanic.dmgMult || 1.5;
+        if (pHp <= 0) playerDiedToMechanic = true;
+      } else if (m.type === 'shieldCycle') {
+        if ((turns % (m.everyTurns || 3)) === 0) {
+          monsterShielded = true;
+          events.push({ type: 'boss_shield', monsterHp: mHp, playerHp: pHp });
+        }
+      } else if (m.type === 'enrage') {
+        if (mHp / monsterMaxHp <= (m.triggerHpPct || 0.3)) monsterDmgMod *= (m.dmgMult || 2);
+      } else if (m.type === 'phaseShift') {
+        if ((turns % (m.everyTurns || 4)) === 0) monsterDmgMod *= (m.dmgMult || 1.5);
       }
     }
+    if (playerDiedToMechanic) break;
 
     // Turn start: heal, etc.
     const startHooks = runHook('onTurnStart', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
@@ -222,6 +292,16 @@ export function resolveFight(monster) {
     if (monsterShielded) hit = 0;
     mHp = Math.max(0, mHp - hit);
     events.push({ type: 'player_hit', dmg: hit, isCrit, forceCrit, monsterHp: mHp, playerHp: pHp, mults, blocked: monsterShielded });
+
+    // Monster affix: thorns → reflect a share of your hit back at you
+    for (const m of mechanics) {
+      if (m.type === 'thorns' && hit > 0) {
+        const ret = Math.max(1, Math.round(hit * (m.reflectPct || 0.25)));
+        pHp = Math.max(0, pHp - ret);
+        events.push({ type: 'monster_thorns', amount: ret, emoji: '🌵', playerHp: pHp, monsterHp: mHp });
+      }
+    }
+    if (pHp <= 0) break;
 
     // Legendary effect: chainLightning → on crit, a 50%-damage follow-up
     if (legendaryEffects.has('chainLightning') && isCrit && hit > 0 && !monsterShielded) {
@@ -289,14 +369,12 @@ export function resolveFight(monster) {
       continue;
     }
     const monsterFinalDmg = Math.max(1, Math.round(monsterDmg * monsterDmgMod));
-    pHp = Math.max(0, pHp - monsterFinalDmg);
-    events.push({ type: 'monster_hit', dmg: monsterFinalDmg, monsterHp: mHp, playerHp: pHp, enraged: monsterDmgMod > 1 });
+    applyMonsterHit(monsterFinalDmg, { enraged: monsterDmgMod > 1 });
 
-    // Set effect: phoenix_rebirth → on lethal hit, revive once at 30% HP
-    if (setEffectIds.has('phoenix_rebirth') && !phoenixUsed && pHp <= 0) {
-      phoenixUsed = true;
-      pHp = Math.round(playerMaxHp * 0.30);
-      events.push({ type: 'set_rebirth', emoji: '🔥', amount: pHp, playerHp: pHp, monsterHp: mHp });
+    // Monster affix: swift → chance to strike a second time this turn
+    const swift = mechanics.find(m => m.type === 'swift');
+    if (swift && pHp > 0 && Math.random() < (swift.chance || 0.3)) {
+      applyMonsterHit(monsterFinalDmg, { swift: true });
     }
 
     // On-take-damage hook: reflect damage
@@ -381,7 +459,7 @@ export function attemptCurrentFloor() {
     let keyDrop = 0;
     if (monster.isBoss) keyDrop = 3;
     else if (monster.isElite) keyDrop = 1;
-    else if (Math.random() < 0.30) keyDrop = 1;
+    else if (Math.random() < 0.30 + 0.15 * (monster.affixCount || 0)) keyDrop = 1;
     if (keyDrop > 0) {
       state.keys = (state.keys || 0) + keyDrop;
       monster.keyDrop = keyDrop;
@@ -417,6 +495,8 @@ export function attemptCurrentFloor() {
   } else {
     state.combat.deaths += 1;
   }
+  // Reroll the encounter (elite + affixes) for the next visit to any floor.
+  state.combat.encounterNonce = (state.combat.encounterNonce || 0) + 1;
   notify();
   return { result, monster, droppedItem, advanced, milestone };
 }
@@ -440,7 +520,15 @@ export function predictDifficulty(monster) {
   const avgDmg = playerDmg * (1 + critChance + elemBonus);
   const turnsToKill = Math.ceil(monster.hp / avgDmg);
   const damageTaken = monsterDmg * Math.max(0, turnsToKill - 1);
-  const ratio = damageTaken / playerMaxHp;
+  // Account for affix/boss mechanics that raise effective danger.
+  let affixFactor = 1;
+  for (const m of (monster.mechanics || [])) {
+    if (m.type === 'swift') affixFactor += 0.30;
+    else if (m.type === 'burn') affixFactor += 0.25;
+    else if (m.type === 'enrage' || m.type === 'thorns' || m.type === 'lifesteal' || m.type === 'regen') affixFactor += 0.20;
+    else affixFactor += 0.15;
+  }
+  const ratio = (damageTaken * affixFactor) / playerMaxHp;
   if (ratio < 0.25) return { label: 'Facile',   color: '#6acc6a' };
   if (ratio < 0.6)  return { label: 'Modéré',   color: '#ffe14a' };
   if (ratio < 0.95) return { label: 'Risqué',   color: '#ff7a1a' };

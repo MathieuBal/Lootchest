@@ -346,6 +346,15 @@ function handleCombatEvent(ev, monsterMaxHp, playerMaxHp) {
     UI.updatePlayerHp(ev.playerHp, playerMaxHp);
     const c = UI.getCharacterAvatarCenter();
     floatingDamage(ev.dmg, c.x, c.y, 'player-took'); soundHit();
+    if (ev.swift) floatingText('⚡', c.x + 28, c.y - 24, '#ffe14a');
+  } else if (ev.type === 'monster_thorns') {
+    UI.updatePlayerHp(ev.playerHp, playerMaxHp);
+    const c = UI.getCharacterAvatarCenter();
+    floatingDamage(ev.amount, c.x, c.y, 'player-took'); floatingText('🌵 Épines', c.x, c.y - 40, '#7adc4a'); soundHit();
+  } else if (ev.type === 'monster_leech') {
+    UI.updateMonsterHp(ev.monsterHp, monsterMaxHp);
+    const c = UI.getMonsterEmojiCenter();
+    floatingText(`🩸 +${ev.amount}`, c.x, c.y - 30, '#ff4a6a');
   } else if (ev.type === 'skill_heal') {
     UI.updatePlayerHp(ev.playerHp, playerMaxHp);
     const c = UI.getCharacterAvatarCenter();

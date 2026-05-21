@@ -373,6 +373,19 @@ function screenHub() {
   </div>`;
 }
 
+// Affix/mechanic display helpers for the monster preview.
+function monsterAffixIcons(monster) {
+  if (monster.isBoss) return '';
+  const ms = monster.mechanics || [];
+  if (!ms.length) return '';
+  return ' ' + ms.map(m => m.icon || '✦').join('');
+}
+function monsterMechLines(monster) {
+  const ms = monster.mechanics || [];
+  if (!ms.length) return '';
+  return `<div class="mob-mech smallcap">${ms.map(m => `${m.icon ? m.icon + ' ' : ''}${m.desc || ''}`).join('<br>')}</div>`;
+}
+
 // ── ① Dungeon map — vertical biome path ──────────────────────
 function screenDungeon() {
   const cur = state.combat.currentFloor;
@@ -421,8 +434,9 @@ function screenDungeon() {
       <div class="fight-target">
         <span class="mob-emoji pixel">${hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, 44) : monster.emoji}</span>
         <div class="ft-info">
-          <div class="ft-name">${monster.name}${monster.isBoss ? ' 👑' : ''}${monster.isElite ? ' ⭐' : ''}</div>
+          <div class="ft-name">${monster.name}${monster.isBoss ? ' 👑' : ''}${monster.isElite ? ' ⭐' : ''}${monsterAffixIcons(monster)}</div>
           <div class="ft-diff" style="color:${diff.color}">${diff.label}</div>
+          ${monsterMechLines(monster)}
         </div>
       </div>
       <button class="btn-gold btn-fight" id="btn-fight">⚔ Combattre</button>
@@ -677,10 +691,10 @@ function dtDungeon() {
     <aside class="dt-panel">
       <div class="dt-card panel mob-preview">
         <div class="mob-sprite-lg pixel">${hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, 96) : `<span style="font-size:72px">${monster.emoji}</span>`}</div>
-        <div class="ft-name">${monster.name}${monster.isBoss ? ' 👑' : ''}${monster.isElite ? ' ⭐' : ''}</div>
+        <div class="ft-name">${monster.name}${monster.isBoss ? ' 👑' : ''}${monster.isElite ? ' ⭐' : ''}${monsterAffixIcons(monster)}</div>
         <div class="ft-diff" style="color:${diff.color}">${diff.label}</div>
         <div class="mob-stats smallcap">❤ ${fmt(monster.hp)} · ⚔ ${fmt(monster.damage)} · 🛡 ${fmt(monster.armor)}</div>
-        ${monster.mechanic ? `<div class="mob-mech smallcap">${monster.mechanic.desc || ''}</div>` : ''}
+        ${monsterMechLines(monster)}
       </div>
     </aside>
   </div>`;

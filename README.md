@@ -140,6 +140,24 @@ items des sauvegardes pré-HD.
 - Navigation libre entre étages débloqués.
 - **⭐ Elites** (8% sur étages ≥3, hors boss) : monstre violet, stats ×2.5,
   récompenses ×2.5, 1 clé garantie.
+- **✦ Affixes de monstres** : mécaniques de combat (et non plus de simples
+  stats) portées par les élites (toujours 1) et par les monstres normaux à
+  partir de l'étage 8 (chance croissante). Le **Néant (41+)** peut en empiler
+  **2** pour varier l'endgame. Chaque affixe augmente l'or, le drop et la
+  chance de clé (~+30 %/affixe). L'encounter est **stable** : l'aperçu
+  correspond au combat, puis se re-roll après chaque combat.
+
+  | Affixe         | Effet                                         |
+  |----------------|-----------------------------------------------|
+  | 🔄 Régénérant  | Régénère 4 % PV/tour                          |
+  | 💢 Enragé      | ×1.6 dégâts sous 35 % PV                       |
+  | 🛡 Blindé      | Immunise 1 tour sur 4                          |
+  | 🔥 Brûlant     | Brûlure passive (∝ ses dégâts)                |
+  | 🌀 Instable    | ×1.4 dégâts tous les 4 tours                   |
+  | 🌵 Épineux     | Renvoie 25 % de tes coups                      |
+  | 🩸 Vampirique  | Se soigne de 40 % de ses dégâts                |
+  | ⚡ Véloce      | 30 % de frapper deux fois                      |
+
 - **🔁 Boucle** : auto-combat sur tout étage déjà battu, s'arrête à la défaite.
 
 ### 🎒 Inventaire & Items

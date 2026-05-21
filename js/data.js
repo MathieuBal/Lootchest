@@ -215,6 +215,31 @@ export function biomeForFloor(floor) {
   return BIOMES[BIOMES.length - 1];
 }
 
+// === Monster affixes ===
+// Combat modifiers rolled on elites (always) and on deeper normal monsters
+// (chance scales with floor). They reuse the boss `mechanic` engine in combat.js
+// plus three monster-only behaviours (thorns / lifesteal / swift).
+// `build(ctx)` receives { dmg } (the monster's scaled damage) and returns a
+// mechanic object consumed by resolveFight. Each carries icon/name/desc for UI.
+export const MONSTER_AFFIXES = [
+  { id: 'regenerant', icon: '🔄', name: 'Régénérant',
+    build: () => ({ type: 'regen', percentPerTurn: 0.04, icon: '🔄', name: 'Régénérant', desc: 'Régénère 4% PV/tour' }) },
+  { id: 'enrage', icon: '💢', name: 'Enragé',
+    build: () => ({ type: 'enrage', triggerHpPct: 0.35, dmgMult: 1.6, icon: '💢', name: 'Enragé', desc: '×1.6 dégâts sous 35% PV' }) },
+  { id: 'blinde', icon: '🛡', name: 'Blindé',
+    build: () => ({ type: 'shieldCycle', everyTurns: 4, icon: '🛡', name: 'Blindé', desc: 'Immunise 1 tour sur 4' }) },
+  { id: 'brulant', icon: '🔥', name: 'Brûlant',
+    build: ({ dmg }) => ({ type: 'burn', dmgPerTurn: Math.max(2, Math.round(dmg * 0.25)), icon: '🔥', name: 'Brûlant', desc: `Brûlure ${Math.max(2, Math.round(dmg * 0.25))} dmg/tour` }) },
+  { id: 'instable', icon: '🌀', name: 'Instable',
+    build: () => ({ type: 'phaseShift', everyTurns: 4, dmgMult: 1.4, icon: '🌀', name: 'Instable', desc: '×1.4 dégâts tous les 4 tours' }) },
+  { id: 'epineux', icon: '🌵', name: 'Épineux',
+    build: () => ({ type: 'thorns', reflectPct: 0.25, icon: '🌵', name: 'Épineux', desc: 'Renvoie 25% de tes coups' }) },
+  { id: 'vampirique', icon: '🩸', name: 'Vampirique',
+    build: () => ({ type: 'lifesteal', pct: 0.4, icon: '🩸', name: 'Vampirique', desc: 'Se soigne de 40% de ses dégâts' }) },
+  { id: 'veloce', icon: '⚡', name: 'Véloce',
+    build: () => ({ type: 'swift', chance: 0.30, icon: '⚡', name: 'Véloce', desc: '30% de frapper deux fois' }) },
+];
+
 // Player base stats (without equipment)
 export const PLAYER_BASE = {
   hp: 100,
