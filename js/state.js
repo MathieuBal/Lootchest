@@ -60,6 +60,10 @@ export const state = {
     relics: {},                // { relicId: count } — permanent build modifiers
     pendingRelicChoice: null,  // [relicId, relicId, relicId] awaiting a pick
   },
+  dive: {                      // Deep Dive roguelite run (persisted: best score only)
+    bestDepth: 0,
+    totalDives: 0,
+  },
   shards: {
     common: 0,
     magic: 0,
@@ -144,6 +148,7 @@ export function replaceState(newState) {
   if (!state.prestige) state.prestige = { level: 0, totalAscensions: 0 };
   if (!state.prestige.relics) state.prestige.relics = {};
   if (state.prestige.pendingRelicChoice === undefined) state.prestige.pendingRelicChoice = null;
+  if (!state.dive) state.dive = { bestDepth: 0, totalDives: 0 };
   if (!state.shards) state.shards = {};
   for (const k of ['common','magic','rare','epic','legendary','ancestral']) {
     if (state.shards[k] === undefined) state.shards[k] = 0;

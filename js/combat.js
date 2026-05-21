@@ -118,12 +118,18 @@ export function generateMonster(floor) {
 
 // Returns { won, log[], turns, damageTaken, playerMaxHp, events[] }
 // events: array of { type: 'player_hit' | 'monster_hit', dmg, isCrit?, monsterHp, playerHp }
-export function resolveFight(monster) {
+// opts: { startHp, mods } — startHp carries HP across dive fights; mods are dive
+// boons { damageMult, dmgTakenMult, maxHpMult } (default identity).
+export function resolveFight(monster, opts = {}) {
+  const mods = opts.mods || {};
+  const dmgMod = mods.damageMult || 1;
+  const takenMod = mods.dmgTakenMult || 1;
+  const maxHpMod = mods.maxHpMult || 1;
   const stats = computeStats();
-  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult());
-  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult()) - monster.armor);
+  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * maxHpMod);
+  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * dmgMod) - monster.armor);
   const playerArmor = (stats.armor || 0);
-  const monsterDmg = Math.max(1, Math.round((monster.damage - playerArmor) * relicDmgTakenMult()));
+  const monsterDmg = Math.max(1, Math.round((monster.damage - playerArmor) * relicDmgTakenMult() * takenMod));
   const lifestealPct = relicLifesteal();
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   // All elemental damages stack additively — each is a % damage bonus rolled
@@ -160,7 +166,7 @@ export function resolveFight(monster) {
   }
 
   const monsterMaxHp = monster.hp;
-  let pHp = playerMaxHp;
+  let pHp = opts.startHp != null ? Math.max(1, Math.min(playerMaxHp, Math.round(opts.startHp))) : playerMaxHp;
   let mHp = monsterMaxHp;
   let turns = 0;
   const maxTurns = 200;
@@ -509,6 +515,29 @@ export function attemptCurrentFloor() {
   state.combat.encounterNonce = (state.combat.encounterNonce || 0) + 1;
   notify();
   return { result, monster, droppedItem, advanced, milestone };
+}
+
+// === Deep Dive (roguelite endurance run) ===
+// A dive monster is a normal monster at a deeper effective floor, plus a "dive
+// tax" so the run stays challenging even for a maxed character. depth starts at 1.
+export function generateDiveMonster(baseFloor, depth) {
+  const floor = baseFloor + depth;
+  const m = generateMonster(floor);
+  const tax = 1 + depth * 0.05;
+  m.hp = Math.round(m.hp * 1.15 * tax);
+  m.damage = Math.round(m.damage * 1.10 * tax);
+  m.goldReward = Math.round(m.goldReward * (1 + depth * 0.12));
+  m.isDive = true;
+  m.diveDepth = depth;
+  return m;
+}
+
+// Resolve one dive fight without touching run progression or granting rewards
+// (the dive controller banks rewards itself). Carries HP via startHp + boon mods.
+export function attemptDiveFight(baseFloor, depth, startHp, mods) {
+  const monster = generateDiveMonster(baseFloor, depth);
+  const result = resolveFight(monster, { startHp, mods });
+  return { monster, result, won: result.won, hpLeft: result.playerHpLeft, maxHp: result.playerMaxHp };
 }
 
 export function setCurrentFloor(floor) {

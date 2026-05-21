@@ -569,6 +569,11 @@ input, select { font-family: inherit; }
 .relic-name { font-size: 15px; color: var(--gold-200); }
 .relic-desc { color: var(--text-dim); line-height: 1.35; }
 
+/* Deep Dive */
+.btn-dive { border-color: rgba(90,216,232,.5); color: #9fe9f2; }
+.btn-dive:hover { border-color: #5ad8e8; box-shadow: 0 0 14px rgba(90,216,232,.35); }
+.dive-exit-btn { width: 100%; margin-top: 14px; }
+
 /* Onboarding */
 .onboarding { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center;
   background: radial-gradient(100% 70% at 50% 0%, rgba(120,70,200,.18), #0a0610 70%); padding: 24px; overflow-y: auto; }

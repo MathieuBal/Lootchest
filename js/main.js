@@ -5,7 +5,11 @@ import { state, subscribe, resetState, notify } from './state.js';
 import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS, CURRENCY_BY_ID } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
 import { openChest, upgradeChest, canOpen } from './chest.js';
-import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
+import { attemptCurrentFloor, setCurrentFloor, attemptDiveFight } from './combat.js';
+import {
+  startDive, isDiving, getSession, recordWin, openBoonChoice, chooseBoon,
+  finalizeDive, nextStartHp, diveMods, diveDepth,
+} from './dive.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
 import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
 import { upgradeTalent } from './talents.js';
@@ -196,6 +200,12 @@ document.body.addEventListener('click', async (e) => {
   const abBtn = t.closest('[data-ability]');
   if (abBtn) { if (toggleAbility(abBtn.dataset.ability)) { soundClick(); notify(); } return; }
 
+  // Deep Dive
+  if (t.closest('[data-dive="start"]')) { beginDive(); return; }
+  if (t.closest('[data-dive="exit"]')) { diveExit(); return; }
+  const boonBtn = t.closest('[data-dive-boon]');
+  if (boonBtn) { diveBoonPick(boonBtn.dataset.diveBoon); return; }
+
   // Onboarding start
   if (t.closest('#btn-welcome-start')) { dismissWelcome(); soundClick(); return; }
 
@@ -280,7 +290,7 @@ function resumeLoop() {
 
 let fighting = false;
 async function fightFlow() {
-  if (fighting) return;
+  if (fighting || isDiving()) return;
   fighting = true;
   try {
     const { result, monster, droppedItem, advanced, milestone } = attemptCurrentFloor();
@@ -344,6 +354,77 @@ async function fightFlow() {
   } finally {
     fighting = false;
   }
+}
+
+// ── Deep Dive controller ─────────────────────────────────────
+let diving = false;
+function beginDive() {
+  if (state.combat.loopMode) { state.combat.loopMode = false; }
+  if (!startDive()) return;
+  soundAscension();
+  UI.showToast('🌊', 'Plongée lancée', 'Descends aussi profond que possible !');
+  diveFlow();
+}
+
+async function diveFlow() {
+  if (diving || !isDiving()) return;
+  diving = true;
+  try {
+    const s = getSession();
+    const startHp = nextStartHp();
+    const { monster, result, won, maxHp } = attemptDiveFight(s.baseFloor, s.depth + 1, startHp, diveMods());
+    UI.openCombat(monster);
+    await sleep(60);
+    const monsterMaxHp = monster.hp;
+    UI.showCombatBars(maxHp, monsterMaxHp);
+    if (startHp != null) UI.updatePlayerHp(startHp, maxHp); // begin from carried HP
+
+    const events = result.events || [];
+    const fast = !!state.settings?.fastCombat;
+    const perEvent = fast ? 12 : Math.max(40, Math.min(140, 1200 / Math.max(1, events.length)));
+    for (const ev of events) {
+      await sleep(perEvent);
+      handleCombatEvent(ev, monsterMaxHp, maxHp);
+    }
+    await sleep(260);
+    UI.appendCombatLog(result.log, won ? 'win' : 'lose');
+
+    if (won) {
+      const rec = recordWin(monster, result);
+      soundWin();
+      UI.setCombatCall(`Profondeur ${rec.depth}`, '#5ad8e8');
+      const c = UI.getMonsterEmojiCenter();
+      spawnParticles('#5ad8e8', c.x, c.y, 18);
+      floatingText(`+${rec.gold} 💰`, c.x, c.y - 30, '#f5c842');
+      UI.appendCombatLog([`🌊 Profondeur ${rec.depth} · butin en jeu sécurisé`], 'reward');
+      await sleep(600);
+      UI.closeCombat();
+      if (rec.checkpoint) {
+        openBoonChoice();
+        UI.navOverlay('diveBoon');     // pauses the loop until the player picks/exits
+      } else if (isDiving()) {
+        setTimeout(diveFlow, 320);
+      }
+    } else {
+      soundLose(); UI.setCombatCall('VAINCU', '#ff5050'); screenShake(10, 400);
+      await sleep(600);
+      UI.closeCombat();
+      const summary = finalizeDive(true);
+      UI.navOverlay('diveSummary', { summary });
+    }
+  } finally {
+    diving = false;
+  }
+}
+
+function diveBoonPick(id) {
+  if (chooseBoon(id)) { soundUpgrade(); UI.closeOverlay(); setTimeout(diveFlow, 200); }
+}
+
+function diveExit() {
+  const summary = finalizeDive(false);
+  UI.closeOverlay();
+  if (summary) UI.navOverlay('diveSummary', { summary });
 }
 
 function handleCombatEvent(ev, monsterMaxHp, playerMaxHp) {
@@ -470,6 +551,8 @@ document.addEventListener('keydown', (e) => {
   if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
   if (e.key === 'Escape') {
     if (UI.getCurrentDrop()) { addToInventory(UI.getCurrentDrop()); UI.hideDropPopup(); return; }
+    // At a dive checkpoint, Escape = cash out (don't strand the run).
+    if (isDiving() && getSession()?.pendingBoon) { diveExit(); return; }
     UI.closeOverlay(); return;
   }
   if (e.ctrlKey || e.altKey || e.metaKey) return;

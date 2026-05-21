@@ -22,6 +22,7 @@ import { canAscend, ascensionRequirements } from './prestige.js';
 import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talents.js';
 import { SKILLS, getActiveSkills } from './skills.js';
 import { ABILITIES, ABILITY_SLOTS, getLoadout, isSlotted, isAbilityUnlocked } from './abilities.js';
+import { canDive, getSession, DIVE_BOON_BY_ID } from './dive.js';
 import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
@@ -443,6 +444,7 @@ function screenDungeon() {
       </div>
       <button class="btn-gold btn-fight" id="btn-fight">⚔ Combattre</button>
       ${beaten ? `<button class="btn-ghost btn-loop ${state.combat.loopMode ? 'on' : ''}" id="btn-loop" title="Combat en boucle">🔁</button>` : ''}
+      ${canDive() ? `<button class="btn-ghost btn-dive" data-dive="start" title="Plongée des Profondeurs (best ${state.dive?.bestDepth || 0})">🌊</button>` : ''}
     </div>
   </div>`;
 }
@@ -689,6 +691,7 @@ function dtDungeon() {
       <div class="fight-dock">
         <button class="btn-gold btn-fight" id="btn-fight">⚔ Combattre</button>
         ${beaten ? `<button class="btn-ghost btn-loop ${state.combat.loopMode ? 'on' : ''}" id="btn-loop">🔁 Boucle</button>` : ''}
+        ${canDive() ? `<button class="btn-ghost btn-dive" data-dive="start" title="best ${state.dive?.bestDepth || 0}">🌊 Plongée</button>` : ''}
       </div>
     </div>
     <aside class="dt-panel">
@@ -768,6 +771,8 @@ const OVERLAYS = {
   talents: ovTalents,
   skills: ovSkills,
   abilities: ovAbilities,
+  diveBoon: ovDiveBoon,
+  diveSummary: ovDiveSummary,
   contracts: ovContracts,
   codex: ovCodex,
   achievements: ovAchievements,
@@ -999,6 +1004,54 @@ function ovAbilities() {
     <div class="ab-slots">${slots.join('')}</div>
     <div class="skills-grid">${grid}</div>`;
   return overlayShell(`Capacités · ${loadout.length}/${ABILITY_SLOTS}`, inner, { wide: true });
+}
+
+// ── Deep Dive: boon checkpoint ───────────────────────────────
+function ovDiveBoon() {
+  const s = getSession();
+  const choice = (s && s.pendingBoon) || [];
+  const secured = s ? s.securedGold : 0;
+  const pending = s ? s.pendingGold : 0;
+  const cards = choice.map(id => {
+    const b = DIVE_BOON_BY_ID[id];
+    if (!b) return '';
+    return `<button class="relic-card" data-dive-boon="${id}">
+        <div class="relic-emoji">${b.emoji}</div>
+        <div class="relic-name display">${b.name}</div>
+        <div class="relic-desc smallcap">${b.desc}</div>
+      </button>`;
+  }).join('');
+  return `<div class="overlay-backdrop"></div>
+    <div class="sheet dark">
+      <div class="sheet-head"><span class="display">🌊 Point de contrôle · profondeur ${s ? s.depth : 0}</span></div>
+      <div class="sheet-body scroll">
+        <p class="smallcap">Butin sécurisé : <b class="gold-text">${fmt(secured)} 💰</b>. Choisis un bonus pour continuer, ou récupère ton or et sors.</p>
+        <div class="relic-grid">${cards}</div>
+        <button class="btn-ghost dive-exit-btn" data-dive="exit">💰 Récupérer ${fmt(secured)} or & sortir</button>
+      </div>
+    </div>`;
+}
+
+// ── Deep Dive: end summary ───────────────────────────────────
+function ovDiveSummary(params) {
+  const s = (params && params.summary) || {};
+  const orbBits = Object.entries(s.orbs || {}).map(([id, q]) => { const o = CURRENCY_BY_ID[id]; return o ? `${o.emoji}×${q}` : ''; }).filter(Boolean).join(' · ');
+  const isBest = s.depth && s.depth >= (state.dive?.bestDepth || 0);
+  return `<div class="overlay-backdrop" data-close-overlay="1"></div>
+    <div class="sheet dark">
+      <div class="sheet-head"><span class="display">🌊 ${s.died ? 'Plongée terminée' : 'Remonté sain et sauf'}</span><button class="sheet-close" data-close-overlay="1">✕</button></div>
+      <div class="sheet-body scroll" style="text-align:center">
+        <div style="font-size:46px;margin:6px 0">${s.died ? '💀' : '🏆'}</div>
+        <div class="display" style="font-size:24px">Profondeur ${s.depth || 0}</div>
+        ${isBest ? '<div class="gold-text smallcap">★ Nouveau record !</div>' : `<div class="smallcap">Record : ${state.dive?.bestDepth || 0}</div>`}
+        <div class="asc-grid" style="margin:14px auto">
+          <div class="asc-cell"><span class="smallcap">Or récupéré</span><span class="mono">${fmt(s.gold || 0)}</span></div>
+          <div class="asc-cell"><span class="smallcap">Orbes</span><span class="mono">${orbBits || '—'}</span></div>
+        </div>
+        ${s.died ? '<p class="smallcap">Mort : tu n\'as gardé que la moitié du butin non sécurisé.</p>' : ''}
+        <button class="btn-gold" data-close-overlay="1">Continuer</button>
+      </div>
+    </div>`;
 }
 
 // ── ④ Contracts ──────────────────────────────────────────────

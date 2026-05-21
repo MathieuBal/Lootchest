@@ -160,6 +160,24 @@ items des sauvegardes pré-HD.
 
 - **🔁 Boucle** : auto-combat sur tout étage déjà battu, s'arrête à la défaite.
 
+### 🌊 Plongée des Profondeurs (roguelite)
+Débloquée à l'**étage 10**, la Plongée transforme la progression plate en
+un **run à attrition** : tes **PV se reportent** d'un combat à l'autre (avec
+un petit soin de 8% PV/victoire), les monstres s'enfoncent toujours plus
+profond avec une « taxe de plongée » croissante, et tu descends aussi loin
+que ta survie le permet.
+
+- **Points de contrôle** tous les 3 paliers : choisis **1 boon parmi 3**
+  (💚 Repos · ⚔️ Furie +15% dégâts · 🛡 Égide −12% dégâts subis ·
+  ❤️ Vigueur +20% PV max · 💰 Cupidité +50% or) puis décide de **continuer
+  ou de remonter** avec ton butin.
+- **Butin sécurisé vs en jeu** : l'or gagné depuis le dernier point de
+  contrôle est « en jeu ». Atteindre un point de contrôle le **sécurise**.
+  Remonter volontairement = **100%** du butin ; **mourir = tu perds la moitié
+  de l'or non sécurisé** → vraie tension pousser/encaisser.
+- **Record de profondeur** persistant. La plongée est un *run* : recharger
+  la page l'abandonne (seul le record est gardé).
+
 ### 🎒 Inventaire & Items
 
 #### Raretés
@@ -416,6 +434,8 @@ js/
   skills.js       12 compétences passives + merge des capacités slottées
   abilities.js    8 capacités actives (loadout de 3, déblocages par
                   progression) partageant les hooks de combat
+  dive.js         Plongée des Profondeurs : run à attrition (report de
+                  PV, boons aux points de contrôle, butin sécurisé/en jeu)
   talents.js      multiplicateurs + categoryPoints + categoryMastery
   bounties.js     generateBounty, trackProgress, rerollBounty
   builder.js      primitives pixel partagées (makeCanvas, rect,
