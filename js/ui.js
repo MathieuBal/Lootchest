@@ -24,6 +24,7 @@ import { SKILLS, getActiveSkills } from './skills.js';
 import { ABILITIES, ABILITY_SLOTS, getLoadout, isSlotted, isAbilityUnlocked } from './abilities.js';
 import { canDive, getSession, DIVE_BOON_BY_ID } from './dive.js';
 import * as Village from './village.js';
+import { buildingArtSVG } from './villageArt.js';
 import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
@@ -1098,7 +1099,7 @@ function screenVillage() {
   const thReady = Village.canUpgradeTownhall();
   const mairie = `<button class="vp vp-mairie${thReady ? ' vp-ready' : ''}" data-village-open="townhall">
       <span class="vp-badge">niv ${thLvl}</span>
-      <span class="vp-art">🏛️</span>
+      <span class="vp-art vp-tile">${buildingArtSVG('mairie', thLvl, 72)}</span>
       <span class="vp-name">Mairie</span>
       <span class="vp-sub smallcap">${Village.producersBuilt()}/${Village.buildingSlots()} emplacements${thReady ? ' · ⬆ prête' : ''}</span>
     </button>`;
@@ -1114,7 +1115,7 @@ function screenVillage() {
     if (lvl === 0) {
       const can = Village.canBuild(b.id);
       return `<button class="vp vp-empty${can ? ' vp-can' : ''}" data-village-open="${b.id}">
-        <span class="vp-art vp-ghost">${b.emoji}</span>
+        <span class="vp-art vp-tile vp-ghost">${buildingArtSVG(b.id, 1, 56)}</span>
         <span class="vp-name">${b.name}</span>
         <span class="vp-sub smallcap">${can ? '🔨 Construire' : 'Construire'}</span></button>`;
     }
@@ -1127,7 +1128,7 @@ function screenVillage() {
     const ready = Village.canBuild(b.id);
     return `<button class="vp vp-built${ready ? ' vp-ready' : ''}" data-village-open="${b.id}">
         <span class="vp-badge">niv ${lvl}</span>
-        <span class="vp-art">${b.emoji}</span>
+        <span class="vp-art vp-tile">${buildingArtSVG(b.id, lvl, 56)}</span>
         <span class="vp-name">${b.name}</span>
         ${activity}
       </button>`;
@@ -1152,7 +1153,7 @@ function ovVillageBuilding({ id } = {}) {
     const floorMet = Village.townhallFloorMet();
     const thCan = Village.canUpgradeTownhall();
     const inner = `<div class="vb-detail">
-        <div class="vb-art">🏛️</div>
+        <div class="vb-art vp-tile">${buildingArtSVG('mairie', thLvl, 96)}</div>
         <div class="vb-info">
           <div class="display">Mairie · niv ${thLvl}</div>
           <p class="smallcap">Plafonne le niveau des bâtiments (max ${thLvl}) et le nombre d'emplacements de production (${Village.producersBuilt()}/${Village.buildingSlots()}). Faire monter la Mairie ouvre les Âges et de nouveaux bâtiments.</p>
@@ -1184,7 +1185,7 @@ function ovVillageBuilding({ id } = {}) {
   else if (b.id === 'barracks') body = lvl ? `<div class="smallcap gold-text">Bonus permanent : +${lvl * 4}% dégâts · +${lvl * 4}% PV max</div>` : '';
   const btnLabel = lvl === 0 ? 'Construire' : (capped ? `Niveau max (Mairie ${Village.townhall()})` : `Améliorer → niv ${lvl + 1}`);
   const inner = `<div class="vb-detail">
-      <div class="vb-art">${b.emoji}</div>
+      <div class="vb-art vp-tile">${buildingArtSVG(b.id, lvl || 1, 96)}</div>
       <div class="vb-info">
         <div class="display">${b.name}${lvl ? ` · niv ${lvl}` : ''}</div>
         <p class="smallcap">${b.desc}</p>
