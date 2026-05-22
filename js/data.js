@@ -98,11 +98,11 @@ export const CHEST_TIERS = [
   { tier: 2,  name: 'Fer',        emoji: '🗃', weights: { common: 45, magic: 38, rare: 14, epic:  3, legendary:  0, ancestral:  0 }, upgradeCost: 1500 },
   { tier: 3,  name: 'Or',         emoji: '🏆', weights: { common: 20, magic: 35, rare: 30, epic: 12, legendary:  3, ancestral:  0 }, upgradeCost: 8000 },
   { tier: 4,  name: 'Mythique',   emoji: '🎁', weights: { common:  5, magic: 25, rare: 35, epic: 25, legendary:  9, ancestral:  1 }, upgradeCost: 40000 },
-  { tier: 5,  name: 'Ancestral',  emoji: '⚱',  weights: { common:  0, magic: 10, rare: 25, epic: 35, legendary: 20, ancestral: 10 }, upgradeCost: 250000 },
-  { tier: 6,  name: 'Stellaire',  emoji: '✨', weights: { common:  0, magic:  5, rare: 18, epic: 32, legendary: 28, ancestral: 17 }, upgradeCost: 1500000,   prestigeReq: 1 },
-  { tier: 7,  name: 'Cosmique',   emoji: '🌠', weights: { common:  0, magic:  0, rare: 12, epic: 28, legendary: 35, ancestral: 25 }, upgradeCost: 8000000,   prestigeReq: 2 },
-  { tier: 8,  name: 'Vide',       emoji: '🕳', weights: { common:  0, magic:  0, rare:  6, epic: 22, legendary: 38, ancestral: 34 }, upgradeCost: 40000000,  prestigeReq: 3 },
-  { tier: 9,  name: 'Primordial', emoji: '🌌', weights: { common:  0, magic:  0, rare:  2, epic: 15, legendary: 38, ancestral: 45 }, upgradeCost: 200000000, prestigeReq: 4 },
+  { tier: 5,  name: 'Ancestral',  emoji: '⚱',  weights: { common:  0, magic: 10, rare: 25, epic: 35, legendary: 20, ancestral: 10 }, upgradeCost: 200000 },
+  { tier: 6,  name: 'Stellaire',  emoji: '✨', weights: { common:  0, magic:  5, rare: 18, epic: 32, legendary: 28, ancestral: 17 }, upgradeCost: 900000,    prestigeReq: 1 },
+  { tier: 7,  name: 'Cosmique',   emoji: '🌠', weights: { common:  0, magic:  0, rare: 12, epic: 28, legendary: 35, ancestral: 25 }, upgradeCost: 4000000,   prestigeReq: 2 },
+  { tier: 8,  name: 'Vide',       emoji: '🕳', weights: { common:  0, magic:  0, rare:  6, epic: 22, legendary: 38, ancestral: 34 }, upgradeCost: 16000000,  prestigeReq: 3 },
+  { tier: 9,  name: 'Primordial', emoji: '🌌', weights: { common:  0, magic:  0, rare:  2, epic: 15, legendary: 38, ancestral: 45 }, upgradeCost: 64000000,  prestigeReq: 4 },
   { tier: 10, name: 'Divin',      emoji: '☀',  weights: { common:  0, magic:  0, rare:  0, epic:  8, legendary: 32, ancestral: 60 }, upgradeCost: null,      prestigeReq: 5 },
 ];
 
@@ -788,6 +788,12 @@ export const TIER_SCALE_K = 0.5;
 export function tierScale(chestTier) {
   return 1 + ((chestTier || 1) - 1) * TIER_SCALE_K;
 }
+
+// Crit chance is capped at 75% in combat, but 8 gear slots (each rolling crit on
+// affixes/parts/materials/elements) blow past the cap by tier 2, wasting the
+// stat. Scale gear-derived crit down so it becomes a real progression stat that
+// approaches the cap in the mid-late game. Tunable (lower = crit caps later).
+export const CRIT_GEAR_SCALE = 0.28;
 
 // === Reliques d'Ascension ===
 // À chaque ascension, le joueur choisit 1 relique parmi 3. Permanentes et

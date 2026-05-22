@@ -1,6 +1,6 @@
 // Character equipment management + stat computation.
 import { state, notify } from './state.js';
-import { SLOTS, POWER_WEIGHTS, SETS_BY_ID } from './data.js';
+import { SLOTS, POWER_WEIGHTS, SETS_BY_ID, CRIT_GEAR_SCALE } from './data.js';
 import { relicCritFlat, relicArmorFlat } from './relics.js';
 
 export function equipItem(item) {
@@ -57,8 +57,9 @@ export function computeStats() {
   for (const b of computeSetBonuses()) {
     total[b.stat] = (total[b.stat] || 0) + b.value;
   }
-  // Add ascension relic flat stats
-  total.crit = (total.crit || 0) + relicCritFlat();
+  // Scale down abundant gear crit (see CRIT_GEAR_SCALE), then add relic flat
+  // crit at full value on top.
+  total.crit = Math.round((total.crit || 0) * CRIT_GEAR_SCALE) + relicCritFlat();
   total.armor = (total.armor || 0) + relicArmorFlat();
   return total;
 }
