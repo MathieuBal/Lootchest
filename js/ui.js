@@ -1085,13 +1085,19 @@ function screenVillage() {
   const { wood, stone, metal } = Village.woodStone();
   const r = Village.rates();
   const age = Village.currentAge();
-  const resBar = `<div class="vlg-resbar">
-      <span class="vlg-age">${age.emoji} ${age.name}</span>
-      <span class="vlg-r" title="Bois">🪵 ${fmt(wood)} <em>+${r.wood.toFixed(0)}</em></span>
-      <span class="vlg-r" title="Pierre">🪨 ${fmt(stone)} <em>+${r.stone.toFixed(0)}</em></span>
-      <span class="vlg-r" title="Métal">⚙️ ${fmt(metal)} <em>+${r.metal.toFixed(1)}</em></span>
-      ${r.orbs > 0 ? `<span class="vlg-r" title="Orbes/min">🔮 <em>+${r.orbs.toFixed(2)}</em></span>` : ''}
-      <span class="vlg-r" title="Ouvriers">👷 ${Village.workersUsed()}/${Village.workerCap()}</span>
+  const banner = `<div class="vlg-banner">
+      <div class="vlg-banner-title">
+        <span class="vlg-crest">${age.emoji}</span>
+        <span><span class="display vlg-bn">Village</span>
+        <span class="smallcap vlg-bs">${age.name} · prospérité ${Village.prosperity()}</span></span>
+      </div>
+      <div class="vlg-resbar">
+        <span class="vlg-r" title="Bois">🪵 ${fmt(wood)}<em>+${r.wood.toFixed(0)}</em></span>
+        <span class="vlg-r" title="Pierre">🪨 ${fmt(stone)}<em>+${r.stone.toFixed(0)}</em></span>
+        <span class="vlg-r" title="Métal">⚙️ ${fmt(metal)}<em>+${r.metal.toFixed(1)}</em></span>
+        ${r.orbs > 0 ? `<span class="vlg-r" title="Orbes/min">🔮<em>+${r.orbs.toFixed(2)}</em></span>` : ''}
+        <span class="vlg-r" title="Ouvriers">👷 ${Village.workersUsed()}/${Village.workerCap()}</span>
+      </div>
     </div>`;
 
   // Town hall is the centerpiece plot.
@@ -1138,14 +1144,27 @@ function screenVillage() {
       </button>`;
   }).join('');
 
+  const fireflies = Array.from({ length: 7 }, (_, i) => `<span class="vlg-fly vlg-fly${i % 4}"></span>`).join('');
   return `<div class="vlg-screen">
-    ${resBar}
+    ${banner}
     <div class="vlg-scene">
-      <div class="vlg-scene-sky"></div>
-      <div class="vlg-mairie-row">${mairie}</div>
-      <div class="vlg-plots">${plots}</div>
+      <div class="vlg-sky">
+        <div class="vlg-sun"></div>
+        <div class="vlg-cloud vlg-cloud1"></div>
+        <div class="vlg-cloud vlg-cloud2"></div>
+        <div class="vlg-cloud vlg-cloud3"></div>
+      </div>
+      <svg class="vlg-hills" viewBox="0 0 100 20" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,20 L0,12 Q15,4 30,10 T60,8 T100,11 L100,20 Z" fill="#243a1c"/>
+        <path d="M0,20 L0,15 Q20,9 42,13 T80,12 T100,14 L100,20 Z" fill="#2f4a23"/>
+      </svg>
+      <div class="vlg-ground">
+        <div class="vlg-flies">${fireflies}</div>
+        <div class="vlg-mairie-row">${mairie}</div>
+        <div class="vlg-plots">${plots}</div>
+      </div>
     </div>
-    <p class="vlg-hint smallcap">Touche un bâtiment pour le gérer. Le donjon est ton robinet principal de ressources (kills & boss) ; les bâtiments produisent en continu, hors-ligne plafonné 8h.</p>
+    <p class="vlg-hint smallcap">Touche un bâtiment pour le gérer. Le donjon est ton robinet principal de ressources ; les bâtiments produisent en continu (hors-ligne plafonné 8h).</p>
   </div>`;
 }
 
