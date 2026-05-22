@@ -208,6 +208,8 @@ document.body.addEventListener('click', async (e) => {
   if (abBtn) { if (toggleAbility(abBtn.dataset.ability)) { soundClick(); notify(); } return; }
 
   // Village
+  const vopen = t.closest('[data-village-open]');
+  if (vopen) { UI.navOverlay('villageBuilding', { id: vopen.dataset.villageOpen }); soundClick(); return; }
   const vbuild = t.closest('[data-village-build]');
   if (vbuild && !vbuild.disabled) { if (buildOrUpgrade(vbuild.dataset.villageBuild)) { soundUpgrade(); } return; }
   if (t.closest('[data-village-townhall]')) { if (upgradeTownhall()) { soundUpgrade(); } return; }

@@ -178,11 +178,13 @@ que ta survie le permet.
 - **Record de profondeur** persistant. La plongée est un *run* : recharger
   la page l'abandonne (seul le record est gardé).
 
-### 🏛️ Village (gestion / idle) — MVP
-Couche de gestion qui donne un **puits durable** à l'or accumulé et **temporise**
-la progression. Production **hybride** : un filet passif continu (hors-ligne
-plafonné à 8h) + le **donjon comme robinet principal** (kills/boss lâchent
-🪵 bois et 🪨 pierre).
+### 🏰 Village (gestion / idle)
+**Onglet principal** (pas un sous-menu) : une **scène visuelle** où l'on voit
+le village grandir — chaque bâtiment est une parcelle qu'on touche pour la
+gérer (construire/améliorer, affecter les ouvriers, forger). Donne un **puits
+durable** à l'or accumulé et **temporise** la progression. Production
+**hybride** : un filet passif continu (hors-ligne plafonné à 8h) + le **donjon
+comme robinet principal** (kills/boss lâchent 🪵 bois et 🪨 pierre).
 
 - **🏛️ Mairie** : son niveau plafonne le niveau des bâtiments et le nombre
   d'emplacements. **Gated par le donjon** (améliorer la Mairie exige d'avoir
