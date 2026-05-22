@@ -21,12 +21,15 @@ export function relicTotals() {
   return t;
 }
 
-export function relicDamageMult()   { return Math.max(0.1, 1 + relicTotals().damagePct); }
-export function relicHpMult()       { return Math.max(0.2, 1 + relicTotals().hpPct); }
+// Stacked relics sum additively; cap the offensive multipliers so many
+// ascensions' worth of Berserker/Glasscannon/Elementalist can't re-create the
+// one-shot burst the combat rebalance removed.
+export function relicDamageMult()   { return Math.max(0.1, Math.min(4, 1 + relicTotals().damagePct)); }
+export function relicHpMult()       { return Math.max(0.2, Math.min(4, 1 + relicTotals().hpPct)); }
 export function relicDmgTakenMult() { return Math.max(0.1, 1 + relicTotals().dmgTakenPct); }
 export function relicGoldMult()     { return 1 + relicTotals().goldPct; }
 export function relicDropMult()     { return 1 + relicTotals().dropPct; }
-export function relicElemMult()     { return 1 + relicTotals().elemPct; }
+export function relicElemMult()     { return Math.min(2.5, 1 + relicTotals().elemPct); }
 export function relicCritFlat()     { return relicTotals().critFlat; }
 export function relicArmorFlat()    { return relicTotals().armorFlat; }
 export function relicLifesteal()    { return relicTotals().lifesteal; }

@@ -14,6 +14,7 @@ import { rollLegendaryEffect } from './legendaryEffects.js';
 import { rareDropMultiplier, pityReduction } from './talents.js';
 import { relicDropMult } from './relics.js';
 import { trackProgress as bountyTrack } from './bounties.js';
+import { villageRareMult } from './village.js';
 
 let _id = 0;
 function nextId() { return `it_${Date.now().toString(36)}_${(_id++).toString(36)}`; }
@@ -40,7 +41,7 @@ function pickRandom(arr) {
 export function rollRarity(chestTier) {
   const tier = CHEST_TIERS.find(t => t.tier === chestTier);
   const prestigeLevel = state.prestige?.level || 0;
-  const rareMult = prestigeRareMult(prestigeLevel) * rareDropMultiplier() * relicDropMult();
+  const rareMult = prestigeRareMult(prestigeLevel) * rareDropMultiplier() * relicDropMult() * villageRareMult();
   const rarePlusSet = new Set(['rare', 'epic', 'legendary', 'ancestral']);
   const entries = Object.entries(tier.weights)
     .filter(([_, w]) => w > 0)

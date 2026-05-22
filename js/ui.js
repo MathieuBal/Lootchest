@@ -24,7 +24,8 @@ import { SKILLS, getActiveSkills } from './skills.js';
 import { ABILITIES, ABILITY_SLOTS, getLoadout, isSlotted, isAbilityUnlocked } from './abilities.js';
 import { canDive, getSession, DIVE_BOON_BY_ID } from './dive.js';
 import * as Village from './village.js';
-import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
+import { buildingArtSVG } from './villageArt.js';
+import { rerollCost as bountyRerollCost } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
 import { MATERIALS } from './materials.js';
@@ -186,6 +187,7 @@ const nav = { tab: 'hub', overlay: null, params: {} };
 const TABS = [
   { id: 'hub', icon: '📦', label: 'Coffre' },
   { id: 'dungeon', icon: '⚔', label: 'Donjon' },
+  { id: 'village', icon: '🏰', label: 'Village' },
   { id: 'inventory', icon: '🎒', label: 'Sac' },
   { id: 'forge', icon: '⚒', label: 'Forge' },
   { id: 'meta', icon: '🛡', label: 'Héros' },
@@ -305,6 +307,7 @@ function railNav() {
 const SCREENS = {
   hub: screenHub,
   dungeon: screenDungeon,
+  village: screenVillage,
   inventory: screenInventory,
   forge: screenForge,
   meta: screenMeta,
@@ -588,7 +591,6 @@ function screenMeta() {
     { ov: 'talents', icon: '🌳', name: 'Talents', sub: tp ? `${tp} point${tp > 1 ? 's' : ''} dispo` : 'Arbre de talents' },
     { ov: 'skills', icon: '📜', name: 'Compétences', sub: `${skills}/${SKILLS.length} actives` },
     { ov: 'abilities', icon: '✦', name: 'Capacités', sub: `${getLoadout().length}/${ABILITY_SLOTS} équipées` },
-    { ov: 'village', icon: '🏛️', name: 'Village', sub: `Mairie niv ${Village.townhall()}` },
     { ov: 'contracts', icon: '📋', name: 'Contrats', sub: `${(state.bounties?.active || []).length} actifs` },
     { ov: 'codex', icon: '📖', name: 'Codex', sub: 'Découvertes' },
     { ov: 'achievements', icon: '🏆', name: 'Succès', sub: `${ap.unlocked}/${ap.total}` },
@@ -775,7 +777,7 @@ const OVERLAYS = {
   abilities: ovAbilities,
   diveBoon: ovDiveBoon,
   diveSummary: ovDiveSummary,
-  village: ovVillage,
+  villageBuilding: ovVillageBuilding,
   contracts: ovContracts,
   codex: ovCodex,
   achievements: ovAchievements,
@@ -1069,69 +1071,158 @@ function costStr(c) {
   if (c.gold) bits.push(`💰 ${fmt(c.gold)}`);
   return bits.join(' · ') || '—';
 }
-function ovVillage() {
+// Visual building-dot row (filled = worker present).
+function workerDots(id) {
+  const max = Village.maxWorkersOn(id), on = Village.workersOn(id);
+  if (max <= 0) return '';
+  let s = '';
+  for (let i = 0; i < max; i++) s += `<span class="vp-dot${i < on ? ' on' : ''}"></span>`;
+  return `<span class="vp-dots">${s}</span>`;
+}
+
+// ── Village = a visual scene (prominent top-level tab) ───────
+function screenVillage() {
   const { wood, stone, metal } = Village.woodStone();
   const r = Village.rates();
   const age = Village.currentAge();
+  const banner = `<div class="vlg-banner">
+      <div class="vlg-banner-title">
+        <span class="vlg-crest">${age.emoji}</span>
+        <span><span class="display vlg-bn">Village</span>
+        <span class="smallcap vlg-bs">${age.name} · prospérité ${Village.prosperity()}</span></span>
+      </div>
+      <div class="vlg-resbar">
+        <span class="vlg-r" title="Bois">🪵 ${fmt(wood)}<em>+${r.wood.toFixed(0)}</em></span>
+        <span class="vlg-r" title="Pierre">🪨 ${fmt(stone)}<em>+${r.stone.toFixed(0)}</em></span>
+        <span class="vlg-r" title="Métal">⚙️ ${fmt(metal)}<em>+${r.metal.toFixed(1)}</em></span>
+        ${r.orbs > 0 ? `<span class="vlg-r" title="Orbes/min">🔮<em>+${r.orbs.toFixed(2)}</em></span>` : ''}
+        <span class="vlg-r" title="Ouvriers">👷 ${Village.workersUsed()}/${Village.workerCap()}</span>
+      </div>
+    </div>`;
+
+  // Town hall is the centerpiece plot.
   const thLvl = Village.townhall();
-  const thCost = Village.townhallCost();
-  const floorMet = Village.townhallFloorMet();
-  const thCan = Village.canUpgradeTownhall();
-  const header = `<div class="vlg-res">
-      <span>${age.emoji} <span class="smallcap">${age.name}</span></span>
-      <span>🪵 ${fmt(wood)} <span class="smallcap">+${(r.wood).toFixed(0)}</span></span>
-      <span>🪨 ${fmt(stone)} <span class="smallcap">+${(r.stone).toFixed(0)}</span></span>
-      <span>⚙️ ${fmt(metal)} <span class="smallcap">+${(r.metal).toFixed(1)}</span></span>
-      ${r.orbs > 0 ? `<span>🔮 <span class="smallcap">+${(r.orbs).toFixed(2)}/min</span></span>` : ''}
-      <span>👷 ${Village.workersUsed()}/${Village.workerCap()}</span>
-    </div>`;
-  const townhall = `<div class="vlg-card vlg-townhall">
-      <div class="vlg-b-head"><span class="vlg-emoji">🏛️</span>
-        <div><div class="vlg-name">Mairie · niv ${thLvl}</div>
-          <div class="smallcap">Plafonne les bâtiments à niv ${thLvl} · ${Village.producersBuilt()}/${Village.buildingSlots()} emplacements</div></div></div>
-      <div class="smallcap">Améliorer → niv ${thLvl + 1} : ${costStr(thCost)}</div>
-      <div class="smallcap ${floorMet ? 'gold-text' : 'vlg-locked'}">${floorMet ? '✓' : '🔒'} requiert étage ${Village.townhallFloorReq()}</div>
-      <button class="btn-gold" data-village-townhall ${thCan ? '' : 'disabled'}>Améliorer la Mairie</button>
-    </div>`;
-  const cards = Village.BUILDINGS.map(b => {
+  const thReady = Village.canUpgradeTownhall();
+  const mairie = `<button class="vp vp-mairie${thReady ? ' vp-ready' : ''}" data-village-open="townhall">
+      <span class="vp-badge">niv ${thLvl}</span>
+      <span class="vp-art vp-tile">${buildingArtSVG('mairie', thLvl, 72)}</span>
+      <span class="vp-name">Mairie</span>
+      <span class="vp-sub smallcap">${Village.producersBuilt()}/${Village.buildingSlots()} emplacements${thReady ? ' · ⬆ prête' : ''}</span>
+    </button>`;
+
+  const plots = Village.BUILDINGS.map(b => {
     const lvl = Village.levelOf(b.id);
     const unlocked = Village.isUnlocked(b.id);
     if (!unlocked) {
-      return `<div class="vlg-card vlg-unbuilt">
-        <div class="vlg-b-head"><span class="vlg-emoji">${b.emoji}</span>
-          <div><div class="vlg-name">${b.name}</div><div class="vlg-desc smallcap">${b.desc}</div></div></div>
-        <div class="smallcap vlg-locked">🔒 Débloqué à la Mairie niv ${b.townhallReq}</div>
-      </div>`;
+      return `<div class="vp vp-locked" title="Mairie niv ${b.townhallReq}">
+        <span class="vp-art">🔒</span><span class="vp-name">${b.name}</span>
+        <span class="vp-sub smallcap">Mairie niv ${b.townhallReq}</span></div>`;
     }
-    const cost = Village.buildCost(b.id);
-    const can = Village.canBuild(b.id);
-    const capped = lvl >= Village.maxBuildingLevel();
-    let prod = '';
-    if (b.kind === 'houses') prod = `<div class="smallcap">Ouvriers : ${Village.workerCap()}</div>`;
-    else if (b.kind === 'producer') { const rn = Village.ratePerMin(b.id); prod = `<div class="smallcap">Production : ${rn ? `+${rn.toFixed(1)}/min` : '0 (assigne des ouvriers)'}</div>`; }
-    else if (b.id === 'forge') prod = lvl ? `<div class="smallcap">Tier de craft : ${Village.maxCraftTier()} · rareté max : ${RARITIES[Village.maxCraftRarityIndex()]?.name || '—'}</div>` : '';
-    else if (b.id === 'barracks') prod = lvl ? `<div class="smallcap gold-text">+${lvl * 4}% dégâts · +${lvl * 4}% PV (permanent)</div>` : '';
-    const workerRow = b.kind === 'producer' && lvl > 0 ? `<div class="vlg-workers">
-        <span class="smallcap">👷 ${Village.workersOn(b.id)}/${Village.maxWorkersOn(b.id)}</span>
+    if (lvl === 0) {
+      const can = Village.canBuild(b.id);
+      return `<button class="vp vp-empty${can ? ' vp-can' : ''}" data-village-open="${b.id}">
+        <span class="vp-art vp-tile vp-ghost">${buildingArtSVG(b.id, 1, 56)}</span>
+        <span class="vp-name">${b.name}</span>
+        <span class="vp-sub smallcap">${can ? '🔨 Construire' : 'Construire'}</span></button>`;
+    }
+    // Built: show activity at a glance.
+    let activity = '';
+    if (b.kind === 'producer') { const rn = Village.ratePerMin(b.id); activity = `${workerDots(b.id)}<span class="vp-sub smallcap">${rn ? `+${rn.toFixed(1)}/min` : '⚠ sans ouvrier'}</span>`; }
+    else if (b.kind === 'houses') activity = `<span class="vp-sub smallcap">👷 ${Village.workerCap()} ouvriers</span>`;
+    else if (b.id === 'forge') activity = `<span class="vp-sub smallcap">⚒️ tier ${Village.maxCraftTier()}</span>`;
+    else if (b.id === 'barracks') activity = `<span class="vp-sub smallcap gold-text">+${lvl * 4}% dmg/PV</span>`;
+    else if (b.id === 'market') activity = `<span class="vp-sub smallcap gold-text">+${lvl * 6}% vente</span>`;
+    else if (b.id === 'guild') activity = `<span class="vp-sub smallcap gold-text">+${lvl} contrat</span>`;
+    else if (b.id === 'vault') activity = `<span class="vp-sub smallcap gold-text">+${lvl * 5}% or</span>`;
+    else if (b.id === 'observatory') activity = `<span class="vp-sub smallcap gold-text">+${lvl * 3}% rares</span>`;
+    const ready = Village.canBuild(b.id);
+    return `<button class="vp vp-built${ready ? ' vp-ready' : ''}" data-village-open="${b.id}">
+        <span class="vp-badge">niv ${lvl}</span>
+        <span class="vp-art vp-tile">${buildingArtSVG(b.id, lvl, 56)}</span>
+        <span class="vp-name">${b.name}</span>
+        ${activity}
+      </button>`;
+  }).join('');
+
+  const fireflies = Array.from({ length: 7 }, (_, i) => `<span class="vlg-fly vlg-fly${i % 4}"></span>`).join('');
+  return `<div class="vlg-screen">
+    ${banner}
+    <div class="vlg-scene">
+      <div class="vlg-sky">
+        <div class="vlg-sun"></div>
+        <div class="vlg-cloud vlg-cloud1"></div>
+        <div class="vlg-cloud vlg-cloud2"></div>
+        <div class="vlg-cloud vlg-cloud3"></div>
+      </div>
+      <svg class="vlg-hills" viewBox="0 0 100 20" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,20 L0,12 Q15,4 30,10 T60,8 T100,11 L100,20 Z" fill="#243a1c"/>
+        <path d="M0,20 L0,15 Q20,9 42,13 T80,12 T100,14 L100,20 Z" fill="#2f4a23"/>
+      </svg>
+      <div class="vlg-ground">
+        <div class="vlg-flies">${fireflies}</div>
+        <div class="vlg-mairie-row">${mairie}</div>
+        <div class="vlg-plots">${plots}</div>
+      </div>
+    </div>
+    <p class="vlg-hint smallcap">Touche un bâtiment pour le gérer. Le donjon est ton robinet principal de ressources ; les bâtiments produisent en continu (hors-ligne plafonné 8h).</p>
+  </div>`;
+}
+
+// Contextual per-building management (replaces the old monolithic table).
+function ovVillageBuilding({ id } = {}) {
+  if (id === 'townhall') {
+    const thLvl = Village.townhall();
+    const thCost = Village.townhallCost();
+    const floorMet = Village.townhallFloorMet();
+    const thCan = Village.canUpgradeTownhall();
+    const inner = `<div class="vb-detail">
+        <div class="vb-art vp-tile">${buildingArtSVG('mairie', thLvl, 96)}</div>
+        <div class="vb-info">
+          <div class="display">Mairie · niv ${thLvl}</div>
+          <p class="smallcap">Plafonne le niveau des bâtiments (max ${thLvl}) et le nombre d'emplacements de production (${Village.producersBuilt()}/${Village.buildingSlots()}). Faire monter la Mairie ouvre les Âges et de nouveaux bâtiments.</p>
+          <div class="smallcap">Améliorer → niv ${thLvl + 1} : ${costStr(thCost)}</div>
+          <div class="smallcap ${floorMet ? 'gold-text' : 'vlg-locked'}">${floorMet ? '✓ étage atteint' : '🔒'} requiert d'avoir débloqué l'étage ${Village.townhallFloorReq()}</div>
+          <button class="btn-gold" data-village-townhall ${thCan ? '' : 'disabled'}>Améliorer la Mairie</button>
+        </div>
+      </div>`;
+    return overlayShell('🏛️ Mairie', inner);
+  }
+  const b = Village.BUILDING_BY_ID[id];
+  if (!b) return overlayShell('Village', '<p>Bâtiment inconnu.</p>');
+  const lvl = Village.levelOf(b.id);
+  const can = Village.canBuild(b.id);
+  const capped = lvl >= Village.maxBuildingLevel();
+  const cost = Village.buildCost(b.id);
+  let body = '';
+  if (b.kind === 'houses') body = `<div class="smallcap">Capacité d'ouvriers : <b>${Village.workerCap()}</b> (+3 par niveau).</div>`;
+  else if (b.kind === 'producer') {
+    const rn = Village.ratePerMin(b.id);
+    body = `<div class="smallcap">Production : <b>${rn ? `+${rn.toFixed(1)}/min` : '0'}</b> ${rn ? '' : '— assigne des ouvriers'}</div>
+      ${lvl > 0 ? `<div class="vlg-workers">
+        <span class="smallcap">👷 ${Village.workersOn(b.id)}/${Village.maxWorkersOn(b.id)} ouvriers</span>
         <button class="vlg-wbtn" data-village-assign="${b.id}" data-delta="-1" ${Village.canUnassign(b.id) ? '' : 'disabled'}>−</button>
         <button class="vlg-wbtn" data-village-assign="${b.id}" data-delta="1" ${Village.canAssign(b.id) ? '' : 'disabled'}>+</button>
-      </div>` : '';
-    const btnLabel = lvl === 0 ? 'Construire' : (capped ? `Niv max (Mairie ${Village.townhall()})` : `Améliorer → niv ${lvl + 1}`);
-    return `<div class="vlg-card${lvl === 0 ? ' vlg-unbuilt' : ''}">
-      <div class="vlg-b-head"><span class="vlg-emoji">${b.emoji}</span>
-        <div><div class="vlg-name">${b.name}${lvl ? ` · niv ${lvl}` : ''}</div><div class="vlg-desc smallcap">${b.desc}</div></div></div>
-      ${prod}
-      ${workerRow}
-      <div class="smallcap">${capped ? '' : 'Coût : ' + costStr(cost)}</div>
-      <button class="btn-ghost" data-village-build="${b.id}" ${can ? '' : 'disabled'}>${btnLabel}</button>
-    </div>`;
-  }).join('');
-  const inner = `${header}
-    <p class="smallcap">Le donjon alimente surtout tes ressources (kills/boss). Les bâtiments produisent en continu (hors-ligne plafonné 8h). Affecte tes ouvriers — chaque bâtiment en emploie au plus son niveau.</p>
-    ${townhall}
-    <div class="vlg-grid">${cards}</div>
-    ${forgeCraftPanel()}`;
-  return overlayShell('🏛️ Village', inner, { wide: true });
+        <span class="smallcap">(${Village.workersFree()} libre${Village.workersFree() > 1 ? 's' : ''})</span>
+      </div>` : ''}`;
+  } else if (b.id === 'forge') body = lvl ? `<div class="smallcap">Tier de craft : <b>${Village.maxCraftTier()}</b> · rareté max : <b>${RARITIES[Village.maxCraftRarityIndex()]?.name || '—'}</b></div>` : '';
+  else if (b.id === 'barracks') body = lvl ? `<div class="smallcap gold-text">Bonus permanent : +${lvl * 4}% dégâts · +${lvl * 4}% PV max</div>` : '';
+  else if (b.id === 'market') body = lvl ? `<div class="smallcap gold-text">+${lvl * 6}% prix de vente · vente auto débloquée gratuitement</div>` : '';
+  else if (b.id === 'guild') body = lvl ? `<div class="smallcap gold-text">+${lvl} contrat actif · relance −${lvl * 15}%</div>` : '';
+  else if (b.id === 'vault') body = lvl ? `<div class="smallcap gold-text">+${lvl * 5}% d'or gagné en donjon</div>` : '';
+  else if (b.id === 'observatory') body = lvl ? `<div class="smallcap gold-text">+${lvl * 3}% de chance d'objets rares+</div>` : '';
+  const btnLabel = lvl === 0 ? 'Construire' : (capped ? `Niveau max (Mairie ${Village.townhall()})` : `Améliorer → niv ${lvl + 1}`);
+  const inner = `<div class="vb-detail">
+      <div class="vb-art vp-tile">${buildingArtSVG(b.id, lvl || 1, 96)}</div>
+      <div class="vb-info">
+        <div class="display">${b.name}${lvl ? ` · niv ${lvl}` : ''}</div>
+        <p class="smallcap">${b.desc}</p>
+        ${body}
+        ${capped ? '' : `<div class="smallcap">Coût : ${costStr(cost)}</div>`}
+        <button class="btn-gold" data-village-build="${b.id}" ${can ? '' : 'disabled'}>${btnLabel}</button>
+      </div>
+    </div>
+    ${b.id === 'forge' && lvl > 0 ? forgeCraftPanel() : ''}`;
+  return overlayShell(`${b.emoji} ${b.name}`, inner);
 }
 
 // Forge crafting panel — pick rarity (capped by forge level) + a slot to craft.
@@ -1162,7 +1253,7 @@ function ovContracts() {
     const chips = [`<span class="chip" style="--c:var(--cur-gold)">💰 ${fmt(b.reward.gold)}</span>`];
     for (const [oid, q] of Object.entries(b.reward.orbs || {})) { const o = CURRENCY_BY_ID[oid]; if (o) chips.push(`<span class="chip" style="--c:${o.color}">${o.emoji}×${q}</span>`); }
     if (b.reward.talents) chips.push(`<span class="chip" style="--c:#6acc6a">🌳×${b.reward.talents}</span>`);
-    const canReroll = (state.gold || 0) >= BOUNTY_REROLL_COST && !b.completed;
+    const canReroll = (state.gold || 0) >= bountyRerollCost() && !b.completed;
     return `<div class="contract panel${ready ? ' ready pulse-gold' : ''}" style="border-color:${b.diffColor}">
       <div class="contract-top"><span class="contract-emoji">${b.emoji}</span>
         <div><div class="contract-name" style="color:${b.diffColor}">${b.name}</div><div class="contract-desc smallcap">${b.desc}</div></div>

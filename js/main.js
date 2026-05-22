@@ -18,8 +18,9 @@ import { canAscend, ascend } from './prestige.js';
 import { chooseRelic } from './relics.js';
 import { toggleAbility } from './abilities.js';
 import {
-  accruePassive, grantDungeonResources, buildOrUpgrade, upgradeTownhall, assignWorker, craftForge,
+  accruePassive, grantDungeonResources, buildOrUpgrade, upgradeTownhall, assignWorker, commitCraft,
 } from './village.js';
+import { craftItem } from './loot.js';
 import {
   unlockAudio, toggleMuted, isMuted, setMuted,
   soundChestOpen, soundDrop, soundCoin, soundHit, soundCrit,
@@ -208,6 +209,8 @@ document.body.addEventListener('click', async (e) => {
   if (abBtn) { if (toggleAbility(abBtn.dataset.ability)) { soundClick(); notify(); } return; }
 
   // Village
+  const vopen = t.closest('[data-village-open]');
+  if (vopen) { UI.navOverlay('villageBuilding', { id: vopen.dataset.villageOpen }); soundClick(); return; }
   const vbuild = t.closest('[data-village-build]');
   if (vbuild && !vbuild.disabled) { if (buildOrUpgrade(vbuild.dataset.villageBuild)) { soundUpgrade(); } return; }
   if (t.closest('[data-village-townhall]')) { if (upgradeTownhall()) { soundUpgrade(); } return; }
@@ -216,8 +219,9 @@ document.body.addEventListener('click', async (e) => {
   if (t.closest('[data-village-craft-rarity]')) { UI.setForgeCraftRarity(t.closest('[data-village-craft-rarity]').dataset.villageCraftRarity); soundClick(); return; }
   const vcraft = t.closest('[data-village-craft]');
   if (vcraft && !vcraft.disabled) {
-    const item = craftForge(vcraft.dataset.villageCraft, UI.getForgeCraftRarity());
-    if (item) { soundForge(); UI.showDropPopup(item); }
+    const slot = vcraft.dataset.villageCraft, rarity = UI.getForgeCraftRarity();
+    const tier = commitCraft(slot, rarity);
+    if (tier) { soundForge(); UI.showDropPopup(craftItem(slot, tier, rarity)); }
     return;
   }
 

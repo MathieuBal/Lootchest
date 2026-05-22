@@ -3,9 +3,10 @@ import { state, notify } from './state.js';
 import { AUTOSELL_UNLOCK_COSTS, prestigeGoldMult } from './data.js';
 import { sellMultiplier, shardBonus } from './talents.js';
 import { trackProgress as bountyTrack } from './bounties.js';
+import { villageSellMult, marketUnlocksAutoSell } from './village.js';
 
 function sellPrice(item, goldFindBonus) {
-  return Math.round(item.goldValue * (1 + goldFindBonus / 100) * prestigeGoldMult(state.prestige?.level) * sellMultiplier());
+  return Math.round(item.goldValue * (1 + goldFindBonus / 100) * prestigeGoldMult(state.prestige?.level) * sellMultiplier() * villageSellMult());
 }
 
 export function addToInventory(item) {
@@ -98,8 +99,10 @@ export function unlockAutoSell(rarityId) {
   const cost = AUTOSELL_UNLOCK_COSTS[rarityId];
   if (cost === null || cost === undefined) return false;
   if (state.autoSell[rarityId].unlocked) return false;
-  if (state.gold < cost) return false;
-  state.gold -= cost;
+  // The Marché (village) unlocks auto-sell for free.
+  const free = marketUnlocksAutoSell();
+  if (!free && state.gold < cost) return false;
+  if (!free) state.gold -= cost;
   state.autoSell[rarityId].unlocked = true;
   state.autoSell[rarityId].on = true;
   notify();
