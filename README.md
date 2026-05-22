@@ -189,10 +189,18 @@ comme robinet principal** (kills/boss lâchent 🪵 bois et 🪨 pierre).
 - **🏛️ Mairie** : son niveau plafonne le niveau des bâtiments et le nombre
   d'emplacements. **Gated par le donjon** (améliorer la Mairie exige d'avoir
   atteint l'étage `niveau × 5`) → le perso et le village montent ensemble.
-- **🏠 Maisons** → ouvriers (+3/niveau). **🪓 Scierie** → bois. **⛏️ Carrière**
-  → pierre. **🗝️ Serrurerie** → clés. **🏭 Fonderie** → ⚙️ métal.
-  **🔮 Atelier d'orbes** → orbes de forge. **⚔️ Caserne** → +4% dégâts & PV
-  par niveau (permanent, le village renforce le perso).
+**Production** : **🏠 Maisons** → ouvriers (+3/niv) · **🪓 Scierie** → bois ·
+**⛏️ Carrière** → pierre · **🗝️ Serrurerie** → clés · **🏭 Fonderie** → ⚙️ métal ·
+**🔮 Atelier d'orbes** → orbes de forge.
+
+**Confort & bonus** (le village renforce le reste du jeu) : **⚔️ Caserne**
++4% dégâts & PV/niv · **🏪 Marché** +6% prix de vente/niv + vente auto
+gratuite · **🔭 Observatoire** +3% objets rares+/niv · **📜 Guilde** +1 contrat
+& −15% relance/niv · **🏦 Trésorerie** +5% d'or de donjon/niv · **⚒️ Forge**
+craft d'objets au choix.
+
+La scène est **visuelle** (ciel/soleil/nuages, collines, sol herbeux, lucioles,
+bâtiments illustrés sur tuiles iso) — un onglet central, pas un menu.
 - **👷 Ouvriers limités** à affecter : chaque bâtiment en emploie au plus son
   niveau → on **spécialise** (le goulot d'allocation).
 - Coûts géométriques (bois/pierre/⚙️ métal/or) → l'or et les ressources
