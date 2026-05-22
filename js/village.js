@@ -25,7 +25,7 @@ export const BUILDINGS = [
     desc: 'Produit du bois (par ouvrier/min).' },
   { id: 'quarry',    emoji: '⛏️', name: 'Carrière',   kind: 'producer', townhallReq: 1, produces: 'stone', perWorker: 3,
     desc: 'Produit de la pierre (par ouvrier/min).' },
-  { id: 'locksmith', emoji: '🗝️', name: 'Serrurerie', kind: 'producer', townhallReq: 2, produces: 'keys',  perWorker: 0.5,
+  { id: 'locksmith', emoji: '🗝️', name: 'Serrurerie', kind: 'producer', townhallReq: 2, produces: 'keys',  perWorker: 0.1,
     desc: 'Forge des clés de coffre (par ouvrier/min).' },
   { id: 'forge',     emoji: '⚒️', name: 'Forge',      kind: 'station',  townhallReq: 3, perWorker: 0,
     desc: 'Forge tes propres armes & armures (niveau = tier max).' },
@@ -33,7 +33,7 @@ export const BUILDINGS = [
     desc: '+4% dégâts & +4% PV max par niveau (permanent).' },
   { id: 'foundry',   emoji: '🏭', name: 'Fonderie',   kind: 'producer', townhallReq: 5, produces: 'metal', perWorker: 2,
     desc: 'Produit du métal (par ouvrier/min).' },
-  { id: 'orbworks',  emoji: '🔮', name: "Atelier d'orbes", kind: 'producer', townhallReq: 6, produces: 'orbs', perWorker: 0.3,
+  { id: 'orbworks',  emoji: '🔮', name: "Atelier d'orbes", kind: 'producer', townhallReq: 6, produces: 'orbs', perWorker: 0.15,
     desc: 'Produit des orbes de forge (par ouvrier/min).' },
 ];
 export const BUILDING_BY_ID = Object.fromEntries(BUILDINGS.map(b => [b.id, b]));
@@ -76,14 +76,18 @@ export function buildCost(id) {
   const lvl = levelOf(id);
   const k = Math.pow(1.7, lvl);
   const g = (base, r) => Math.round(base * Math.pow(r, lvl));
+  // Metal is only required from level 4→5 onward (which needs town hall 5, i.e.
+  // the Foundry, the only metal source) so buildings that unlock earlier (Forge
+  // TH3, Caserne TH4) are never blocked waiting for a metal source.
+  const m = (per) => (lvl >= 4 ? Math.round(per * lvl * k / 1.7) : 0);
   if (id === 'houses')    return { wood: Math.round(40 * k), stone: Math.round(20 * k), metal: 0, gold: g(150, 2.1) };
   if (id === 'sawmill')   return { wood: Math.round(25 * k), stone: Math.round(35 * k), metal: 0, gold: g(120, 2.1) };
   if (id === 'quarry')    return { wood: Math.round(40 * k), stone: Math.round(20 * k), metal: 0, gold: g(120, 2.1) };
   if (id === 'locksmith') return { wood: Math.round(60 * k), stone: Math.round(60 * k), metal: 0, gold: g(400, 2.2) };
-  if (id === 'forge')     return { wood: Math.round(80 * k), stone: Math.round(120 * k), metal: Math.round(20 * Math.max(0, lvl) * k / 1.7), gold: g(800, 2.3) };
-  if (id === 'barracks')  return { wood: Math.round(90 * k), stone: Math.round(110 * k), metal: Math.round(15 * Math.max(0, lvl) * k / 1.7), gold: g(700, 2.3) };
+  if (id === 'forge')     return { wood: Math.round(80 * k), stone: Math.round(120 * k), metal: m(20), gold: g(800, 2.3) };
+  if (id === 'barracks')  return { wood: Math.round(90 * k), stone: Math.round(110 * k), metal: m(15), gold: g(700, 2.3) };
   if (id === 'foundry')   return { wood: Math.round(100 * k), stone: Math.round(140 * k), metal: 0, gold: g(1000, 2.3) };
-  if (id === 'orbworks')  return { wood: Math.round(120 * k), stone: Math.round(120 * k), metal: Math.round(30 * Math.max(0, lvl) * k / 1.7), gold: g(1500, 2.4) };
+  if (id === 'orbworks')  return { wood: Math.round(120 * k), stone: Math.round(120 * k), metal: m(30), gold: g(1500, 2.4) };
   return { wood: 0, stone: 0, metal: 0, gold: 0 };
 }
 
@@ -248,7 +252,8 @@ export function craftCost(tier, rarityId) {
   return {
     wood:  Math.round(40 * t * rm),
     stone: Math.round(40 * t * rm),
-    metal: Math.round(12 * t * rm),
+    // Metal only from tier 5+ (needs Forge lvl 5 → town hall 5 → Foundry).
+    metal: t >= 5 ? Math.round(12 * t * rm) : 0,
     gold:  Math.round(250 * t * rm * rm),
   };
 }
