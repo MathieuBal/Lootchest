@@ -165,10 +165,40 @@ function observatory(lvl) {
     <path d="M24,30 h16" stroke="${PAL.stoneSh}" stroke-width="1"/>`;
 }
 
-const ART = { mairie, townhall: mairie, houses, sawmill, quarry, market, locksmith, forge, observatory, barracks, guild, foundry, vault, orbworks };
+function sanctuary(lvl) {
+  return `${shadow}
+    <rect x="24" y="32" width="16" height="22" fill="#cfc2e6"/>
+    <polygon points="22,32 32,18 42,32" fill="#a48fd0"/>
+    <rect x="18" y="50" width="28" height="4" fill="#b3a4d6"/>
+    <circle cx="20" cy="40" r="3" fill="#8f78c4"/>
+    <circle cx="44" cy="40" r="3" fill="#8f78c4"/>
+    ${windows(29, 38, 1, lvl)}
+    <polygon class="vart-orb" points="32,8 35,14 32,20 29,14" fill="#c79bff"/>
+    <circle cx="32" cy="14" r="6" fill="none" stroke="#e3cbff" stroke-width="0.8" opacity=".7"/>`;
+}
+
+const ART = { mairie, townhall: mairie, houses, sawmill, quarry, market, locksmith, forge, observatory, barracks, guild, foundry, vault, orbworks, sanctuary };
+
+// Level-driven embellishments layered on top of every building so upgrades are
+// visible at a glance: a string of pennants (1 per level, capped), a gold
+// roof-trim from level 3, and a prestige glow from level 6.
+function levelDecor(lvl) {
+  if (lvl < 2) return '';
+  let s = '';
+  if (lvl >= 3) s += `<line x1="8" y1="29" x2="56" y2="29" stroke="${PAL.gold}" stroke-width="1" opacity="${lvl >= 6 ? 0.9 : 0.55}"/>`;
+  const flags = Math.min(6, lvl);
+  const cols = ['#e35d5d', '#5db0e3', '#e3c75d', '#7ad06a', '#c98ae3', '#e39a5d'];
+  for (let i = 0; i < flags; i++) {
+    const x = 11 + i * 7.2;
+    s += `<polygon points="${x},6 ${x + 5},8 ${x},10" fill="${cols[i % cols.length]}"/><line x1="${x}" y1="6" x2="${x}" y2="10" stroke="${PAL.woodDk}" stroke-width="0.6"/>`;
+  }
+  s = `<line x1="10" y1="6" x2="${10 + (flags - 1) * 7.2 + 1}" y2="6" stroke="${PAL.woodDk}" stroke-width="0.6"/>` + s;
+  return s;
+}
 
 export function buildingArtSVG(id, level = 1, size = 56) {
   const fn = ART[id];
   if (!fn) return '';
-  return `<svg class="vart" viewBox="0 0 64 64" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">${fn(level)}</svg>`;
+  const glow = level >= 6 ? ' vart-prestige' : '';
+  return `<svg class="vart${glow}" viewBox="0 0 64 64" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">${fn(level)}${levelDecor(level)}</svg>`;
 }

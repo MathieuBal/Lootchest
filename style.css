@@ -666,6 +666,7 @@ input, select { font-family: inherit; }
 .vart-spin { transform-box: view-box; animation: vart-spin 5s linear infinite; }
 .vart-orb { transform-box: fill-box; transform-origin: center; animation: vart-orb 2.6s ease-in-out infinite;
   filter: drop-shadow(0 0 4px var(--orb, #7ad0ff)); }
+.vart-prestige { filter: drop-shadow(0 0 5px rgba(240,196,99,.65)); }
 @keyframes vp-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 @keyframes vart-flag { 0%, 100% { transform: skewX(0) scaleX(1); } 50% { transform: skewX(-10deg) scaleX(.88); } }
 @keyframes vart-smoke { 0% { transform: translateY(0) scale(.6); opacity: .55; } 100% { transform: translateY(-16px) scale(1.4); opacity: 0; } }

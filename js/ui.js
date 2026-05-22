@@ -1068,6 +1068,7 @@ function costStr(c) {
   if (c.wood) bits.push(`🪵 ${fmt(c.wood)}`);
   if (c.stone) bits.push(`🪨 ${fmt(c.stone)}`);
   if (c.metal) bits.push(`⚙️ ${fmt(c.metal)}`);
+  if (c.essence) bits.push(`💠 ${fmt(c.essence)}`);
   if (c.gold) bits.push(`💰 ${fmt(c.gold)}`);
   return bits.join(' · ') || '—';
 }
@@ -1082,7 +1083,7 @@ function workerDots(id) {
 
 // ── Village = a visual scene (prominent top-level tab) ───────
 function screenVillage() {
-  const { wood, stone, metal } = Village.woodStone();
+  const { wood, stone, metal, essence } = Village.woodStone();
   const r = Village.rates();
   const age = Village.currentAge();
   const banner = `<div class="vlg-banner">
@@ -1095,6 +1096,7 @@ function screenVillage() {
         <span class="vlg-r" title="Bois">🪵 ${fmt(wood)}<em>+${r.wood.toFixed(0)}</em></span>
         <span class="vlg-r" title="Pierre">🪨 ${fmt(stone)}<em>+${r.stone.toFixed(0)}</em></span>
         <span class="vlg-r" title="Métal">⚙️ ${fmt(metal)}<em>+${r.metal.toFixed(1)}</em></span>
+        ${(essence > 0 || r.essence > 0) ? `<span class="vlg-r" title="Essence">💠 ${fmt(essence)}<em>+${r.essence.toFixed(1)}</em></span>` : ''}
         ${r.orbs > 0 ? `<span class="vlg-r" title="Orbes/min">🔮<em>+${r.orbs.toFixed(2)}</em></span>` : ''}
         <span class="vlg-r" title="Ouvriers">👷 ${Village.workersUsed()}/${Village.workerCap()}</span>
       </div>
