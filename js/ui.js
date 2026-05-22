@@ -25,7 +25,7 @@ import { ABILITIES, ABILITY_SLOTS, getLoadout, isSlotted, isAbilityUnlocked } fr
 import { canDive, getSession, DIVE_BOON_BY_ID } from './dive.js';
 import * as Village from './village.js';
 import { buildingArtSVG } from './villageArt.js';
-import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
+import { rerollCost as bountyRerollCost } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
 import { MATERIALS } from './materials.js';
@@ -1125,6 +1125,10 @@ function screenVillage() {
     else if (b.kind === 'houses') activity = `<span class="vp-sub smallcap">👷 ${Village.workerCap()} ouvriers</span>`;
     else if (b.id === 'forge') activity = `<span class="vp-sub smallcap">⚒️ tier ${Village.maxCraftTier()}</span>`;
     else if (b.id === 'barracks') activity = `<span class="vp-sub smallcap gold-text">+${lvl * 4}% dmg/PV</span>`;
+    else if (b.id === 'market') activity = `<span class="vp-sub smallcap gold-text">+${lvl * 6}% vente</span>`;
+    else if (b.id === 'guild') activity = `<span class="vp-sub smallcap gold-text">+${lvl} contrat</span>`;
+    else if (b.id === 'vault') activity = `<span class="vp-sub smallcap gold-text">+${lvl * 5}% or</span>`;
+    else if (b.id === 'observatory') activity = `<span class="vp-sub smallcap gold-text">+${lvl * 3}% rares</span>`;
     const ready = Village.canBuild(b.id);
     return `<button class="vp vp-built${ready ? ' vp-ready' : ''}" data-village-open="${b.id}">
         <span class="vp-badge">niv ${lvl}</span>
@@ -1183,6 +1187,10 @@ function ovVillageBuilding({ id } = {}) {
       </div>` : ''}`;
   } else if (b.id === 'forge') body = lvl ? `<div class="smallcap">Tier de craft : <b>${Village.maxCraftTier()}</b> · rareté max : <b>${RARITIES[Village.maxCraftRarityIndex()]?.name || '—'}</b></div>` : '';
   else if (b.id === 'barracks') body = lvl ? `<div class="smallcap gold-text">Bonus permanent : +${lvl * 4}% dégâts · +${lvl * 4}% PV max</div>` : '';
+  else if (b.id === 'market') body = lvl ? `<div class="smallcap gold-text">+${lvl * 6}% prix de vente · vente auto débloquée gratuitement</div>` : '';
+  else if (b.id === 'guild') body = lvl ? `<div class="smallcap gold-text">+${lvl} contrat actif · relance −${lvl * 15}%</div>` : '';
+  else if (b.id === 'vault') body = lvl ? `<div class="smallcap gold-text">+${lvl * 5}% d'or gagné en donjon</div>` : '';
+  else if (b.id === 'observatory') body = lvl ? `<div class="smallcap gold-text">+${lvl * 3}% de chance d'objets rares+</div>` : '';
   const btnLabel = lvl === 0 ? 'Construire' : (capped ? `Niveau max (Mairie ${Village.townhall()})` : `Améliorer → niv ${lvl + 1}`);
   const inner = `<div class="vb-detail">
       <div class="vb-art vp-tile">${buildingArtSVG(b.id, lvl || 1, 96)}</div>
@@ -1226,7 +1234,7 @@ function ovContracts() {
     const chips = [`<span class="chip" style="--c:var(--cur-gold)">💰 ${fmt(b.reward.gold)}</span>`];
     for (const [oid, q] of Object.entries(b.reward.orbs || {})) { const o = CURRENCY_BY_ID[oid]; if (o) chips.push(`<span class="chip" style="--c:${o.color}">${o.emoji}×${q}</span>`); }
     if (b.reward.talents) chips.push(`<span class="chip" style="--c:#6acc6a">🌳×${b.reward.talents}</span>`);
-    const canReroll = (state.gold || 0) >= BOUNTY_REROLL_COST && !b.completed;
+    const canReroll = (state.gold || 0) >= bountyRerollCost() && !b.completed;
     return `<div class="contract panel${ready ? ' ready pulse-gold' : ''}" style="border-color:${b.diffColor}">
       <div class="contract-top"><span class="contract-emoji">${b.emoji}</span>
         <div><div class="contract-name" style="color:${b.diffColor}">${b.name}</div><div class="contract-desc smallcap">${b.desc}</div></div>

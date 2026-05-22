@@ -123,7 +123,49 @@ function orbworks(lvl) {
     <circle cx="30" cy="12" r="1.6" fill="#eaf7ff"/>`;
 }
 
-const ART = { mairie, townhall: mairie, houses, sawmill, quarry, locksmith, forge, barracks, foundry, orbworks };
+function market(lvl) {
+  return `${shadow}
+    <rect x="14" y="36" width="36" height="18" fill="${PAL.wood}"/>
+    <rect x="10" y="30" width="44" height="8" fill="${PAL.stone}"/>
+    ${Array.from({ length: 6 }, (_, i) => `<rect x="${10 + i * 7.4}" y="30" width="3.7" height="8" fill="${i % 2 ? PAL.roof : '#e8e2d0'}"/>`).join('')}
+    <rect x="18" y="44" width="8" height="6" rx="1" fill="${PAL.gold}"/>
+    <rect x="28" y="44" width="8" height="6" rx="1" fill="${PAL.fire}"/>
+    <rect x="38" y="44" width="8" height="6" rx="1" fill="${PAL.orb}"/>
+    <circle cx="44" cy="40" r="2" fill="${PAL.gold}"/>`;
+}
+function guild(lvl) {
+  return `${shadow}
+    <rect x="16" y="30" width="32" height="24" fill="${PAL.stone}"/>
+    <polygon points="14,30 32,20 50,30" fill="${PAL.roofDk}"/>
+    ${windows(20, 36, 2, lvl)}
+    <rect x="27" y="44" width="10" height="10" fill="${PAL.woodDk}"/>
+    <line x1="48" y1="32" x2="56" y2="32" stroke="${PAL.woodDk}" stroke-width="1.5"/>
+    <rect x="50" y="32" width="9" height="11" fill="${PAL.gold}"/>
+    <path d="M52,35 h5 M52,38 h5 M52,41 h3" stroke="${PAL.woodDk}" stroke-width="1"/>`;
+}
+function vault(lvl) {
+  return `${shadow}
+    <rect x="13" y="32" width="38" height="22" fill="${PAL.stone}"/>
+    <polygon points="11,32 32,22 53,32" fill="${PAL.stoneSh}"/>
+    <rect x="13" y="30" width="38" height="3" fill="${PAL.gold}"/>
+    <rect x="18" y="36" width="4" height="18" fill="${PAL.stoneDk}"/>
+    <rect x="30" y="36" width="4" height="18" fill="${PAL.stoneDk}"/>
+    <rect x="42" y="36" width="4" height="18" fill="${PAL.stoneDk}"/>
+    <circle cx="32" cy="45" r="6" fill="${PAL.steelDk}"/>
+    <circle cx="32" cy="45" r="6" fill="none" stroke="${PAL.gold}" stroke-width="1.5"/>
+    <text x="32" y="48" font-size="7" fill="${PAL.gold}" text-anchor="middle" font-weight="bold">$</text>`;
+}
+function observatory(lvl) {
+  return `${shadow}
+    <rect x="22" y="34" width="20" height="20" fill="${PAL.stone}"/>
+    ${windows(25, 40, 1, lvl)}
+    <path d="M20,34 a12,10 0 0 1 24,0 z" fill="${PAL.steel}"/>
+    <rect x="30" y="20" width="4" height="12" fill="${PAL.steelDk}" transform="rotate(35 32 26)"/>
+    <circle class="vart-orb" cx="44" cy="16" r="2.5" fill="${PAL.winLit}"/>
+    <path d="M24,30 h16" stroke="${PAL.stoneSh}" stroke-width="1"/>`;
+}
+
+const ART = { mairie, townhall: mairie, houses, sawmill, quarry, market, locksmith, forge, observatory, barracks, guild, foundry, vault, orbworks };
 
 export function buildingArtSVG(id, level = 1, size = 56) {
   const fn = ART[id];

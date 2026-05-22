@@ -5,7 +5,7 @@ import { PLAYER_BASE, biomeForFloor, MONSTER_AFFIXES } from './data.js';
 import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
 import { relicDamageMult, relicHpMult, relicDmgTakenMult, relicElemMult, relicGoldMult, relicLifesteal } from './relics.js';
-import { villageCombatBonus } from './village.js';
+import { villageCombatBonus, villageGoldMult } from './village.js';
 import { buildSkillContext } from './skills.js';
 import { activeLegendaryEffectIds } from './legendaryEffects.js';
 import { trackProgress as bountyTrack, syncAbsoluteProgress as bountySync } from './bounties.js';
@@ -485,7 +485,7 @@ export function attemptCurrentFloor() {
         state.codex.bosses[biome.id] = (state.codex.bosses[biome.id] || 0) + 1;
       }
     }
-    monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier() * relicGoldMult());
+    monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier() * relicGoldMult() * villageGoldMult());
     // Legendary effect: goldenTouch → +30% gold per kill (compounds with other multipliers)
     if (activeLegendaryEffectIds().has('goldenTouch')) {
       monster.goldReward = Math.round(monster.goldReward * 1.30);
