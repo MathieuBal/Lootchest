@@ -1105,16 +1105,40 @@ function screenVillage() {
   // Town hall is the centerpiece plot.
   const thLvl = Village.townhall();
   const thReady = Village.canUpgradeTownhall();
-  const mairie = `<button class="vp vp-mairie${thReady ? ' vp-ready' : ''}" data-village-open="townhall">
+  const thCs = Village.constructionState();
+  let mairie;
+  if (thCs && thCs.id === 'townhall') {
+    const elapsed = thCs.durationMs - thCs.remainingMs;
+    mairie = `<button class="vp vp-mairie vp-building" data-village-open="townhall">
+      <span class="vp-badge">→ niv ${thCs.level}</span>
+      <span class="vp-art vp-tile vp-ghost">${buildingArtSVG('mairie', thCs.level, 72)}<span class="vp-scaffold">🏗️</span></span>
+      <span class="vp-name">Mairie</span>
+      <div class="vp-buildbar"><div class="vp-buildbar-fill" style="animation: vp-build ${thCs.durationMs}ms linear ${-elapsed}ms forwards"></div></div>
+      <span class="vp-sub smallcap">⏳ ${Math.ceil(thCs.remainingMs / 1000)}s</span></button>`;
+  } else {
+    mairie = `<button class="vp vp-mairie${thReady ? ' vp-ready' : ''}" data-village-open="townhall">
       <span class="vp-badge">niv ${thLvl}</span>
       <span class="vp-art vp-tile">${buildingArtSVG('mairie', thLvl, 72)}</span>
       <span class="vp-name">Mairie</span>
       <span class="vp-sub smallcap">${Village.producersBuilt()}/${Village.buildingSlots()} emplacements${thReady ? ' · ⬆ prête' : ''}</span>
     </button>`;
+  }
 
+  const cs = Village.constructionState();
   const plots = Village.BUILDINGS.map(b => {
     const lvl = Village.levelOf(b.id);
     const unlocked = Village.isUnlocked(b.id);
+    // Under construction: scaffolding + progress bar (smooth via negative-delay anim).
+    if (cs && cs.id === b.id) {
+      const elapsed = cs.durationMs - cs.remainingMs;
+      const secs = Math.ceil(cs.remainingMs / 1000);
+      return `<button class="vp vp-building" data-village-open="${b.id}">
+        <span class="vp-badge">→ niv ${cs.level}</span>
+        <span class="vp-art vp-tile vp-ghost">${buildingArtSVG(b.id, cs.level, 56)}<span class="vp-scaffold">🏗️</span></span>
+        <span class="vp-name">${b.name}</span>
+        <div class="vp-buildbar"><div class="vp-buildbar-fill" style="animation: vp-build ${cs.durationMs}ms linear ${-elapsed}ms forwards"></div></div>
+        <span class="vp-sub smallcap">⏳ ${secs}s</span></button>`;
+    }
     if (!unlocked) {
       return `<div class="vp vp-locked" title="Mairie niv ${b.townhallReq}">
         <span class="vp-art">🔒</span><span class="vp-name">${b.name}</span>
@@ -1170,6 +1194,14 @@ function screenVillage() {
   </div>`;
 }
 
+// Construction status line for the detail overlay.
+function vbStatus(id) {
+  const cs = Village.constructionState();
+  if (cs && cs.id === id) return `<div class="smallcap gold-text">🏗️ En construction… ${Math.ceil(cs.remainingMs / 1000)}s (→ niv ${cs.level})</div>`;
+  if (cs) { const ob = Village.BUILDING_BY_ID[cs.id]; return `<div class="smallcap vlg-locked">⏳ Chantier occupé : ${ob ? ob.name : 'Mairie'}</div>`; }
+  return '';
+}
+
 // Contextual per-building management (replaces the old monolithic table).
 function ovVillageBuilding({ id } = {}) {
   if (id === 'townhall') {
@@ -1184,6 +1216,7 @@ function ovVillageBuilding({ id } = {}) {
           <p class="smallcap">Plafonne le niveau des bâtiments (max ${thLvl}) et le nombre d'emplacements de production (${Village.producersBuilt()}/${Village.buildingSlots()}). Faire monter la Mairie ouvre les Âges et de nouveaux bâtiments.</p>
           <div class="smallcap">Améliorer → niv ${thLvl + 1} : ${costStr(thCost)}</div>
           <div class="smallcap ${floorMet ? 'gold-text' : 'vlg-locked'}">${floorMet ? '✓ étage atteint' : '🔒'} requiert d'avoir débloqué l'étage ${Village.townhallFloorReq()}</div>
+          ${vbStatus('townhall')}
           <button class="btn-gold" data-village-townhall ${thCan ? '' : 'disabled'}>Améliorer la Mairie</button>
         </div>
       </div>`;
@@ -1219,7 +1252,8 @@ function ovVillageBuilding({ id } = {}) {
         <div class="display">${b.name}${lvl ? ` · niv ${lvl}` : ''}</div>
         <p class="smallcap">${b.desc}</p>
         ${body}
-        ${capped ? '' : `<div class="smallcap">Coût : ${costStr(cost)}</div>`}
+        ${capped ? '' : `<div class="smallcap">Coût : ${costStr(cost)} · ⏳ ${Math.ceil(Village.buildDurationMs(lvl) / 1000)}s</div>`}
+        ${vbStatus(b.id)}
         <button class="btn-gold" data-village-build="${b.id}" ${can ? '' : 'disabled'}>${btnLabel}</button>
       </div>
     </div>

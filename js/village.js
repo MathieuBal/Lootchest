@@ -127,7 +127,35 @@ function pay(cost) {
   state.gold -= (cost.gold || 0);
 }
 
-// ── Build / upgrade ──────────────────────────────────────────
+// ── Build / upgrade (with construction time) ─────────────────
+// Building isn't instant: paying starts a timed construction job (one at a
+// time). The level applies when the job completes (tickConstruction), so the
+// village visibly grows over time. Offline progress is honoured via timestamps.
+export function buildDurationMs(currentLevel) {
+  return Math.min(240000, 10000 + (currentLevel || 0) * 8000); // 10s → 4min cap
+}
+export function isBusy() { return !!v()?.construction; }
+export function buildingUnderConstruction() { return v()?.construction?.id || null; }
+export function constructionState() {
+  const c = v()?.construction;
+  if (!c) return null;
+  const now = Date.now();
+  const elapsed = Math.max(0, now - c.start);
+  return { id: c.id, level: c.level, durationMs: c.duration, remainingMs: Math.max(0, c.duration - elapsed),
+    progress: Math.min(1, c.duration ? elapsed / c.duration : 1) };
+}
+// Apply a finished job. Returns the completed building id (for the UI effect).
+export function tickConstruction() {
+  const c = v()?.construction;
+  if (!c) return null;
+  if (Date.now() < c.start + c.duration) return null;
+  if (c.id === 'townhall') v().townhall = c.level;
+  else v().buildings[c.id] = c.level;
+  v().construction = null;
+  notify();
+  return c.id;
+}
+
 export function isUnlocked(id) {
   const b = BUILDING_BY_ID[id];
   return !!b && townhall() >= b.townhallReq;
@@ -135,6 +163,7 @@ export function isUnlocked(id) {
 export function canBuild(id) {
   const b = BUILDING_BY_ID[id];
   if (!b || !isUnlocked(id)) return false;                     // gated by town hall / age
+  if (isBusy()) return false;                                  // one construction at a time
   const lvl = levelOf(id);
   if (lvl >= maxBuildingLevel()) return false;                 // capped by town hall
   // New producer needs a free build slot
@@ -144,18 +173,18 @@ export function canBuild(id) {
 export function buildOrUpgrade(id) {
   if (!canBuild(id)) return false;
   pay(buildCost(id));
-  v().buildings[id] = levelOf(id) + 1;
+  v().construction = { id, level: levelOf(id) + 1, start: Date.now(), duration: buildDurationMs(levelOf(id)) };
   notify();
   return true;
 }
 
 export function canUpgradeTownhall() {
-  return townhallFloorMet() && canAfford(townhallCost());
+  return !isBusy() && townhallFloorMet() && canAfford(townhallCost());
 }
 export function upgradeTownhall() {
   if (!canUpgradeTownhall()) return false;
   pay(townhallCost());
-  v().townhall = townhall() + 1;
+  v().construction = { id: 'townhall', level: townhall() + 1, start: Date.now(), duration: buildDurationMs(townhall()) };
   notify();
   return true;
 }

@@ -647,6 +647,20 @@ input, select { font-family: inherit; }
 .vp-dot.on { background: var(--gold-200); box-shadow: 0 0 5px var(--gold-200); animation: vp-pulse 1.8s ease-in-out infinite; }
 .vlg-hint { text-align: center; line-height: 1.4; padding: 0 8px; }
 
+/* Construction in progress */
+.vp-building { border-color: var(--gold-400); border-style: dashed;
+  background: linear-gradient(180deg, rgba(240,196,99,.14), rgba(18,12,30,.9)); }
+.vp-building .vp-art > svg { opacity: .55; }
+.vp-scaffold { position: absolute; right: -2px; bottom: 2px; font-size: 22px; z-index: 2;
+  animation: vp-hammer 1.1s ease-in-out infinite; transform-origin: bottom center; }
+.vp-buildbar { width: 80%; height: 6px; margin: 4px auto 0; border-radius: 99px; overflow: hidden;
+  background: rgba(0,0,0,.45); }
+.vp-buildbar-fill { height: 100%; width: 0; border-radius: 99px;
+  background: linear-gradient(90deg, var(--gold-400), var(--gold-200)); box-shadow: 0 0 6px var(--gold-200); }
+@keyframes vp-build { from { width: 0; } to { width: 100%; } }
+@keyframes vp-hammer { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(12deg); } }
+@media (prefers-reduced-motion: reduce) { .vp-scaffold { animation: none; } }
+
 /* Isometric ground tile under each building + SVG art sits on top */
 .vp-art { font-size: 40px; }
 .vp-tile { position: relative; display: flex; align-items: flex-end; justify-content: center; }

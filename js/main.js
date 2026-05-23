@@ -19,6 +19,7 @@ import { chooseRelic } from './relics.js';
 import { toggleAbility } from './abilities.js';
 import {
   accruePassive, grantDungeonResources, buildOrUpgrade, upgradeTownhall, assignWorker, commitCraft,
+  tickConstruction, BUILDING_BY_ID as VILLAGE_BUILDING_BY_ID,
 } from './village.js';
 import { craftItem } from './loot.js';
 import {
@@ -61,7 +62,19 @@ refreshBoardIfEmpty();
 
 // Village passive production: accrue offline gains once, then trickle on a timer.
 accruePassive();
-setInterval(() => { accruePassive(); notify(); }, 5000);
+tickConstruction(); // finish anything that completed while away
+let _vtick = 0;
+setInterval(() => {
+  const done = tickConstruction();
+  if (done) {
+    const b = VILLAGE_BUILDING_BY_ID[done];
+    soundUpgrade();
+    UI.showToast(b ? b.emoji : '🏛️', 'Chantier terminé', b ? b.name : 'Mairie');
+    spawnParticles('#f0c463', innerWidth / 2, innerHeight / 3, 24);
+  }
+  if (++_vtick % 5 === 0) accruePassive(); // accrue every 5s
+  notify();
+}, 1000);
 
 if (!state.ui.hasSeenWelcome) UI.navOverlay('onboarding');
 else if (state.prestige?.pendingRelicChoice?.length) UI.navOverlay('relicChoice');

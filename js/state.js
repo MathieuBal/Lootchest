@@ -164,6 +164,7 @@ export function replaceState(newState) {
   if (!state.village.buildings) state.village.buildings = { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 };
   if (!state.village.workers) state.village.workers = { sawmill: 0, quarry: 0, locksmith: 0 };
   if (!state.village.townhall) state.village.townhall = 1;
+  if (state.village.construction === undefined) state.village.construction = null;
   if (!state.shards) state.shards = {};
   for (const k of ['common','magic','rare','epic','legendary','ancestral']) {
     if (state.shards[k] === undefined) state.shards[k] = 0;
