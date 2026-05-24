@@ -19,7 +19,7 @@ import { chooseRelic } from './relics.js';
 import { toggleAbility } from './abilities.js';
 import {
   accruePassive, grantDungeonResources, buildOrUpgrade, upgradeTownhall, assignWorker, commitCraft,
-  tickConstruction, BUILDING_BY_ID as VILLAGE_BUILDING_BY_ID,
+  tickConstruction, isBusy as villageIsBusy, BUILDING_BY_ID as VILLAGE_BUILDING_BY_ID,
 } from './village.js';
 import { craftItem } from './loot.js';
 import {
@@ -65,15 +65,20 @@ accruePassive();
 tickConstruction(); // finish anything that completed while away
 let _vtick = 0;
 setInterval(() => {
-  const done = tickConstruction();
+  const done = tickConstruction();          // notifies internally on completion
+  const accrued = (++_vtick % 5 === 0);
+  if (accrued) accruePassive();
   if (done) {
     const b = VILLAGE_BUILDING_BY_ID[done];
     soundUpgrade();
     UI.showToast(b ? b.emoji : '🏛️', 'Chantier terminé', b ? b.name : 'Mairie');
     spawnParticles('#f0c463', innerWidth / 2, innerHeight / 3, 24);
+    return;
   }
-  if (++_vtick % 5 === 0) accruePassive(); // accrue every 5s
-  notify();
+  // Re-render only when it actually matters — avoid rebuilding the whole DOM
+  // (and any open modal) every second. Live updates are only needed while the
+  // player is watching the Village (build countdown, resource trickle).
+  if (UI.getActiveTab() === 'village' && (villageIsBusy() || accrued)) notify();
 }, 1000);
 
 if (!state.ui.hasSeenWelcome) UI.navOverlay('onboarding');
