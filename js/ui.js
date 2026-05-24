@@ -1132,17 +1132,25 @@ function ovIntro() {
   const s = slides[i];
   const last = i >= slides.length - 1;
   const dots = slides.map((_, k) => `<span class="cine-dot${k === i ? ' on' : ''}"></span>`).join('');
+  const words = s.text.split(' ').map((w, k) => `<span class="cine-w" style="--i:${k}">${w}</span>`).join(' ');
+  const dust = Array.from({ length: 9 }, (_, k) => `<span class="cine-dust cine-dust${k % 5}"></span>`).join('');
   return `<div class="cine" data-intro="next">
-    <div class="cine-stage">${s.scene}<div class="cine-vignette"></div></div>
+    <div class="cine-bar cine-bar-top"></div>
+    <div class="cine-stage">
+      <div class="cine-kb" key="${i}">${s.scene}</div>
+      <div class="cine-dustlayer">${dust}</div>
+      <div class="cine-vignette"></div>
+    </div>
     <div class="cine-body">
-      <div class="cine-title display">${s.title}</div>
-      <p class="cine-text" key="${i}">${s.text}</p>
+      <div class="cine-title display" key="t${i}">${s.title}</div>
+      <p class="cine-text" key="${i}">${words}</p>
       <div class="cine-dots">${dots}</div>
     </div>
     <div class="cine-actions">
-      <button class="btn-ghost" data-intro="skip">Passer</button>
-      <button class="btn-gold" data-intro="next">${last ? 'Commencer' : 'Suivant'}</button>
+      <button class="btn-ghost" data-intro="skip">Passer ▸</button>
+      <button class="btn-gold" data-intro="next">${last ? '✦ Commencer' : 'Suivant ▸'}</button>
     </div>
+    <div class="cine-bar cine-bar-bot"></div>
   </div>`;
 }
 
