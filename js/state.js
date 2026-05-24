@@ -34,6 +34,7 @@ export const state = {
     leftTab: 'chest',     // 'chest' | 'dungeon'
     muted: false,
     hasSeenWelcome: false, // first-visit tutorial flag
+    hasSeenIntro: false,   // intro cinematic shown once
   },
   settings: {
     fastCombat: false,    // skip animations during fights
@@ -143,6 +144,8 @@ export function replaceState(newState) {
     // Existing saves: skip welcome if they already opened anything
     state.ui.hasSeenWelcome = state.opened > 0;
   }
+  // Existing saves shouldn't be ambushed by the intro; only brand-new ones see it.
+  if (state.ui.hasSeenIntro === undefined) state.ui.hasSeenIntro = state.opened > 0;
   if (!state.settings) state.settings = {};
   const defaultSettings = { fastCombat: false, reducedParticles: false, confirmAscend: true, confirmDestructiveSell: true, hardMode: false };
   for (const [k, v] of Object.entries(defaultSettings)) {

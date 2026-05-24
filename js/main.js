@@ -81,7 +81,8 @@ setInterval(() => {
   if (UI.getActiveTab() === 'village' && (villageIsBusy() || accrued)) notify();
 }, 1000);
 
-if (!state.ui.hasSeenWelcome) UI.navOverlay('onboarding');
+if (!state.ui.hasSeenIntro) UI.startIntro();
+else if (!state.ui.hasSeenWelcome) UI.navOverlay('onboarding');
 else if (state.prestige?.pendingRelicChoice?.length) UI.navOverlay('relicChoice');
 
 document.addEventListener('click', unlockAudio, { once: true });
@@ -108,6 +109,11 @@ function refreshNextStepHint() { /* hub computes its own hint; nothing imperativ
 // ═════════════════════════════════════════════════════════════
 document.body.addEventListener('click', async (e) => {
   const t = e.target;
+
+  // Intro cinematic
+  const introBtn = t.closest('[data-intro]');
+  if (introBtn) { if (introBtn.dataset.intro === 'skip') UI.endIntro(); else { soundClick(); UI.advanceIntro(); } return; }
+  if (t.closest('[data-intro-replay]')) { UI.startIntro(); soundClick(); return; }
 
   // Close overlay (backdrop / ✕)
   if (t.closest('[data-close-overlay]')) { UI.closeOverlay(); return; }

@@ -713,6 +713,29 @@ input, select { font-family: inherit; }
 .vlg-craft-slot .smallcap { font-size: 8px; }
 .vlg-craft-slot:disabled { opacity: .3; cursor: default; }
 
+/* Intro cinematic */
+.cine { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
+  background: #07040d; color: var(--ink-100); cursor: pointer; animation: cine-in .5s ease; }
+.cine-stage { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.cine-stage > svg { width: 100%; height: 100%; display: block; animation: cine-zoom 12s ease-out both; }
+.cine-vignette { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 80% at 50% 40%, transparent 50%, rgba(0,0,0,.85) 100%),
+              linear-gradient(180deg, transparent 55%, #07040d 100%); }
+.cine-body { padding: 18px 22px 6px; text-align: center; }
+.cine-title { font-size: 26px; color: var(--gold-200); letter-spacing: .06em; margin-bottom: 8px;
+  animation: cine-up .6s ease both; }
+.cine-text { max-width: 640px; margin: 0 auto; font-size: 15px; line-height: 1.6; color: #e8dec8;
+  animation: cine-up .6s ease .12s both; }
+.cine-dots { display: flex; gap: 7px; justify-content: center; margin-top: 16px; }
+.cine-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.25); }
+.cine-dot.on { background: var(--gold-200); box-shadow: 0 0 6px var(--gold-200); }
+.cine-actions { display: flex; justify-content: space-between; gap: 12px; padding: 10px 22px 26px; }
+.cine-actions .btn-gold { min-width: 130px; }
+@keyframes cine-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cine-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes cine-zoom { from { transform: scale(1.12); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .cine-stage > svg, .cine-title, .cine-text { animation: none; } }
+
 /* Onboarding */
 .onboarding { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center;
   background: radial-gradient(100% 70% at 50% 0%, rgba(120,70,200,.18), #0a0610 70%); padding: 24px; overflow-y: auto; }
