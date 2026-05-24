@@ -26,6 +26,7 @@ import { canDive, getSession, DIVE_BOON_BY_ID } from './dive.js';
 import * as Village from './village.js';
 import { buildingArtSVG } from './villageArt.js';
 import { introSlides } from './cinematic.js';
+import * as Story from './story.js';
 import { rerollCost as bountyRerollCost } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
@@ -592,6 +593,7 @@ function screenMeta() {
     { ov: 'talents', icon: '🌳', name: 'Talents', sub: tp ? `${tp} point${tp > 1 ? 's' : ''} dispo` : 'Arbre de talents' },
     { ov: 'skills', icon: '📜', name: 'Compétences', sub: `${skills}/${SKILLS.length} actives` },
     { ov: 'abilities', icon: '✦', name: 'Capacités', sub: `${getLoadout().length}/${ABILITY_SLOTS} équipées` },
+    { ov: 'story', icon: '📜', name: 'Chronique', sub: Story.storyReady() ? '◈ Chapitre à accomplir !' : (Story.activeChapter()?.title || 'Histoire'), ready: Story.storyReady() },
     { ov: 'contracts', icon: '📋', name: 'Contrats', sub: `${(state.bounties?.active || []).length} actifs` },
     { ov: 'codex', icon: '📖', name: 'Codex', sub: 'Découvertes' },
     { ov: 'achievements', icon: '🏆', name: 'Succès', sub: `${ap.unlocked}/${ap.total}` },
@@ -608,7 +610,7 @@ function screenMeta() {
       </div>
     </div>
     <div class="meta-grid">
-      ${cards.map(c => `<button class="meta-card panel" data-overlay="${c.ov}">
+      ${cards.map(c => `<button class="meta-card panel${c.ready ? ' pulse-gold' : ''}" data-overlay="${c.ov}">
         <span class="mc-icon">${c.icon}</span>
         <span class="mc-name">${c.name}</span>
         <span class="mc-sub smallcap">${c.sub}</span></button>`).join('')}
@@ -780,6 +782,7 @@ const OVERLAYS = {
   diveSummary: ovDiveSummary,
   villageBuilding: ovVillageBuilding,
   intro: ovIntro,
+  story: ovStory,
   contracts: ovContracts,
   codex: ovCodex,
   achievements: ovAchievements,
@@ -1083,6 +1086,33 @@ function workerDots(id) {
   return `<span class="vp-dots">${s}</span>`;
 }
 
+// ── Chronicle (story) ────────────────────────────────────────
+function ovStory() {
+  const step = Story.storyStep();
+  const ready = Story.storyReady();
+  const rows = Story.CHAPTERS.map((c, i) => {
+    const status = Story.chapterStatus(i);
+    if (status === 'locked') {
+      return `<div class="chr-row chr-locked"><div class="chr-act smallcap">${c.act}</div>
+        <div class="chr-title">🔒 ${i === step + 1 ? 'Chapitre scellé' : '???'}</div></div>`;
+    }
+    const isActive = status === 'active';
+    const rwd = [];
+    if (c.reward?.gold) rwd.push(`💰 ${fmt(c.reward.gold)}`);
+    if (c.reward?.keys) rwd.push(`🗝 ${c.reward.keys}`);
+    if (c.reward?.orbs) rwd.push(`🔮 ${c.reward.orbs}`);
+    return `<div class="chr-row ${isActive ? 'chr-active' : 'chr-done'}">
+      <div class="chr-act smallcap">${c.act}</div>
+      <div class="chr-title">${isActive ? '◈' : '✓'} ${c.title}</div>
+      <p class="chr-text">${c.text}</p>
+      ${isActive ? `<div class="chr-goal smallcap">🎯 ${c.goal}${rwd.length ? ` · récompense ${rwd.join(' ')}` : ''}</div>
+        ${ready ? `<button class="btn-gold" data-story-claim="1">Accomplir ce chapitre</button>`
+                : `<div class="smallcap chr-wait">En cours…</div>`}` : ''}
+    </div>`;
+  }).join('');
+  return overlayShell('📜 Chronique', `<div class="chr">${rows}</div>`, { wide: true });
+}
+
 // ── Intro cinematic ──────────────────────────────────────────
 let introIndex = 0;
 export function startIntro() { introIndex = 0; navOverlay('intro'); }
@@ -1102,17 +1132,25 @@ function ovIntro() {
   const s = slides[i];
   const last = i >= slides.length - 1;
   const dots = slides.map((_, k) => `<span class="cine-dot${k === i ? ' on' : ''}"></span>`).join('');
+  const words = s.text.split(' ').map((w, k) => `<span class="cine-w" style="--i:${k}">${w}</span>`).join(' ');
+  const dust = Array.from({ length: 9 }, (_, k) => `<span class="cine-dust cine-dust${k % 5}"></span>`).join('');
   return `<div class="cine" data-intro="next">
-    <div class="cine-stage">${s.scene}<div class="cine-vignette"></div></div>
+    <div class="cine-bar cine-bar-top"></div>
+    <div class="cine-stage">
+      <div class="cine-kb" key="${i}">${s.scene}</div>
+      <div class="cine-dustlayer">${dust}</div>
+      <div class="cine-vignette"></div>
+    </div>
     <div class="cine-body">
-      <div class="cine-title display">${s.title}</div>
-      <p class="cine-text" key="${i}">${s.text}</p>
+      <div class="cine-title display" key="t${i}">${s.title}</div>
+      <p class="cine-text" key="${i}">${words}</p>
       <div class="cine-dots">${dots}</div>
     </div>
     <div class="cine-actions">
-      <button class="btn-ghost" data-intro="skip">Passer</button>
-      <button class="btn-gold" data-intro="next">${last ? 'Commencer' : 'Suivant'}</button>
+      <button class="btn-ghost" data-intro="skip">Passer ▸</button>
+      <button class="btn-gold" data-intro="next">${last ? '✦ Commencer' : 'Suivant ▸'}</button>
     </div>
+    <div class="cine-bar cine-bar-bot"></div>
   </div>`;
 }
 

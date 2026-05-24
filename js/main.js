@@ -22,6 +22,7 @@ import {
   tickConstruction, isBusy as villageIsBusy, BUILDING_BY_ID as VILLAGE_BUILDING_BY_ID,
 } from './village.js';
 import { craftItem } from './loot.js';
+import { claimChapter, storyReady } from './story.js';
 import {
   unlockAudio, toggleMuted, isMuted, setMuted,
   soundChestOpen, soundDrop, soundCoin, soundHit, soundCrit,
@@ -64,6 +65,7 @@ refreshBoardIfEmpty();
 accruePassive();
 tickConstruction(); // finish anything that completed while away
 let _vtick = 0;
+let _storyReady = storyReady();
 setInterval(() => {
   const done = tickConstruction();          // notifies internally on completion
   const accrued = (++_vtick % 5 === 0);
@@ -75,6 +77,10 @@ setInterval(() => {
     spawnParticles('#f0c463', innerWidth / 2, innerHeight / 3, 24);
     return;
   }
+  // Surface a story beat the moment its objective is met.
+  const sr = storyReady();
+  if (sr && !_storyReady) { soundAchievement(); UI.showToast('📜', 'Chronique', 'Un chapitre peut être accompli !'); }
+  _storyReady = sr;
   // Re-render only when it actually matters — avoid rebuilding the whole DOM
   // (and any open modal) every second. Live updates are only needed while the
   // player is watching the Village (build countdown, resource trickle).
@@ -109,6 +115,13 @@ function refreshNextStepHint() { /* hub computes its own hint; nothing imperativ
 // ═════════════════════════════════════════════════════════════
 document.body.addEventListener('click', async (e) => {
   const t = e.target;
+
+  // Chronicle (story)
+  if (t.closest('[data-story-claim]')) {
+    const c = claimChapter();
+    if (c) { soundAchievement(); UI.showToast('📜', 'Chapitre accompli', c.title); spawnParticles('#c79bff', innerWidth / 2, innerHeight / 3, 28); }
+    return;
+  }
 
   // Intro cinematic
   const introBtn = t.closest('[data-intro]');

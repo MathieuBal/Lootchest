@@ -99,6 +99,10 @@ export const state = {
     active: [],       // up to 3 bounty objects
     completed: 0,     // lifetime completions
   },
+  story: {            // the Chronicle: linear chapter progression
+    step: 0,
+    claimed: {},
+  },
 };
 
 // Init empty equipment slots
@@ -186,6 +190,9 @@ export function replaceState(newState) {
   if (!state.codex.bosses) state.codex.bosses = {};
   if (!state.bounties) state.bounties = { active: [], completed: 0 };
   if (!Array.isArray(state.bounties.active)) state.bounties.active = [];
+  if (!state.story) state.story = { step: 0, claimed: {} };
+  if (typeof state.story.step !== 'number') state.story.step = 0;
+  if (!state.story.claimed) state.story.claimed = {};
   if (state.keys === undefined) state.keys = 10;
   notify();
 }
@@ -215,6 +222,7 @@ export function resetState() {
   state.milestonesGranted = {};
   state.codex = { uniques: {}, sets: {}, bosses: {} };
   state.bounties = { active: [], completed: 0 };
-  state.village = { townhall: 1, resources: { wood: 60, stone: 40, metal: 0, essence: 0 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0 };
+  state.village = { townhall: 1, resources: { wood: 60, stone: 40, metal: 0, essence: 0 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0, construction: null };
+  state.story = { step: 0, claimed: {} };
   notify();
 }
