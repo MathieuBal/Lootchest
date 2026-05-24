@@ -4,11 +4,12 @@ import { SLOTS, AUTOSELL_UNLOCK_COSTS } from './data.js';
 const listeners = new Set();
 
 export const state = {
-  version: 3,
+  version: 4,
   gold: 0,
   keys: 10,               // 🗝 chest opening currency — farmed in dungeon
   chestTier: 1,
   opened: 0,
+  focusSlot: null,        // 🎯 slot targeted for the next open (consumes a focus orb)
   inventory: [],          // array of Item
   equipment: {},          // { slotId: Item | null }
   autoSell: {             // { rarityId: { unlocked: bool, on: bool, mode: 'sell'|'salvage' } }
@@ -29,6 +30,8 @@ export const state = {
   },
   pity: {
     sinceLegendary: 0,
+    sinceAncestral: 0,   // opens since last ancestral
+    sinceUnique: 0,      // legendaries since last unique
   },
   ui: {
     leftTab: 'chest',     // 'chest' | 'dungeon'
@@ -60,6 +63,7 @@ export const state = {
     totalAscensions: 0,
     relics: {},                // { relicId: count } — permanent build modifiers
     pendingRelicChoice: null,  // [relicId, relicId, relicId] awaiting a pick
+    pendingRelicRerolls: 0,    // free rerolls left on the pending choice
   },
   dive: {                      // Deep Dive roguelite run (persisted: best score only)
     bestDepth: 0,
@@ -83,7 +87,7 @@ export const state = {
   },
   orbs: {
     transmu: 0, augm: 0, alte: 0, regal: 0,
-    chaos: 0, divin: 0, exil: 0, pierre: 0, maitre: 0,
+    chaos: 0, divin: 0, exil: 0, pierre: 0, maitre: 0, focus: 0,
   },
   talents: {},        // { talentId: rank }
   talentPoints: 0,    // unspent points
@@ -141,7 +145,10 @@ export function replaceState(newState) {
     if (!state.autoSell[r].mode) state.autoSell[r].mode = 'sell';
   }
   if (!state.combat) state.combat = { currentFloor: 1, highestUnlocked: 1, kills: 0, deaths: 0, bossKills: 0 };
-  if (!state.pity) state.pity = { sinceLegendary: 0 };
+  if (!state.pity) state.pity = { sinceLegendary: 0, sinceAncestral: 0, sinceUnique: 0 };
+  if (state.pity.sinceAncestral === undefined) state.pity.sinceAncestral = 0;
+  if (state.pity.sinceUnique === undefined) state.pity.sinceUnique = 0;
+  if (state.focusSlot === undefined) state.focusSlot = null;
   if (!state.ui) state.ui = { leftTab: 'chest', muted: false, hasSeenWelcome: false };
   if (state.ui.muted === undefined) state.ui.muted = false;
   if (state.ui.hasSeenWelcome === undefined) {
@@ -163,6 +170,7 @@ export function replaceState(newState) {
   if (!state.prestige) state.prestige = { level: 0, totalAscensions: 0 };
   if (!state.prestige.relics) state.prestige.relics = {};
   if (state.prestige.pendingRelicChoice === undefined) state.prestige.pendingRelicChoice = null;
+  if (state.prestige.pendingRelicRerolls === undefined) state.prestige.pendingRelicRerolls = 0;
   if (!state.dive) state.dive = { bestDepth: 0, totalDives: 0 };
   if (!state.village) state.village = { townhall: 1, resources: { wood: 60, stone: 40, metal: 0, essence: 0 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0 };
   if (!state.village.resources) state.village.resources = { wood: 60, stone: 40, metal: 0 };
@@ -177,12 +185,16 @@ export function replaceState(newState) {
     if (state.shards[k] === undefined) state.shards[k] = 0;
   }
   if (!state.orbs) state.orbs = {};
-  for (const k of ['transmu','augm','alte','regal','chaos','divin','exil','pierre','maitre']) {
+  for (const k of ['transmu','augm','alte','regal','chaos','divin','exil','pierre','maitre','focus']) {
     if (state.orbs[k] === undefined) state.orbs[k] = 0;
   }
   if (!state.talents) state.talents = {};
   if (state.talentPoints === undefined) state.talentPoints = 0;
   if (!Array.isArray(state.loadout)) state.loadout = ['ab_power_strike', 'ab_frenzy', 'ab_second_wind'];
+  // Clamp loadout to allowed slots (base 3 + Tacticien ranks). Inlined to avoid
+  // importing talents.js here (would create a cycle with state.js).
+  const _maxSlots = 3 + (state.talents.tactician || 0);
+  if (state.loadout.length > _maxSlots) state.loadout.length = _maxSlots;
   if (!state.milestonesGranted) state.milestonesGranted = {};
   if (!state.codex) state.codex = { uniques: {}, sets: {}, bosses: {} };
   if (!state.codex.uniques) state.codex.uniques = {};
@@ -209,13 +221,14 @@ export function resetState() {
     state.autoSell[r].on = false;
   }
   state.combat = { currentFloor: 1, highestUnlocked: 1, kills: 0, deaths: 0, bossKills: 0 };
-  state.pity = { sinceLegendary: 0 };
+  state.pity = { sinceLegendary: 0, sinceAncestral: 0, sinceUnique: 0 };
+  state.focusSlot = null;
   state.ui = { leftTab: 'chest', muted: state.ui?.muted || false };
   state.achievements = { unlocked: {} };
   state.stats = { legendaryDropped: 0, ancestralDropped: 0, uniquesDropped: 0, itemsSold: 0, totalGoldEarned: 0, forgesPerformed: 0, maxSetEquipped: 0 };
   state.prestige = { level: 0, totalAscensions: 0, relics: {}, pendingRelicChoice: null };
   state.shards = { common: 0, magic: 0, rare: 0, epic: 0, legendary: 0, ancestral: 0 };
-  state.orbs = { transmu: 0, augm: 0, alte: 0, regal: 0, chaos: 0, divin: 0, exil: 0, pierre: 0, maitre: 0 };
+  state.orbs = { transmu: 0, augm: 0, alte: 0, regal: 0, chaos: 0, divin: 0, exil: 0, pierre: 0, maitre: 0, focus: 0 };
   state.talents = {};
   state.talentPoints = 0;
   state.loadout = ['ab_power_strike', 'ab_frenzy', 'ab_second_wind'];

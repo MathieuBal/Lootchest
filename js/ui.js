@@ -6,22 +6,24 @@ import { state, notify } from './state.js';
 import {
   RARITIES, RARITY_BY_ID, SLOTS, SLOT_BY_ID,
   CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, PITY_THRESHOLD,
+  PITY_ANCESTRAL_THRESHOLD, PITY_UNIQUE_THRESHOLD,
   ACHIEVEMENTS, biomeForFloor, BIOMES, AUTOSELL_UNLOCK_COSTS,
-  CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID,
+  CURRENCY_TYPES, CURRENCY_BY_ID, CURRENCY_EXCHANGE_LADDER, AFFIXES_BY_ID,
   SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, TALENT_CATEGORIES,
   TALENT_MASTERY_THRESHOLD, UNIQUE_LEGENDARIES,
-  RELIC_BY_ID,
+  RELIC_BY_ID, AFFIX_TIP, maxAllowedChestTier, FIXED_MAX_FLOOR,
 } from './data.js';
 import { computeStats, computePower, computeSetSummary, itemPowerContribution, computeStatsBreakdown } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, canOpen, hasKey, cooldownRemaining, nextTierLockedBy } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
-import { FORGE_ACTIONS, availableMasterCraftAffixes } from './forge.js';
+import { FORGE_ACTIONS, availableMasterCraftAffixes, canToggleAffixLock, exchangeNext, exchangeCost, canExchange } from './forge.js';
 import { shardYield, autoActionFor } from './inventory.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
-import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talents.js';
+import { rankOf, canUpgradeTalent, pityReduction, categoryPoints, abilitySlots, totalPointsSpent, respecCost, canRespecTalents } from './talents.js';
 import { SKILLS, getActiveSkills } from './skills.js';
-import { ABILITIES, ABILITY_SLOTS, getLoadout, isSlotted, isAbilityUnlocked } from './abilities.js';
+import { ABILITIES, getLoadout, isSlotted, isAbilityUnlocked } from './abilities.js';
+import { affinitySummary } from './affinities.js';
 import { canDive, getSession, DIVE_BOON_BY_ID } from './dive.js';
 import * as Village from './village.js';
 import { buildingArtSVG } from './villageArt.js';
@@ -105,6 +107,14 @@ function affixTypeBadge(aff) {
   return '';
 }
 
+// Roll-quality stars (1–3) from the affix's recorded `roll` (0..1).
+function affixQualityStars(aff) {
+  if (typeof aff.roll !== 'number') return '';
+  const stars = Math.max(1, Math.round(aff.roll * 3));
+  const color = aff.roll >= 0.8 ? '#ffe14a' : aff.roll >= 0.5 ? '#9aa0a6' : '#6b7075';
+  return ` <span class="affix-q" style="color:${color}" title="Qualité du roll ${Math.round(aff.roll * 100)}%">${'★'.repeat(stars)}</span>`;
+}
+
 function sourcesHTML(item) {
   if (!item.statSources || item.statSources.length === 0) return '';
   const SOURCE_ICON = { part: '🧩', material: '🔩', element: '✨', faction: '🏷', condition: '🌀' };
@@ -137,7 +147,7 @@ export function itemDetailsHTML(item) {
   const r = RARITY_BY_ID[item.rarity];
   const slot = SLOT_BY_ID[item.slot];
   const baseLines = Object.entries(item.baseStats || {}).map(([k, v]) => `<div class="tt-base">+${v} ${statLabel(k)}</div>`).join('');
-  const affixLines = (item.affixes || []).map(a => `<div class="tt-affix">${affixTypeBadge(a)}${a.value > 0 ? '+' : ''}${a.value}${a.percent ? '%' : ''} ${a.label}</div>`).join('');
+  const affixLines = (item.affixes || []).map(a => `<div class="tt-affix">${affixTypeBadge(a)}${a.value > 0 ? '+' : ''}${a.value}${a.percent ? '%' : ''} ${a.label}${affixQualityStars(a)}</div>`).join('');
   const uniqueBadge = item.uniqueId ? '<span class="unique-badge">UNIQUE</span>' : '';
   let setBlock = '';
   if (item.setId && SETS_BY_ID[item.setId]) {
@@ -333,6 +343,9 @@ function screenHub() {
   const lockedBy = nextTierLockedBy();
   const canUp = canUpgrade();
   const enoughKeys = (state.keys || 0) > 0;
+  const ancPity = Math.min(PITY_ANCESTRAL_THRESHOLD, state.pity?.sinceAncestral || 0);
+  const uniPity = Math.min(PITY_UNIQUE_THRESHOLD, state.pity?.sinceUnique || 0);
+  const focusOrbs = state.orbs?.focus || 0;
 
   // Next-step hint text
   let nextStep = '';
@@ -362,6 +375,15 @@ function screenHub() {
           <div class="pity-bar"><div class="pity-fill" style="width:${(pity / pityMax) * 100}%"></div></div>
           <span class="mono pity-num">${pity}/${pityMax}</span>
         </div>
+        <div class="pity-sub smallcap" title="Garanties anti-malchance">
+          <span style="color:${RARITY_BY_ID.ancestral.color}">Ancestral ${ancPity}/${PITY_ANCESTRAL_THRESHOLD}</span>
+          · <span style="color:${RARITY_BY_ID.legendary.color}">Unique ${uniPity}/${PITY_UNIQUE_THRESHOLD}</span>
+        </div>
+      </div>
+
+      <div class="focus-row">
+        <span class="smallcap" title="Cible le slot du prochain coffre (consomme une orbe)">🎯 ${fmt(focusOrbs)}</span>
+        ${SLOTS.map(s => `<button class="focus-chip${state.focusSlot === s.id ? ' active' : ''}" data-focus-slot="${s.id}" title="${s.name}" ${(focusOrbs > 0 || state.focusSlot === s.id) ? '' : 'disabled'}>${s.emptyEmoji}</button>`).join('')}
       </div>
     </div>
 
@@ -376,6 +398,10 @@ function screenHub() {
         title="${next ? (lockedBy ? 'Débloqué via Ascension Niv ' + lockedBy : 'Améliorer → ' + next.name + ' (' + fmt(next.upgradeCost) + ' or)') : 'Tier max'}">
         ⬆ ${next ? (lockedBy ? '🔒 Niv ' + lockedBy : 'Améliorer') : 'Max'}
       </button>
+    </div>
+    <div class="open-bar bulk-bar">
+      <button class="btn-ghost btn-open-bulk" id="btn-open10" ${(state.keys || 0) >= 1 ? '' : 'disabled'} title="Ouvrir jusqu'à 10 coffres">Ouvrir ×10</button>
+      <button class="btn-ghost btn-open-bulk" id="btn-open-max" ${(state.keys || 0) >= 1 ? '' : 'disabled'} title="Ouvrir toutes les clés">Ouvrir Max</button>
     </div>
     ${nextStep ? `<div class="next-step pulse-gold">${nextStep}</div>` : '<div class="next-step-spacer"></div>'}
     <div class="chest-cooldown"><div class="chest-cooldown-fill" id="cooldown-fill"></div></div>
@@ -392,7 +418,52 @@ function monsterAffixIcons(monster) {
 function monsterMechLines(monster) {
   const ms = monster.mechanics || [];
   if (!ms.length) return '';
-  return `<div class="mob-mech smallcap">${ms.map(m => `${m.icon ? m.icon + ' ' : ''}${m.desc || ''}`).join('<br>')}</div>`;
+  return `<div class="mob-mech smallcap">${ms.map(m => {
+    const tip = AFFIX_TIP[m.type];
+    return `${m.icon ? m.icon + ' ' : ''}${m.desc || ''}${tip ? ` <span class="mech-tip">→ ${tip}</span>` : ''}`;
+  }).join('<br>')}</div>`;
+}
+
+// Loot/key drop preview for the fight dock.
+function monsterDropLine(monster) {
+  const cap = maxAllowedChestTier(state.prestige?.level || 0);
+  const baseTier = Math.max(1, Math.ceil(monster.floor / 8));
+  const tier = Math.min(cap, baseTier + (monster.isBoss || monster.isElite ? 1 : 0));
+  const tDef = CHEST_TIERS[tier - 1];
+  const dropPct = Math.round((monster.dropChance || 0) * 100);
+  const keyTxt = monster.isBoss ? '3 🗝' : (monster.isElite ? '1 🗝' : `${Math.round((0.30 + 0.15 * (monster.affixCount || 0)) * 100)}% 🗝`);
+  return `<div class="mob-drop smallcap">🎁 ${dropPct}% · T${tier} ${tDef ? tDef.emoji : ''} · ${keyTxt}</div>`;
+}
+
+// Sliding 10-floor window over the endless echo region, anchored on the
+// player's frontier (deep floors are reached by progressing, not by selecting).
+function echoFloorWindow(highest) {
+  const winTop = Math.max(FIXED_MAX_FLOOR + 10, highest);
+  return { lo: Math.max(FIXED_MAX_FLOOR + 1, winTop - 9), top: winTop };
+}
+
+// Endless "Échos" node for floors beyond the fixed biomes (mobile dungeon map).
+function echoNodeHTML(cur, highest) {
+  if (highest <= FIXED_MAX_FLOOR) return '';
+  const unlockedHere = highest > FIXED_MAX_FLOOR;
+  const isCurrent = cur > FIXED_MAX_FLOOR;
+  const echoBiome = biomeForFloor(Math.max(cur, FIXED_MAX_FLOOR + 1));
+  const { lo: winLo, top: winTop } = echoFloorWindow(highest);
+  let floors = '';
+  for (let f = winLo; f <= winTop; f++) {
+    const boss = isBossFloor(f);
+    const unlocked = f <= highest;
+    const sel = f === cur;
+    floors += `<button class="floor${unlocked ? '' : ' locked'}${sel ? ' sel' : ''}${boss ? ' boss' : ''}" data-floor="${f}" ${unlocked ? '' : 'disabled'}>${boss ? '★' : (unlocked ? f : '🔒')}</button>`;
+  }
+  return `<div class="biome-node${isCurrent ? ' open' : ''}${unlockedHere ? '' : ' dim'}">
+    <div class="biome-head">
+      <span class="biome-emoji">🌀</span>
+      <div class="biome-info"><div class="biome-name display">Échos${isCurrent ? ` · ${echoBiome.name}` : ''}</div><div class="smallcap">Étages ${FIXED_MAX_FLOOR + 1}–∞</div></div>
+    </div>
+    ${isCurrent ? `<div class="floor-grid">${floors}</div>
+      <div class="biome-boss-line"><span class="biome-emoji">${echoBiome.boss.emoji}</span><span>${echoBiome.boss.name}</span><span class="smallcap">${echoBiome.boss.mechanic?.desc || ''}</span></div>` : ''}
+  </div>`;
 }
 
 // ── ① Dungeon map — vertical biome path ──────────────────────
@@ -422,7 +493,7 @@ function screenDungeon() {
       ${isCurrent ? `<div class="floor-grid">${floors.join('')}</div>
         <div class="biome-boss-line"><span class="biome-emoji">${b.boss.emoji}</span><span>${b.boss.name}</span><span class="smallcap">${b.boss.mechanic?.desc || ''}</span></div>` : ''}
     </div>`;
-  }).join('');
+  }).join('') + echoNodeHTML(cur, highest);
 
   const monster = generateMonster(cur);
   const diff = predictDifficulty(monster);
@@ -444,8 +515,9 @@ function screenDungeon() {
         <span class="mob-emoji pixel">${hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, 44) : monster.emoji}</span>
         <div class="ft-info">
           <div class="ft-name">${monster.name}${monster.isBoss ? ' 👑' : ''}${monster.isElite ? ' ⭐' : ''}${monsterAffixIcons(monster)}</div>
-          <div class="ft-diff" style="color:${diff.color}">${diff.label}</div>
+          <div class="ft-diff" style="color:${diff.color}">${diff.label}${diff.hpLeftPct != null ? ` <span class="smallcap">· ~${diff.hpLeftPct}% PV restants · ${diff.turnsToKill}t</span>` : ''}</div>
           ${monsterMechLines(monster)}
+          ${monsterDropLine(monster)}
         </div>
       </div>
       <button class="btn-gold btn-fight" id="btn-fight">⚔ Combattre</button>
@@ -540,7 +612,25 @@ function screenForge() {
     `<span class="orb-chip" style="--c:${o.color}" title="${o.name}">${o.emoji}<span class="mono">${state.orbs[o.id] || 0}</span></span>`).join('');
 
   let body;
-  if (!item) {
+  if (forgeMode === 'exchange') {
+    const rows = CURRENCY_EXCHANGE_LADDER.map(id => {
+      const next = exchangeNext(id);
+      if (!next) return '';
+      const from = CURRENCY_BY_ID[id], to = CURRENCY_BY_ID[next];
+      const cost = exchangeCost(id);
+      const ok = canExchange(id);
+      return `<button class="ex-row${ok ? '' : ' disabled'}" data-exchange-from="${id}" ${ok ? '' : 'disabled'}>
+        <span class="ex-from" style="--c:${from.color}">${from.emoji} <span class="mono">${state.orbs[id] || 0}</span></span>
+        <span class="ex-cost mono">${cost} →</span>
+        <span class="ex-to" style="--c:${to.color}">${to.emoji} +1</span>
+      </button>`;
+    }).join('');
+    body = `<div class="forge-exchange">
+      <div class="smallcap">Comptoir de change — convertis tes orbes vers le haut</div>
+      <div class="ex-list">${rows}</div>
+      <button class="btn-ghost" data-forge-action="cancel-exchange">← Retour</button>
+    </div>`;
+  } else if (!item) {
     const forgeable = state.inventory.slice(0, 60);
     body = `<div class="forge-pick">
       <div class="smallcap">Choisis un objet à forger</div>
@@ -565,18 +655,28 @@ function screenForge() {
       </button>`;
     }).join('');
     const r = RARITY_BY_ID[item.rarity];
+    const affixList = (item.affixes || []).map((a, i) => {
+      const lockable = canToggleAffixLock(item, i);
+      return `<div class="forge-affix${a.locked ? ' locked' : ''}">
+        ${affixTypeBadge(a)}<span class="fa-name">${a.label}</span>
+        <span class="fa-val mono">+${a.value}${a.percent ? '%' : ''}</span>
+        <button class="affix-lock${a.locked ? ' on' : ''}" data-lock-index="${i}" ${lockable ? '' : 'disabled'} title="${a.locked ? 'Déverrouiller' : 'Verrouiller (préservé au reroll)'}">${a.locked ? '🔒' : '🔓'}</button>
+      </div>`;
+    }).join('');
     body = `<div class="forge-work">
       <div class="forge-slot rar-glow-${r.cssClass} pixel">${itemVisualHTML(item, 84)}</div>
       <div class="forge-item-name display rt-${r.cssClass}">${item.name}</div>
       <div class="forge-item-sub smallcap">T${item.chestTier} · ${SLOT_BY_ID[item.slot].name} · ${r.name}</div>
       ${compChips(item) ? `<div class="detail-chips">${compChips(item)}</div>` : ''}
       <div class="forge-detail">${statBars(item)}</div>
+      ${affixList ? `<div class="forge-affixes">${affixList}</div>` : ''}
       <div class="forge-actions">${actions}</div>
       <button class="btn-ghost" id="forge-deselect">← Changer d'objet</button>
     </div>`;
   }
+  const exchangeBtn = forgeMode === 'exchange' ? '' : '<button class="btn-ghost ex-open" data-forge-mode="exchange">🔄 Comptoir</button>';
   return `<div class="forge">
-    <div class="orb-strip panel">${orbStrip}</div>
+    <div class="orb-strip panel">${orbStrip}${exchangeBtn}</div>
     ${body}
   </div>`;
 }
@@ -592,7 +692,8 @@ function screenMeta() {
     { ov: 'stats', icon: '⚡', name: 'Statistiques', sub: `Puissance ${fmt(power)}` },
     { ov: 'talents', icon: '🌳', name: 'Talents', sub: tp ? `${tp} point${tp > 1 ? 's' : ''} dispo` : 'Arbre de talents' },
     { ov: 'skills', icon: '📜', name: 'Compétences', sub: `${skills}/${SKILLS.length} actives` },
-    { ov: 'abilities', icon: '✦', name: 'Capacités', sub: `${getLoadout().length}/${ABILITY_SLOTS} équipées` },
+    { ov: 'abilities', icon: '✦', name: 'Capacités', sub: `${getLoadout().length}/${abilitySlots()} équipées` },
+    { ov: 'affinities', icon: '🜂', name: 'Affinités', sub: affinitiesSub() },
     { ov: 'story', icon: '📜', name: 'Chronique', sub: Story.storyReady() ? '◈ Chapitre à accomplir !' : (Story.activeChapter()?.title || 'Histoire'), ready: Story.storyReady() },
     { ov: 'contracts', icon: '📋', name: 'Contrats', sub: `${(state.bounties?.active || []).length} actifs` },
     { ov: 'codex', icon: '📖', name: 'Codex', sub: 'Découvertes' },
@@ -640,6 +741,9 @@ function dtHub() {
   const power = computePower(stats);
   const pityMax = Math.max(1, PITY_THRESHOLD - pityReduction());
   const pity = Math.min(pityMax, state.pity?.sinceLegendary || 0);
+  const ancPity = Math.min(PITY_ANCESTRAL_THRESHOLD, state.pity?.sinceAncestral || 0);
+  const uniPity = Math.min(PITY_UNIQUE_THRESHOLD, state.pity?.sinceUnique || 0);
+  const focusOrbs = state.orbs?.focus || 0;
   const weights = tier.weights;
   const rows = RARITIES.filter(r => (weights[r.id] || 0) > 0).map(r =>
     `<div class="dt-droprow"><span class="rt-${r.cssClass}">${r.name}</span><div class="dt-droptrack"><i style="width:${weights[r.id]}%;background:${r.color}"></i></div><span class="mono">${weights[r.id]}%</span></div>`).join('');
@@ -655,13 +759,25 @@ function dtHub() {
         <button class="btn-key" data-nav="dungeon"><span class="cur-glyph">🗝</span><span class="mono">${fmt(state.keys)}</span></button>
         <button class="btn-gold btn-open ${enoughKeys ? '' : 'is-disabled'}" id="btn-open"><span class="open-ico">⬢</span> Ouvrir <span class="open-cost">· 1 clé</span></button>
       </div>
+      <div class="open-bar bulk-bar">
+        <button class="btn-ghost btn-open-bulk" id="btn-open10" ${enoughKeys ? '' : 'disabled'} title="Ouvrir jusqu'à 10 coffres">Ouvrir ×10</button>
+        <button class="btn-ghost btn-open-bulk" id="btn-open-max" ${enoughKeys ? '' : 'disabled'} title="Ouvrir toutes les clés">Ouvrir Max</button>
+      </div>
       <div class="chest-cooldown"><div class="chest-cooldown-fill" id="cooldown-fill"></div></div>
     </div>
     <aside class="dt-panel">
       <div class="dt-card panel"><div class="smallcap">Puissance</div><div class="mono power-val gold-text">${fmt(power)}</div></div>
       <div class="dt-card panel"><div class="smallcap">Taux de butin</div>${rows}</div>
       <div class="dt-card panel"><div class="smallcap">Pity légendaire</div>
-        <div class="pity-row"><div class="pity-bar"><div class="pity-fill" style="width:${(pity / pityMax) * 100}%"></div></div><span class="mono">${pity}/${pityMax}</span></div></div>
+        <div class="pity-row"><div class="pity-bar"><div class="pity-fill" style="width:${(pity / pityMax) * 100}%"></div></div><span class="mono">${pity}/${pityMax}</span></div>
+        <div class="pity-sub smallcap" title="Garanties anti-malchance">
+          <span style="color:${RARITY_BY_ID.ancestral.color}">Ancestral ${ancPity}/${PITY_ANCESTRAL_THRESHOLD}</span>
+          · <span style="color:${RARITY_BY_ID.legendary.color}">Unique ${uniPity}/${PITY_UNIQUE_THRESHOLD}</span>
+        </div></div>
+      <div class="dt-card panel"><div class="smallcap">🎯 Focalisation · ${fmt(focusOrbs)} orbe${focusOrbs > 1 ? 's' : ''}</div>
+        <div class="focus-row">
+          ${SLOTS.map(s => `<button class="focus-chip${state.focusSlot === s.id ? ' active' : ''}" data-focus-slot="${s.id}" title="${s.name}" ${(focusOrbs > 0 || state.focusSlot === s.id) ? '' : 'disabled'}>${s.emptyEmoji}</button>`).join('')}
+        </div></div>
       <button class="btn-ghost btn-upgrade ${canUp ? 'ready' : ''}" id="btn-upgrade" ${next && canUp ? '' : 'disabled'}>
         ⬆ ${next ? `${next.name} · ${fmt(next.upgradeCost)} 💰` : 'Tier max'}</button>
     </aside>
@@ -676,16 +792,22 @@ function dtDungeon() {
   const diff = predictDifficulty(monster);
   const biome = biomeForFloor(cur);
   const beaten = cur < highest;
-  const biomeList = BIOMES.map(b => {
+  const inEcho = cur > FIXED_MAX_FLOOR;
+  let biomeList = BIOMES.map(b => {
     const [lo, hi] = b.floors;
     const unlocked = highest >= lo;
-    const active = cur >= lo && cur <= (hi > 900 ? 99999 : hi);
-    return `<button class="dt-biome${active ? ' active' : ''}${unlocked ? '' : ' locked'}" data-floor="${unlocked ? Math.max(lo, Math.min(highest, hi > 900 ? highest : hi)) : lo}" ${unlocked ? '' : 'disabled'}>
-      <span class="biome-emoji">${b.emoji}</span><div><div class="biome-name">${b.name}</div><div class="smallcap">${lo}–${hi > 900 ? '∞' : hi}</div></div>${unlocked ? '' : '<span class="biome-lock">🔒</span>'}</button>`;
+    const active = !inEcho && cur >= lo && cur <= hi;
+    return `<button class="dt-biome${active ? ' active' : ''}${unlocked ? '' : ' locked'}" data-floor="${unlocked ? Math.max(lo, Math.min(highest, hi)) : lo}" ${unlocked ? '' : 'disabled'}>
+      <span class="biome-emoji">${b.emoji}</span><div><div class="biome-name">${b.name}</div><div class="smallcap">${lo}–${hi}</div></div>${unlocked ? '' : '<span class="biome-lock">🔒</span>'}</button>`;
   }).join('');
-  const top = biome.floors[1] > 900 ? biome.floors[0] + 9 : biome.floors[1];
+  if (highest > FIXED_MAX_FLOOR) {
+    const win = echoFloorWindow(highest);
+    biomeList += `<button class="dt-biome${inEcho ? ' active' : ''}" data-floor="${Math.min(highest, win.top)}">
+      <span class="biome-emoji">🌀</span><div><div class="biome-name">Échos</div><div class="smallcap">${FIXED_MAX_FLOOR + 1}–∞</div></div></button>`;
+  }
+  const range = inEcho ? echoFloorWindow(highest) : { lo: biome.floors[0], top: biome.floors[1] };
   const floors = [];
-  for (let f = biome.floors[0]; f <= top; f++) {
+  for (let f = range.lo; f <= range.top; f++) {
     const boss = isBossFloor(f), unlocked = f <= highest, sel = f === cur;
     floors.push(`<button class="floor${unlocked ? '' : ' locked'}${sel ? ' sel' : ''}${boss ? ' boss' : ''}" data-floor="${f}" ${unlocked ? '' : 'disabled'}>${boss ? '★' : (unlocked ? f : '🔒')}</button>`);
   }
@@ -705,9 +827,10 @@ function dtDungeon() {
       <div class="dt-card panel mob-preview">
         <div class="mob-sprite-lg pixel">${hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, 96) : `<span style="font-size:72px">${monster.emoji}</span>`}</div>
         <div class="ft-name">${monster.name}${monster.isBoss ? ' 👑' : ''}${monster.isElite ? ' ⭐' : ''}${monsterAffixIcons(monster)}</div>
-        <div class="ft-diff" style="color:${diff.color}">${diff.label}</div>
+        <div class="ft-diff" style="color:${diff.color}">${diff.label}${diff.hpLeftPct != null ? ` <span class="smallcap">· ~${diff.hpLeftPct}% PV · ${diff.turnsToKill}t</span>` : ''}</div>
         <div class="mob-stats smallcap">❤ ${fmt(monster.hp)} · ⚔ ${fmt(monster.damage)} · 🛡 ${fmt(monster.armor)}</div>
         ${monsterMechLines(monster)}
+        ${monsterDropLine(monster)}
       </div>
     </aside>
   </div>`;
@@ -778,6 +901,7 @@ const OVERLAYS = {
   talents: ovTalents,
   skills: ovSkills,
   abilities: ovAbilities,
+  affinities: ovAffinities,
   diveBoon: ovDiveBoon,
   diveSummary: ovDiveSummary,
   villageBuilding: ovVillageBuilding,
@@ -793,6 +917,7 @@ const OVERLAYS = {
   help: ovHelp,
   menu: ovMenu,
   autosell: ovAutosell,
+  bulkResult: ovBulkResult,
 };
 
 function overlayShell(title, inner, { wide = false, dark = false } = {}) {
@@ -838,6 +963,37 @@ let currentDrop = null;
 export function getCurrentDrop() { return currentDrop; }
 export function showDropPopup(item) { currentDrop = item; navOverlay('loot', {}); }
 export function hideDropPopup() { currentDrop = null; if (nav.overlay === 'loot') closeOverlay(); }
+
+// ── Bulk open recap ──────────────────────────────────────────
+let bulkSummary = null;
+export function showBulkResult(summary) { bulkSummary = summary; navOverlay('bulkResult', {}); }
+
+function ovBulkResult() {
+  const s = bulkSummary;
+  if (!s) return '';
+  const rarityRows = RARITIES.filter(r => (s.byRarity[r.id] || 0) > 0).map(r =>
+    `<div class="bulk-rar"><span class="rarity-tag rt-${r.cssClass}">${r.name}</span><span class="mono">×${s.byRarity[r.id]}</span></div>`).join('');
+  const notable = s.notable.slice(0, 12).map(it => {
+    const r = RARITY_BY_ID[it.rarity];
+    const tag = it.uniqueId ? ' ✦UNIQUE' : it.setId ? ' ⬡SET' : '';
+    return `<div class="bulk-notable rt-${r.cssClass}" style="color:${r.color}">${it.emoji || '◆'} ${it.name}${tag}</div>`;
+  }).join('');
+  const orbBits = Object.entries(s.orbs).map(([oid, q]) => {
+    const o = CURRENCY_BY_ID[oid]; return o ? `${o.emoji} ×${q}` : '';
+  }).filter(Boolean).join(' · ');
+  const totals = [];
+  if (s.gold > 0) totals.push(`💰 +${fmt(s.gold)}`);
+  if (s.shards > 0) totals.push(`💎 +${fmt(s.shards)}`);
+  if (s.kept > 0) totals.push(`🎒 ${fmt(s.kept)} gardé${s.kept > 1 ? 's' : ''}`);
+  const inner = `
+    <div class="bulk-head smallcap">${fmt(s.opened)} coffre${s.opened > 1 ? 's' : ''} ouvert${s.opened > 1 ? 's' : ''} · ${fmt(s.total)} objet${s.total > 1 ? 's' : ''}</div>
+    <div class="bulk-rars">${rarityRows || '<span class="smallcap">Aucun objet</span>'}</div>
+    ${totals.length ? `<div class="bulk-totals">${totals.join(' &nbsp; ')}</div>` : ''}
+    ${orbBits ? `<div class="bulk-orbs smallcap">Orbes : ${orbBits}</div>` : ''}
+    ${notable ? `<div class="bulk-notables"><div class="smallcap">Trouvailles notables</div>${notable}</div>` : ''}
+    <button class="btn-gold" data-close-overlay="1" style="margin-top:12px;width:100%">Continuer</button>`;
+  return overlayShell('📦 Butin en masse', inner);
+}
 
 function ovLoot() {
   const item = currentDrop;
@@ -955,7 +1111,8 @@ function ovStats() {
 function ovTalents() {
   const cats = Object.entries(TALENT_CATEGORIES).map(([cid, cat]) => {
     const pts = categoryPoints(cid);
-    const dots = Array.from({ length: 5 }, (_, i) => `<span class="mastery-dot${i < Math.min(5, pts) ? ' on' : ''}"></span>`).join('');
+    const dots = Array.from({ length: 10 }, (_, i) =>
+      `<span class="mastery-dot${i < Math.min(10, pts) ? ' on' : ''}${(i === 4 || i === 9) ? ' tier' : ''}"></span>`).join('');
     const talents = TALENTS.filter(t => t.category === cid).map(t => {
       const rank = rankOf(t.id);
       const can = canUpgradeTalent(t.id);
@@ -968,7 +1125,13 @@ function ovTalents() {
     }).join('');
     return `<div class="talent-cat"><div class="tc-head" style="color:${cat.color}">${cat.emoji} ${cat.name} <span class="mastery">${dots}</span></div>${talents}</div>`;
   }).join('');
-  return overlayShell(`Talents · ${state.talentPoints || 0} pts`, cats, { wide: true });
+  const spent = totalPointsSpent();
+  const cost = respecCost();
+  const can = canRespecTalents();
+  const respec = spent > 0
+    ? `<div class="talent-respec"><button class="btn-respec${can ? '' : ' disabled'}" data-respec ${can ? '' : 'disabled'}>↺ Réinitialiser les talents (${fmt(cost)} or)</button></div>`
+    : '';
+  return overlayShell(`Talents · ${state.talentPoints || 0} pts`, cats + respec, { wide: true });
 }
 
 // ── ③ Skills ─────────────────────────────────────────────────
@@ -988,15 +1151,16 @@ function ovSkills() {
 // ── Abilities loadout (player-chosen active abilities) ───────
 function ovAbilities() {
   const loadout = getLoadout();
+  const maxSlots = abilitySlots();
   const slots = [];
-  for (let i = 0; i < ABILITY_SLOTS; i++) {
+  for (let i = 0; i < maxSlots; i++) {
     const id = loadout[i];
     const a = id ? ABILITIES.find(x => x.id === id) : null;
     slots.push(a
       ? `<button class="ab-slot filled" data-ability="${a.id}" title="Retirer"><span class="ab-ico">${a.emoji}</span><span class="smallcap">${a.name}</span></button>`
       : `<div class="ab-slot empty"><span class="ab-ico">＋</span><span class="smallcap">Vide</span></div>`);
   }
-  const full = loadout.length >= ABILITY_SLOTS;
+  const full = loadout.length >= maxSlots;
   const grid = ABILITIES.map(a => {
     const unlocked = isAbilityUnlocked(a.id);
     const on = isSlotted(a.id);
@@ -1004,16 +1168,45 @@ function ovAbilities() {
     const stateLabel = on ? '<div class="skill-state gold-text smallcap">ÉQUIPÉE</div>'
       : (unlocked ? (full ? '<div class="skill-state smallcap">Slots pleins</div>' : '<div class="skill-state smallcap">Tap pour équiper</div>')
                   : `<div class="skill-state smallcap">🔒 ${a.unlockText || 'Verrouillée'}</div>`);
+    const badge = a.rank >= 2 ? '<span class="ab-badge t2">T2</span>' : '';
     const attr = unlocked ? `data-ability="${a.id}"` : '';
     return `<button class="skill${cls}" ${attr} ${unlocked ? '' : 'disabled'}>
       <span class="skill-ico">${a.emoji}</span>
-      <div class="skill-info"><div class="skill-name">${a.name}</div><div class="skill-desc smallcap">${a.desc}</div>${stateLabel}</div>
+      <div class="skill-info"><div class="skill-name">${a.name}${badge}</div><div class="skill-desc smallcap">${a.desc}</div>${stateLabel}</div>
     </button>`;
   }).join('');
-  const inner = `<p class="smallcap">Équipe jusqu'à ${ABILITY_SLOTS} capacités actives. Elles se déclenchent automatiquement en combat — le choix du loadout est ta décision de build.</p>
+  const inner = `<p class="smallcap">Équipe jusqu'à ${maxSlots} capacités actives (talent 🎯 Tacticien = +1 slot/rang). Elles se déclenchent automatiquement en combat — le choix du loadout est ta décision de build.</p>
     <div class="ab-slots">${slots.join('')}</div>
     <div class="skills-grid">${grid}</div>`;
-  return overlayShell(`Capacités · ${loadout.length}/${ABILITY_SLOTS}`, inner, { wide: true });
+  return overlayShell(`Capacités · ${loadout.length}/${maxSlots}`, inner, { wide: true });
+}
+
+// ── Affinités d'archétype (synergies transversales) ──────────
+const AFFINITY_BONUS_LABELS = { damage: 'dégâts', hp: 'PV max', elem: 'dégâts élém.', gold: 'or', drop: 'drops rares' };
+function affinityBonusText(bonus) {
+  if (!bonus) return '—';
+  return Object.entries(bonus).map(([k, v]) => `+${Math.round(v * 100)}% ${AFFINITY_BONUS_LABELS[k] || k}`).join(' · ');
+}
+// Hub sub-label: count of axes that have reached at least tier 1.
+function affinitiesSub() {
+  const active = affinitySummary().filter(a => a.tier > 0).length;
+  return active ? `${active}/4 actives` : 'Synergies de build';
+}
+function ovAffinities() {
+  const cards = affinitySummary().map(a => {
+    const pips = Array.from({ length: 3 }, (_, i) => `<span class="aff-pip${i < a.tier ? ' on' : ''}"></span>`).join('');
+    const next = a.tier < 3 ? `<div class="smallcap aff-next">Palier ${a.tier + 1} à ${[4, 8, 12][a.tier]} pts</div>` : '<div class="smallcap aff-next">Palier max</div>';
+    return `<div class="aff-card${a.tier > 0 ? ' on' : ''}" style="--c:${a.color}">
+      <div class="aff-head"><span class="aff-emoji">${a.emoji}</span><span class="aff-name display">${a.name}</span><span class="aff-pips">${pips}</span></div>
+      <div class="aff-score mono">${a.score} pts</div>
+      <div class="aff-bonus smallcap">${a.tier > 0 ? affinityBonusText(a.activeBonus) : 'Inactif'}</div>
+      ${next}
+      <div class="aff-desc smallcap">${a.desc}</div>
+    </div>`;
+  }).join('');
+  const inner = `<p class="smallcap">Aligne tes investissements à travers plusieurs systèmes (talents, reliques, set, éléments). Plus un axe est nourri, plus son bonus passif grandit — la cohérence de build est récompensée.</p>
+    <div class="aff-grid">${cards}</div>`;
+  return overlayShell('Affinités d\'archétype', inner, { wide: true });
 }
 
 // ── Deep Dive: boon checkpoint ───────────────────────────────
@@ -1428,6 +1621,8 @@ function ovAscension() {
       <div class="asc-title display">Ascension</div>
       <div class="asc-sub smallcap">Niveau de prestige ${lvl} → ${next}</div>
       <div class="asc-grid">
+        <div class="asc-cell"><span class="smallcap">Dégâts</span><span class="mono">+${cbonus}%</span></div>
+        <div class="asc-cell"><span class="smallcap">PV max</span><span class="mono">+${cbonus}%</span></div>
         <div class="asc-cell"><span class="smallcap">Drops raretés</span><span class="mono">+${bonus}%</span></div>
         <div class="asc-cell"><span class="smallcap">Or de vente</span><span class="mono">+${bonus}%</span></div>
         <div class="asc-cell"><span class="smallcap">Points talent</span><span class="mono">+2</span></div>
@@ -1456,22 +1651,30 @@ function ownedRelicsBlock() {
 // ── Relic choice (after ascension) ───────────────────────────
 function ovRelicChoice() {
   const choice = state.prestige?.pendingRelicChoice || [];
+  const rerolls = state.prestige?.pendingRelicRerolls || 0;
   const cards = choice.map(id => {
     const r = RELIC_BY_ID[id];
     if (!r) return '';
     const have = state.prestige?.relics?.[id] || 0;
+    const rankBadge = (r.rank || 1) >= 2 ? `<span class="relic-badge rank2">★ Rang ${r.rank}</span>` : '';
+    const fxBadge = r.effect ? `<span class="relic-badge fx">✦ Effet</span>` : '';
     return `<button class="relic-card" data-relic="${id}">
         <div class="relic-emoji">${r.emoji}</div>
         <div class="relic-name display">${r.name}${have ? ` <span class="smallcap">(×${have})</span>` : ''}</div>
         <div class="relic-desc smallcap">${r.desc}</div>
+        <div class="relic-badges">${rankBadge}${fxBadge}</div>
       </button>`;
   }).join('');
+  const rerollBtn = `<button class="btn-ghost ${rerolls > 0 ? '' : 'is-disabled'}" id="btn-reroll-relic">
+      🔄 Relancer le choix${rerolls > 0 ? ` (${rerolls})` : ' (0)'}
+    </button>`;
   return `<div class="overlay-backdrop"></div>
     <div class="sheet dark">
       <div class="sheet-head"><span class="display">🏺 Choisis une relique</span></div>
       <div class="sheet-body scroll">
-        <p class="smallcap">Modificateur permanent et cumulable. Il survit à chaque ascension et oriente ton build.</p>
+        <p class="smallcap">Modificateur permanent et cumulable. Il survit à chaque ascension et oriente ton build. Les reliques à effet ✦ modifient le combat ; les reliques de rang ★ se débloquent en profondeur.</p>
         <div class="relic-grid">${cards}</div>
+        ${rerollBtn}
       </div>
     </div>`;
 }

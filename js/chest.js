@@ -28,6 +28,28 @@ export function canOpen() {
   return true;
 }
 
+// Number of items a single open yields. Base 1, with a small (tier+prestige
+// scaled) chance for bonus items — the "item quantity" / magic-find faucet.
+export function rollItemQuantity(chestTier) {
+  const prestige = state.prestige?.level || 0;
+  let qty = 1;
+  const pTwo = Math.min(0.5, 0.02 * (chestTier - 1) + 0.03 * prestige);
+  if (Math.random() < pTwo) qty += 1;
+  const pThree = Math.min(0.2, 0.01 * (chestTier - 1) + 0.015 * prestige);
+  if (qty === 2 && Math.random() < pThree) qty += 1;
+  return qty;
+}
+
+// Consume a focus orb (if one is held and a slot is targeted) and return that
+// slot so the next generated item is forced to it. Returns null otherwise.
+function consumeFocusSlot() {
+  if (state.focusSlot && (state.orbs.focus || 0) > 0) {
+    state.orbs.focus -= 1;
+    return state.focusSlot;
+  }
+  return null;
+}
+
 export function cooldownRemaining() {
   return Math.max(0, CHEST_OPEN_COOLDOWN_MS - (Date.now() - lastOpenAt));
 }
@@ -41,11 +63,42 @@ export function openChest() {
   lastOpenAt = Date.now();
   state.keys = (state.keys || 0) - 1;
   state.opened += 1;
-  const item = generateItemFromChest(state.chestTier);
+  const forceSlot = consumeFocusSlot();
+  const qty = rollItemQuantity(state.chestTier);
+  const items = [];
+  for (let i = 0; i < qty; i++) {
+    // The focus only steers the first item of the open.
+    items.push(generateItemFromChest(state.chestTier, { forceSlot: i === 0 ? forceSlot : null }));
+  }
   const orbs = rollOrbDrops(state.chestTier);
   bountyTrack('open_chests', 1);
   notify();
-  return { item, orbs };
+  return { items, orbs, focusUsed: !!forceSlot };
+}
+
+// Bulk open up to `n` chests (capped by available keys). Items are returned
+// aggregated; the caller applies auto-sell/salvage and shows a recap.
+export function openChests(n) {
+  const items = [];
+  const orbs = [];
+  let opened = 0;
+  while (opened < n && (state.keys || 0) >= 1) {
+    state.keys -= 1;
+    state.opened += 1;
+    const forceSlot = consumeFocusSlot();
+    const qty = rollItemQuantity(state.chestTier);
+    for (let i = 0; i < qty; i++) {
+      items.push(generateItemFromChest(state.chestTier, { forceSlot: i === 0 ? forceSlot : null }));
+    }
+    orbs.push(...rollOrbDrops(state.chestTier));
+    opened += 1;
+  }
+  if (opened > 0) {
+    lastOpenAt = Date.now();
+    bountyTrack('open_chests', opened);
+    notify();
+  }
+  return { items, orbs, opened };
 }
 
 export function getCurrentTier() {

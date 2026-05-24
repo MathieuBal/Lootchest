@@ -4,18 +4,18 @@
 import { state, subscribe, resetState, notify } from './state.js';
 import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS, CURRENCY_BY_ID } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
-import { openChest, upgradeChest, canOpen } from './chest.js';
-import { attemptCurrentFloor, setCurrentFloor, attemptDiveFight } from './combat.js';
+import { openChest, openChests, upgradeChest, canOpen } from './chest.js';
+import { attemptCurrentFloor, setCurrentFloor, attemptDiveFight, generateMonster, predictDifficulty } from './combat.js';
 import {
   startDive, isDiving, getSession, recordWin, openBoonChoice, chooseBoon,
   finalizeDive, nextStartHp, diveMods, diveDepth,
 } from './dive.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
-import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
-import { upgradeTalent } from './talents.js';
+import { FORGE_ACTIONS, applyMasterCraft, applyExchange, toggleAffixLock } from './forge.js';
+import { upgradeTalent, respecTalents } from './talents.js';
 import { refreshBoardIfEmpty, rerollBounty, onBountyComplete } from './bounties.js';
 import { canAscend, ascend } from './prestige.js';
-import { chooseRelic } from './relics.js';
+import { chooseRelic, rerollRelicChoice } from './relics.js';
 import { toggleAbility } from './abilities.js';
 import {
   accruePassive, grantDungeonResources, buildOrUpgrade, upgradeTownhall, assignWorker, commitCraft,
@@ -144,6 +144,14 @@ document.body.addEventListener('click', async (e) => {
 
   // ── Hub: open chest ──
   if (t.closest('#btn-open')) { openChestFlow(); return; }
+  if (t.closest('#btn-open10')) { openBulkFlow(10); return; }
+  if (t.closest('#btn-open-max')) { openBulkFlow(state.keys || 0); return; }
+  const focusBtn = t.closest('[data-focus-slot]');
+  if (focusBtn) {
+    const slot = focusBtn.dataset.focusSlot || null;
+    state.focusSlot = (slot && state.focusSlot === slot) ? null : slot; // toggle off if re-clicked
+    notify(); soundClick(); return;
+  }
   if (t.closest('#btn-upgrade')) {
     if (upgradeChest()) { soundUpgrade(); const c = UI.getChestCenter(); spawnParticles('#f5c842', c.x, c.y, 30); }
     return;
@@ -156,7 +164,11 @@ document.body.addEventListener('click', async (e) => {
     if (state.combat.loopMode) { state.combat.loopMode = false; }
     notify(); soundClick(); return;
   }
-  if (t.closest('#btn-fight')) { fightFlow(); return; }
+  if (t.closest('#btn-fight')) {
+    if (!confirmSuicideFloor()) return;
+    fightFlow();
+    return;
+  }
   if (t.closest('#btn-loop')) {
     const floor = state.combat.currentFloor;
     if (floor >= state.combat.highestUnlocked) return;
@@ -215,6 +227,16 @@ document.body.addEventListener('click', async (e) => {
   // Forge actions
   const fAct = t.closest('[data-forge-action]');
   if (fAct) { forgeAction(fAct.dataset.forgeAction); return; }
+  const fMode = t.closest('[data-forge-mode]');
+  if (fMode) { UI.setForgeMode(fMode.dataset.forgeMode); soundClick(); return; }
+  const exRow = t.closest('.ex-row[data-exchange-from]');
+  if (exRow && !exRow.disabled) { if (applyExchange(exRow.dataset.exchangeFrom)) soundForge(); return; }
+  const lockBtn = t.closest('[data-lock-index]');
+  if (lockBtn && !lockBtn.disabled) {
+    const item = state.inventory.find(i => i.id === UI.getForgeSelectedId());
+    if (item && toggleAffixLock(item, Number(lockBtn.dataset.lockIndex))) soundClick();
+    return;
+  }
   const mcRow = t.closest('.mc-row[data-affix-id]');
   if (mcRow) {
     const item = state.inventory.find(i => i.id === UI.getForgeSelectedId());
@@ -229,6 +251,13 @@ document.body.addEventListener('click', async (e) => {
   // Talents
   const talBtn = t.closest('[data-talent]');
   if (talBtn && !talBtn.disabled) { if (upgradeTalent(talBtn.dataset.talent)) { soundClick(); soundUpgrade(); } return; }
+  const respecBtn = t.closest('[data-respec]');
+  if (respecBtn && !respecBtn.disabled) {
+    if (confirm('↺ Réinitialiser tous les talents ? Les points te seront rendus contre de l\'or.')) {
+      if (respecTalents()) { soundClick(); soundUpgrade(); }
+    }
+    return;
+  }
 
   // Bounty reroll
   const rrBtn = t.closest('[data-bounty-reroll]');
@@ -238,6 +267,7 @@ document.body.addEventListener('click', async (e) => {
   if (t.closest('#btn-ascend')) { ascendFlow(); return; }
 
   // Relic choice (after ascension)
+  if (t.closest('#btn-reroll-relic')) { if (rerollRelicChoice()) { soundClick(); notify(); } return; }
   const relicBtn = t.closest('[data-relic]');
   if (relicBtn) { chooseRelicFlow(relicBtn.dataset.relic); return; }
 
@@ -314,7 +344,9 @@ function openChestFlow() {
   soundChestOpen();
   const result = openChest();
   if (!result) return;
-  const { item, orbs } = result;
+  const { items, orbs } = result;
+  const item = items[0];                   // primary item drives the reveal
+  const extras = items.slice(1);
   UI.playChestOpen();
   flashAndCooldown(item);
   soundDrop(item.rarity);
@@ -330,11 +362,42 @@ function openChestFlow() {
     for (const oid of orbs) { const d = CURRENCY_BY_ID[oid]; if (!d) continue; floatingText(`+1 ${d.emoji}`, center.x, center.y - 40 - off, d.color); off += 22; spawnParticles(d.color, center.x, center.y, 12); }
     soundCoin();
   }
+  // Bonus items (item quantity) are auto-handled and reported via a toast.
+  if (extras.length) {
+    let off = 0;
+    for (const ex of extras) {
+      const act = autoActionFor(ex.rarity);
+      if (act === 'sell') sellDrop(ex);
+      else if (act === 'salvage') salvageDrop(ex);
+      else addToInventory(ex);
+      floatingText('+1 🎁', center.x, center.y - 60 - off, '#46d0c0'); off += 20;
+    }
+    UI.showToast('🎁', `+${extras.length} objet${extras.length > 1 ? 's' : ''} bonus`, 'Quantité de butin');
+  }
   const action = autoActionFor(item.rarity);
   if (action === 'sell') { sellDrop(item); soundCoin(); return; }
   if (action === 'salvage') { salvageDrop(item); soundForge(); return; }
   // Let the lid-lift + flash read before the reveal slides in.
   setTimeout(() => UI.showDropPopup(item), 300);
+}
+
+function openBulkFlow(n) {
+  n = Math.min(n | 0, state.keys || 0);
+  if (n < 1) { UI.showToast('🗝', 'Pas de clé', 'Farme des clés au donjon'); return; }
+  soundChestOpen();
+  const { items, orbs, opened } = openChests(n);
+  const summary = { opened, total: items.length, byRarity: {}, gold: 0, shards: 0, kept: 0, notable: [], orbs: {} };
+  for (const it of items) {
+    summary.byRarity[it.rarity] = (summary.byRarity[it.rarity] || 0) + 1;
+    if (it.uniqueId || it.setId || it.rarity === 'legendary' || it.rarity === 'ancestral') summary.notable.push(it);
+    const act = autoActionFor(it.rarity);
+    if (act === 'sell') summary.gold += sellDrop(it);
+    else if (act === 'salvage') summary.shards += salvageDrop(it);
+    else { addToInventory(it); summary.kept += 1; }
+  }
+  for (const oid of orbs) summary.orbs[oid] = (summary.orbs[oid] || 0) + 1;
+  soundCoin();
+  UI.showBulkResult(summary);
 }
 
 function flashAndCooldown(item) {
@@ -351,6 +414,22 @@ function resumeLoop() {
 }
 
 let fighting = false;
+
+// Guard against accidental fatal fights: on a "Suicide"-rated floor, the first
+// Combattre click warns and arms a short confirmation window; a second click
+// within it proceeds. Returns true when the fight may start.
+let suicideArmedUntil = 0;
+function confirmSuicideFloor() {
+  // Looping/diving already committed — don't nag.
+  if (state.combat.loopMode || isDiving()) return true;
+  const diff = predictDifficulty(generateMonster(state.combat.currentFloor));
+  if (diff.label !== 'Suicide') { suicideArmedUntil = 0; return true; }
+  if (Date.now() < suicideArmedUntil) { suicideArmedUntil = 0; return true; }
+  suicideArmedUntil = Date.now() + 4000;
+  soundLose();
+  UI.showToast('💀', 'Étage mortel', 'Mort quasi certaine — re-clique pour confirmer');
+  return false;
+}
 async function fightFlow() {
   if (fighting || isDiving()) return;
   fighting = true;
@@ -562,7 +641,7 @@ function itemAction(action) {
 }
 
 function forgeAction(actionId) {
-  if (actionId === 'cancel-master') { UI.setForgeMode('actions'); soundClick(); return; }
+  if (actionId === 'cancel-master' || actionId === 'cancel-exchange') { UI.setForgeMode('actions'); soundClick(); return; }
   const action = FORGE_ACTIONS.find(a => a.id === actionId);
   if (!action) return;
   const item = state.inventory.find(i => i.id === UI.getForgeSelectedId());
@@ -576,7 +655,7 @@ function ascendFlow() {
   const newLevel = (state.prestige?.level || 0) + 1;
   let ok = true;
   if (state.settings?.confirmAscend !== false) {
-    ok = confirm(`🌟 Ascension Niv ${newLevel} ?\n\nTu repars de zéro (or, items, coffre T1, étage 1).\nTu gardes succès, prestige, stats.\nBonus permanent : +${15 * newLevel}% drops & or.\n\nConfirmer ?`);
+    ok = confirm(`🌟 Ascension Niv ${newLevel} ?\n\nTu repars de zéro (or, items, coffre T1, étage 1).\nTu gardes succès, prestige, stats.\nBonus permanent : +${6 * newLevel}% dégâts & PV, +${15 * newLevel}% drops & or.\n\nConfirmer ?`);
   }
   if (ok && ascend()) {
     soundAscension(); screenShake(8, 600);

@@ -2,7 +2,7 @@
 import { state, notify } from './state.js';
 import { SLOTS, PRESTIGE_REQUIREMENTS } from './data.js';
 import { syncAbsoluteProgress as bountySync } from './bounties.js';
-import { rollRelicChoice } from './relics.js';
+import { rollRelicChoice, RELIC_REROLLS_PER_ASCENSION } from './relics.js';
 
 export function canAscend() {
   return state.chestTier >= PRESTIGE_REQUIREMENTS.minChestTier
@@ -21,6 +21,7 @@ export function ascend() {
   // Offer a relic choice (1 of 3). Resolved by the UI via chooseRelic().
   if (!state.prestige.relics) state.prestige.relics = {};
   state.prestige.pendingRelicChoice = rollRelicChoice(3);
+  state.prestige.pendingRelicRerolls = RELIC_REROLLS_PER_ASCENSION;
   // Reset run state — keep achievements unlocked, prestige itself, ui prefs, stats counters.
   state.gold = 0;
   state.keys = 10;
