@@ -34,6 +34,7 @@ export const state = {
     leftTab: 'chest',     // 'chest' | 'dungeon'
     muted: false,
     hasSeenWelcome: false, // first-visit tutorial flag
+    hasSeenIntro: false,   // intro cinematic shown once
   },
   settings: {
     fastCombat: false,    // skip animations during fights
@@ -66,7 +67,7 @@ export const state = {
   },
   village: {                   // management/idle layer (gold + dungeon sink)
     townhall: 1,
-    resources: { wood: 60, stone: 40, metal: 0 },
+    resources: { wood: 60, stone: 40, metal: 0, essence: 0 },
     buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 },
     workers: { sawmill: 0, quarry: 0, locksmith: 0 },
     lastTick: 0,
@@ -143,6 +144,8 @@ export function replaceState(newState) {
     // Existing saves: skip welcome if they already opened anything
     state.ui.hasSeenWelcome = state.opened > 0;
   }
+  // Existing saves shouldn't be ambushed by the intro; only brand-new ones see it.
+  if (state.ui.hasSeenIntro === undefined) state.ui.hasSeenIntro = state.opened > 0;
   if (!state.settings) state.settings = {};
   const defaultSettings = { fastCombat: false, reducedParticles: false, confirmAscend: true, confirmDestructiveSell: true, hardMode: false };
   for (const [k, v] of Object.entries(defaultSettings)) {
@@ -157,12 +160,14 @@ export function replaceState(newState) {
   if (!state.prestige.relics) state.prestige.relics = {};
   if (state.prestige.pendingRelicChoice === undefined) state.prestige.pendingRelicChoice = null;
   if (!state.dive) state.dive = { bestDepth: 0, totalDives: 0 };
-  if (!state.village) state.village = { townhall: 1, resources: { wood: 60, stone: 40, metal: 0 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0 };
+  if (!state.village) state.village = { townhall: 1, resources: { wood: 60, stone: 40, metal: 0, essence: 0 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0 };
   if (!state.village.resources) state.village.resources = { wood: 60, stone: 40, metal: 0 };
   if (state.village.resources.metal === undefined) state.village.resources.metal = 0;
+  if (state.village.resources.essence === undefined) state.village.resources.essence = 0;
   if (!state.village.buildings) state.village.buildings = { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 };
   if (!state.village.workers) state.village.workers = { sawmill: 0, quarry: 0, locksmith: 0 };
   if (!state.village.townhall) state.village.townhall = 1;
+  if (state.village.construction === undefined) state.village.construction = null;
   if (!state.shards) state.shards = {};
   for (const k of ['common','magic','rare','epic','legendary','ancestral']) {
     if (state.shards[k] === undefined) state.shards[k] = 0;
@@ -210,6 +215,6 @@ export function resetState() {
   state.milestonesGranted = {};
   state.codex = { uniques: {}, sets: {}, bosses: {} };
   state.bounties = { active: [], completed: 0 };
-  state.village = { townhall: 1, resources: { wood: 60, stone: 40, metal: 0 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0 };
+  state.village = { townhall: 1, resources: { wood: 60, stone: 40, metal: 0, essence: 0 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0 };
   notify();
 }

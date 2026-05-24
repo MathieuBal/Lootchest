@@ -19,6 +19,7 @@ import { chooseRelic } from './relics.js';
 import { toggleAbility } from './abilities.js';
 import {
   accruePassive, grantDungeonResources, buildOrUpgrade, upgradeTownhall, assignWorker, commitCraft,
+  tickConstruction, isBusy as villageIsBusy, BUILDING_BY_ID as VILLAGE_BUILDING_BY_ID,
 } from './village.js';
 import { craftItem } from './loot.js';
 import {
@@ -61,9 +62,27 @@ refreshBoardIfEmpty();
 
 // Village passive production: accrue offline gains once, then trickle on a timer.
 accruePassive();
-setInterval(() => { accruePassive(); notify(); }, 5000);
+tickConstruction(); // finish anything that completed while away
+let _vtick = 0;
+setInterval(() => {
+  const done = tickConstruction();          // notifies internally on completion
+  const accrued = (++_vtick % 5 === 0);
+  if (accrued) accruePassive();
+  if (done) {
+    const b = VILLAGE_BUILDING_BY_ID[done];
+    soundUpgrade();
+    UI.showToast(b ? b.emoji : '🏛️', 'Chantier terminé', b ? b.name : 'Mairie');
+    spawnParticles('#f0c463', innerWidth / 2, innerHeight / 3, 24);
+    return;
+  }
+  // Re-render only when it actually matters — avoid rebuilding the whole DOM
+  // (and any open modal) every second. Live updates are only needed while the
+  // player is watching the Village (build countdown, resource trickle).
+  if (UI.getActiveTab() === 'village' && (villageIsBusy() || accrued)) notify();
+}, 1000);
 
-if (!state.ui.hasSeenWelcome) UI.navOverlay('onboarding');
+if (!state.ui.hasSeenIntro) UI.startIntro();
+else if (!state.ui.hasSeenWelcome) UI.navOverlay('onboarding');
 else if (state.prestige?.pendingRelicChoice?.length) UI.navOverlay('relicChoice');
 
 document.addEventListener('click', unlockAudio, { once: true });
@@ -90,6 +109,11 @@ function refreshNextStepHint() { /* hub computes its own hint; nothing imperativ
 // ═════════════════════════════════════════════════════════════
 document.body.addEventListener('click', async (e) => {
   const t = e.target;
+
+  // Intro cinematic
+  const introBtn = t.closest('[data-intro]');
+  if (introBtn) { if (introBtn.dataset.intro === 'skip') UI.endIntro(); else { soundClick(); UI.advanceIntro(); } return; }
+  if (t.closest('[data-intro-replay]')) { UI.startIntro(); soundClick(); return; }
 
   // Close overlay (backdrop / ✕)
   if (t.closest('[data-close-overlay]')) { UI.closeOverlay(); return; }

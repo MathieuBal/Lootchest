@@ -42,6 +42,8 @@ export const BUILDINGS = [
     desc: '+5% d\'or gagné en donjon par niveau.' },
   { id: 'orbworks',  emoji: '🔮', name: "Atelier d'orbes", kind: 'producer', townhallReq: 6, produces: 'orbs', perWorker: 0.15,
     desc: 'Produit des orbes de forge (par ouvrier/min).' },
+  { id: 'sanctuary', emoji: '💠', name: 'Sanctuaire',  kind: 'producer', townhallReq: 8, produces: 'essence', perWorker: 0.5,
+    desc: "Distille de l'essence (par ouvrier/min) — requise pour forger l'ancestral." },
 ];
 export const BUILDING_BY_ID = Object.fromEntries(BUILDINGS.map(b => [b.id, b]));
 export const PRODUCERS = BUILDINGS.filter(b => b.kind === 'producer'); // count against build slots
@@ -114,16 +116,46 @@ function canAfford(cost) {
   return (v().resources.wood || 0) >= (cost.wood || 0)
       && (v().resources.stone || 0) >= (cost.stone || 0)
       && (v().resources.metal || 0) >= (cost.metal || 0)
+      && (v().resources.essence || 0) >= (cost.essence || 0)
       && (state.gold || 0) >= (cost.gold || 0);
 }
 function pay(cost) {
   v().resources.wood -= (cost.wood || 0);
   v().resources.stone -= (cost.stone || 0);
   v().resources.metal = (v().resources.metal || 0) - (cost.metal || 0);
+  v().resources.essence = (v().resources.essence || 0) - (cost.essence || 0);
   state.gold -= (cost.gold || 0);
 }
 
-// ── Build / upgrade ──────────────────────────────────────────
+// ── Build / upgrade (with construction time) ─────────────────
+// Building isn't instant: paying starts a timed construction job (one at a
+// time). The level applies when the job completes (tickConstruction), so the
+// village visibly grows over time. Offline progress is honoured via timestamps.
+export function buildDurationMs(currentLevel) {
+  return Math.min(240000, 10000 + (currentLevel || 0) * 8000); // 10s → 4min cap
+}
+export function isBusy() { return !!v()?.construction; }
+export function buildingUnderConstruction() { return v()?.construction?.id || null; }
+export function constructionState() {
+  const c = v()?.construction;
+  if (!c) return null;
+  const now = Date.now();
+  const elapsed = Math.max(0, now - c.start);
+  return { id: c.id, level: c.level, durationMs: c.duration, remainingMs: Math.max(0, c.duration - elapsed),
+    progress: Math.min(1, c.duration ? elapsed / c.duration : 1) };
+}
+// Apply a finished job. Returns the completed building id (for the UI effect).
+export function tickConstruction() {
+  const c = v()?.construction;
+  if (!c) return null;
+  if (Date.now() < c.start + c.duration) return null;
+  if (c.id === 'townhall') v().townhall = c.level;
+  else v().buildings[c.id] = c.level;
+  v().construction = null;
+  notify();
+  return c.id;
+}
+
 export function isUnlocked(id) {
   const b = BUILDING_BY_ID[id];
   return !!b && townhall() >= b.townhallReq;
@@ -131,6 +163,7 @@ export function isUnlocked(id) {
 export function canBuild(id) {
   const b = BUILDING_BY_ID[id];
   if (!b || !isUnlocked(id)) return false;                     // gated by town hall / age
+  if (isBusy()) return false;                                  // one construction at a time
   const lvl = levelOf(id);
   if (lvl >= maxBuildingLevel()) return false;                 // capped by town hall
   // New producer needs a free build slot
@@ -140,18 +173,18 @@ export function canBuild(id) {
 export function buildOrUpgrade(id) {
   if (!canBuild(id)) return false;
   pay(buildCost(id));
-  v().buildings[id] = levelOf(id) + 1;
+  v().construction = { id, level: levelOf(id) + 1, start: Date.now(), duration: buildDurationMs(levelOf(id)) };
   notify();
   return true;
 }
 
 export function canUpgradeTownhall() {
-  return townhallFloorMet() && canAfford(townhallCost());
+  return !isBusy() && townhallFloorMet() && canAfford(townhallCost());
 }
 export function upgradeTownhall() {
   if (!canUpgradeTownhall()) return false;
   pay(townhallCost());
-  v().townhall = townhall() + 1;
+  v().construction = { id: 'townhall', level: townhall() + 1, start: Date.now(), duration: buildDurationMs(townhall()) };
   notify();
   return true;
 }
@@ -180,7 +213,7 @@ export function ratePerMin(id) {
   return b.perWorker * lvl * workers;
 }
 export function rates() {
-  const out = { wood: 0, stone: 0, metal: 0, keys: 0, orbs: 0 };
+  const out = { wood: 0, stone: 0, metal: 0, keys: 0, orbs: 0, essence: 0 };
   for (const b of PRODUCERS) out[b.produces] += ratePerMin(b.id);
   return out;
 }
@@ -212,10 +245,11 @@ export function accruePassive() {
   v().lastTick = now;
   if (dtMin <= 0) return { wood: 0, stone: 0, keys: 0 };
   const r = rates();
-  const gained = { wood: r.wood * dtMin, stone: r.stone * dtMin, metal: r.metal * dtMin, keys: r.keys * dtMin, orbs: r.orbs * dtMin };
+  const gained = { wood: r.wood * dtMin, stone: r.stone * dtMin, metal: r.metal * dtMin, essence: r.essence * dtMin, keys: r.keys * dtMin, orbs: r.orbs * dtMin };
   v().resources.wood = (v().resources.wood || 0) + gained.wood;
   v().resources.stone = (v().resources.stone || 0) + gained.stone;
   v().resources.metal = (v().resources.metal || 0) + gained.metal;
+  v().resources.essence = (v().resources.essence || 0) + gained.essence;
   // Keys & orbs: accumulate fractional buffers, pay out whole units.
   v()._keyBuf = (v()._keyBuf || 0) + gained.keys;
   const wholeKeys = Math.floor(v()._keyBuf);
@@ -240,7 +274,7 @@ export function grantDungeonResources(floor, isBoss, isElite) {
 
 export function woodStone() {
   const res = v()?.resources || {};
-  return { wood: Math.floor(res.wood || 0), stone: Math.floor(res.stone || 0), metal: Math.floor(res.metal || 0) };
+  return { wood: Math.floor(res.wood || 0), stone: Math.floor(res.stone || 0), metal: Math.floor(res.metal || 0), essence: Math.floor(res.essence || 0) };
 }
 
 // ── Forge: craft your own gear ───────────────────────────────
@@ -265,6 +299,9 @@ export function craftCost(tier, rarityId) {
     stone: Math.round(40 * t * rm),
     // Metal only from tier 5+ (needs Forge lvl 5 → town hall 5 → Foundry).
     metal: t >= 5 ? Math.round(12 * t * rm) : 0,
+    // Essence gates the very top: ancestral craft only (Forge lvl 9 → town
+    // hall 9, by which point the Sanctuary at TH8 has been producing essence).
+    essence: rarityId === 'ancestral' ? Math.round(6 * t) : 0,
     gold:  Math.round(250 * t * rm * rm),
   };
 }

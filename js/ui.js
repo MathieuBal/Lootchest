@@ -25,6 +25,7 @@ import { ABILITIES, ABILITY_SLOTS, getLoadout, isSlotted, isAbilityUnlocked } fr
 import { canDive, getSession, DIVE_BOON_BY_ID } from './dive.js';
 import * as Village from './village.js';
 import { buildingArtSVG } from './villageArt.js';
+import { introSlides } from './cinematic.js';
 import { rerollCost as bountyRerollCost } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
@@ -778,6 +779,7 @@ const OVERLAYS = {
   diveBoon: ovDiveBoon,
   diveSummary: ovDiveSummary,
   villageBuilding: ovVillageBuilding,
+  intro: ovIntro,
   contracts: ovContracts,
   codex: ovCodex,
   achievements: ovAchievements,
@@ -1068,6 +1070,7 @@ function costStr(c) {
   if (c.wood) bits.push(`🪵 ${fmt(c.wood)}`);
   if (c.stone) bits.push(`🪨 ${fmt(c.stone)}`);
   if (c.metal) bits.push(`⚙️ ${fmt(c.metal)}`);
+  if (c.essence) bits.push(`💠 ${fmt(c.essence)}`);
   if (c.gold) bits.push(`💰 ${fmt(c.gold)}`);
   return bits.join(' · ') || '—';
 }
@@ -1080,9 +1083,42 @@ function workerDots(id) {
   return `<span class="vp-dots">${s}</span>`;
 }
 
+// ── Intro cinematic ──────────────────────────────────────────
+let introIndex = 0;
+export function startIntro() { introIndex = 0; navOverlay('intro'); }
+export function advanceIntro() {
+  const slides = introSlides('');
+  if (introIndex >= slides.length - 1) { endIntro(); return; }
+  introIndex += 1; renderOverlay();
+}
+export function endIntro() {
+  state.ui.hasSeenIntro = true;
+  closeOverlay();
+  if (!state.ui.hasSeenWelcome) navOverlay('onboarding');
+}
+function ovIntro() {
+  const slides = introSlides(characterSpriteSVG(40));
+  const i = Math.min(introIndex, slides.length - 1);
+  const s = slides[i];
+  const last = i >= slides.length - 1;
+  const dots = slides.map((_, k) => `<span class="cine-dot${k === i ? ' on' : ''}"></span>`).join('');
+  return `<div class="cine" data-intro="next">
+    <div class="cine-stage">${s.scene}<div class="cine-vignette"></div></div>
+    <div class="cine-body">
+      <div class="cine-title display">${s.title}</div>
+      <p class="cine-text" key="${i}">${s.text}</p>
+      <div class="cine-dots">${dots}</div>
+    </div>
+    <div class="cine-actions">
+      <button class="btn-ghost" data-intro="skip">Passer</button>
+      <button class="btn-gold" data-intro="next">${last ? 'Commencer' : 'Suivant'}</button>
+    </div>
+  </div>`;
+}
+
 // ── Village = a visual scene (prominent top-level tab) ───────
 function screenVillage() {
-  const { wood, stone, metal } = Village.woodStone();
+  const { wood, stone, metal, essence } = Village.woodStone();
   const r = Village.rates();
   const age = Village.currentAge();
   const banner = `<div class="vlg-banner">
@@ -1095,6 +1131,7 @@ function screenVillage() {
         <span class="vlg-r" title="Bois">🪵 ${fmt(wood)}<em>+${r.wood.toFixed(0)}</em></span>
         <span class="vlg-r" title="Pierre">🪨 ${fmt(stone)}<em>+${r.stone.toFixed(0)}</em></span>
         <span class="vlg-r" title="Métal">⚙️ ${fmt(metal)}<em>+${r.metal.toFixed(1)}</em></span>
+        ${(essence > 0 || r.essence > 0) ? `<span class="vlg-r" title="Essence">💠 ${fmt(essence)}<em>+${r.essence.toFixed(1)}</em></span>` : ''}
         ${r.orbs > 0 ? `<span class="vlg-r" title="Orbes/min">🔮<em>+${r.orbs.toFixed(2)}</em></span>` : ''}
         <span class="vlg-r" title="Ouvriers">👷 ${Village.workersUsed()}/${Village.workerCap()}</span>
       </div>
@@ -1103,16 +1140,40 @@ function screenVillage() {
   // Town hall is the centerpiece plot.
   const thLvl = Village.townhall();
   const thReady = Village.canUpgradeTownhall();
-  const mairie = `<button class="vp vp-mairie${thReady ? ' vp-ready' : ''}" data-village-open="townhall">
+  const thCs = Village.constructionState();
+  let mairie;
+  if (thCs && thCs.id === 'townhall') {
+    const elapsed = thCs.durationMs - thCs.remainingMs;
+    mairie = `<button class="vp vp-mairie vp-building" data-village-open="townhall">
+      <span class="vp-badge">→ niv ${thCs.level}</span>
+      <span class="vp-art vp-tile vp-ghost">${buildingArtSVG('mairie', thCs.level, 72)}<span class="vp-scaffold">🏗️</span></span>
+      <span class="vp-name">Mairie</span>
+      <div class="vp-buildbar"><div class="vp-buildbar-fill" style="animation: vp-build ${thCs.durationMs}ms linear ${-elapsed}ms forwards"></div></div>
+      <span class="vp-sub smallcap">⏳ ${Math.ceil(thCs.remainingMs / 1000)}s</span></button>`;
+  } else {
+    mairie = `<button class="vp vp-mairie${thReady ? ' vp-ready' : ''}" data-village-open="townhall">
       <span class="vp-badge">niv ${thLvl}</span>
       <span class="vp-art vp-tile">${buildingArtSVG('mairie', thLvl, 72)}</span>
       <span class="vp-name">Mairie</span>
       <span class="vp-sub smallcap">${Village.producersBuilt()}/${Village.buildingSlots()} emplacements${thReady ? ' · ⬆ prête' : ''}</span>
     </button>`;
+  }
 
+  const cs = Village.constructionState();
   const plots = Village.BUILDINGS.map(b => {
     const lvl = Village.levelOf(b.id);
     const unlocked = Village.isUnlocked(b.id);
+    // Under construction: scaffolding + progress bar (smooth via negative-delay anim).
+    if (cs && cs.id === b.id) {
+      const elapsed = cs.durationMs - cs.remainingMs;
+      const secs = Math.ceil(cs.remainingMs / 1000);
+      return `<button class="vp vp-building" data-village-open="${b.id}">
+        <span class="vp-badge">→ niv ${cs.level}</span>
+        <span class="vp-art vp-tile vp-ghost">${buildingArtSVG(b.id, cs.level, 56)}<span class="vp-scaffold">🏗️</span></span>
+        <span class="vp-name">${b.name}</span>
+        <div class="vp-buildbar"><div class="vp-buildbar-fill" style="animation: vp-build ${cs.durationMs}ms linear ${-elapsed}ms forwards"></div></div>
+        <span class="vp-sub smallcap">⏳ ${secs}s</span></button>`;
+    }
     if (!unlocked) {
       return `<div class="vp vp-locked" title="Mairie niv ${b.townhallReq}">
         <span class="vp-art">🔒</span><span class="vp-name">${b.name}</span>
@@ -1168,6 +1229,14 @@ function screenVillage() {
   </div>`;
 }
 
+// Construction status line for the detail overlay.
+function vbStatus(id) {
+  const cs = Village.constructionState();
+  if (cs && cs.id === id) return `<div class="smallcap gold-text">🏗️ En construction… ${Math.ceil(cs.remainingMs / 1000)}s (→ niv ${cs.level})</div>`;
+  if (cs) { const ob = Village.BUILDING_BY_ID[cs.id]; return `<div class="smallcap vlg-locked">⏳ Chantier occupé : ${ob ? ob.name : 'Mairie'}</div>`; }
+  return '';
+}
+
 // Contextual per-building management (replaces the old monolithic table).
 function ovVillageBuilding({ id } = {}) {
   if (id === 'townhall') {
@@ -1182,6 +1251,7 @@ function ovVillageBuilding({ id } = {}) {
           <p class="smallcap">Plafonne le niveau des bâtiments (max ${thLvl}) et le nombre d'emplacements de production (${Village.producersBuilt()}/${Village.buildingSlots()}). Faire monter la Mairie ouvre les Âges et de nouveaux bâtiments.</p>
           <div class="smallcap">Améliorer → niv ${thLvl + 1} : ${costStr(thCost)}</div>
           <div class="smallcap ${floorMet ? 'gold-text' : 'vlg-locked'}">${floorMet ? '✓ étage atteint' : '🔒'} requiert d'avoir débloqué l'étage ${Village.townhallFloorReq()}</div>
+          ${vbStatus('townhall')}
           <button class="btn-gold" data-village-townhall ${thCan ? '' : 'disabled'}>Améliorer la Mairie</button>
         </div>
       </div>`;
@@ -1217,7 +1287,8 @@ function ovVillageBuilding({ id } = {}) {
         <div class="display">${b.name}${lvl ? ` · niv ${lvl}` : ''}</div>
         <p class="smallcap">${b.desc}</p>
         ${body}
-        ${capped ? '' : `<div class="smallcap">Coût : ${costStr(cost)}</div>`}
+        ${capped ? '' : `<div class="smallcap">Coût : ${costStr(cost)} · ⏳ ${Math.ceil(Village.buildDurationMs(lvl) / 1000)}s</div>`}
+        ${vbStatus(b.id)}
         <button class="btn-gold" data-village-build="${b.id}" ${can ? '' : 'disabled'}>${btnLabel}</button>
       </div>
     </div>
@@ -1448,7 +1519,8 @@ function ovHelp() {
     <h3>⚒ Forge</h3><p>Chaque action consomme un orbe spécifique. Transmute, augmente, reroll… pour améliorer tes objets.</p>
     <h3>🌟 Ascension & 🌳 Talents</h3><p>À T5 + étage 50, ascensionne pour repartir plus puissant (+prestige permanent). Gagne des points de talent par paliers d'étage.</p>
     <h3>💡 Raccourcis</h3><p>Espace : ouvrir/combattre · Échap : fermer.</p>
-    <button class="btn-ghost" data-action="replay-welcome">🎓 Revoir l'intro</button>`, { wide: true });
+    <button class="btn-ghost" data-intro-replay="1">🎬 Revoir la cinématique</button>
+    <button class="btn-ghost" data-action="replay-welcome">🎓 Revoir le tutoriel</button>`, { wide: true });
 }
 
 // ── ⋯ Menu ───────────────────────────────────────────────────
