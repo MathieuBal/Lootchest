@@ -191,6 +191,10 @@ export function replaceState(newState) {
   if (!state.talents) state.talents = {};
   if (state.talentPoints === undefined) state.talentPoints = 0;
   if (!Array.isArray(state.loadout)) state.loadout = ['ab_power_strike', 'ab_frenzy', 'ab_second_wind'];
+  // Clamp loadout to allowed slots (base 3 + Tacticien ranks). Inlined to avoid
+  // importing talents.js here (would create a cycle with state.js).
+  const _maxSlots = 3 + (state.talents.tactician || 0);
+  if (state.loadout.length > _maxSlots) state.loadout.length = _maxSlots;
   if (!state.milestonesGranted) state.milestonesGranted = {};
   if (!state.codex) state.codex = { uniques: {}, sets: {}, bosses: {} };
   if (!state.codex.uniques) state.codex.uniques = {};

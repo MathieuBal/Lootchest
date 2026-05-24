@@ -121,16 +121,23 @@ export const TALENTS = [
   { id: 'orbFinder',      emoji: '🟪', name: 'Trouveur d\'orbes',   desc: '+15% drop d\'orbes par rang',           maxRank: 4, perRank: { orbDropMult: 0.15 },     category: 'utility' },
   { id: 'recycler',       emoji: '♻',  name: 'Recycleur',           desc: '+1 cristal par recyclage par rang',     maxRank: 3, perRank: { shardBonus: 1 },         category: 'utility' },
   { id: 'pityMaster',     emoji: '✨', name: 'Maître pity',         desc: '-10 au pity timer par rang',            maxRank: 3, perRank: { pityReduction: 10 },     category: 'utility' },
+  { id: 'tactician',      emoji: '🎯', name: 'Tacticien',           desc: '+1 slot de capacité active par rang',   maxRank: 2, perRank: { abilitySlot: 1 },        category: 'utility' },
 ];
 
-// Talent categories — investing 5+ points in one grants a 10% mastery bonus to that category.
+// Talent categories — investing 5+ points in one grants a 10% mastery bonus to
+// that category, then 25% (total, not stacked) at 10+ points: specialist payoff.
 export const TALENT_CATEGORIES = {
-  combat:  { emoji: '⚔', name: 'Combat',     color: '#ff7a1a', desc: '+10% effets combat (dégâts, PV) si ≥ 5 points' },
-  wealth:  { emoji: '💰', name: 'Richesse',   color: '#ffe14a', desc: '+10% effets richesse (or, drops) si ≥ 5 points' },
-  utility: { emoji: '🔮', name: 'Utilitaire', color: '#5a8af0', desc: '+10% effets utilitaires (orbes, cristaux, pity) si ≥ 5 points' },
+  combat:  { emoji: '⚔', name: 'Combat',     color: '#ff7a1a', desc: '+10% effets combat si ≥ 5 pts, +25% si ≥ 10 pts' },
+  wealth:  { emoji: '💰', name: 'Richesse',   color: '#ffe14a', desc: '+10% effets richesse si ≥ 5 pts, +25% si ≥ 10 pts' },
+  utility: { emoji: '🔮', name: 'Utilitaire', color: '#5a8af0', desc: '+10% effets utilitaires si ≥ 5 pts, +25% si ≥ 10 pts' },
 };
 export const TALENT_MASTERY_THRESHOLD = 5;
 export const TALENT_MASTERY_BONUS = 0.10;
+export const TALENT_MASTERY_THRESHOLD_2 = 10;  // second mastery tier
+export const TALENT_MASTERY_BONUS_2 = 0.25;    // total bonus at tier 2 (absolute, not stacked on tier 1)
+
+export const ABILITY_SLOTS_BASE = 3;           // base active-ability loadout size
+export const ABILITY_RANK2_PRESTIGE = 3;       // tier-2 abilities unlock at this prestige (mirrors relics)
 
 export const TALENT_BY_ID = Object.fromEntries(TALENTS.map(t => [t.id, t]));
 

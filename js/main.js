@@ -12,7 +12,7 @@ import {
 } from './dive.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
 import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
-import { upgradeTalent } from './talents.js';
+import { upgradeTalent, respecTalents } from './talents.js';
 import { refreshBoardIfEmpty, rerollBounty, onBountyComplete } from './bounties.js';
 import { canAscend, ascend } from './prestige.js';
 import { chooseRelic, rerollRelicChoice } from './relics.js';
@@ -241,6 +241,13 @@ document.body.addEventListener('click', async (e) => {
   // Talents
   const talBtn = t.closest('[data-talent]');
   if (talBtn && !talBtn.disabled) { if (upgradeTalent(talBtn.dataset.talent)) { soundClick(); soundUpgrade(); } return; }
+  const respecBtn = t.closest('[data-respec]');
+  if (respecBtn && !respecBtn.disabled) {
+    if (confirm('↺ Réinitialiser tous les talents ? Les points te seront rendus contre de l\'or.')) {
+      if (respecTalents()) { soundClick(); soundUpgrade(); }
+    }
+    return;
+  }
 
   // Bounty reroll
   const rrBtn = t.closest('[data-bounty-reroll]');

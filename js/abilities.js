@@ -1,12 +1,12 @@
 // Active abilities: a player-chosen loadout of powerful, cooldown-based effects.
 // Unlike passive skills (auto-unlocked by stat thresholds), abilities are slotted
-// by the player (max ABILITY_SLOTS) — a real build decision. They reuse the exact
+// by the player (up to abilitySlots()) — a real build decision. They reuse the exact
 // same combat hook shape as skills (onTurnStart / onPlayerAttack / onDamageCalc /
 // onMonsterAttack / onTakeDamage) so resolveFight needs no special handling: they
 // are simply merged into the active hook list by buildSkillContext().
 import { state } from './state.js';
-
-export const ABILITY_SLOTS = 3;
+import { abilitySlots, categoryPoints } from './talents.js';
+import { ABILITY_RANK2_PRESTIGE } from './data.js';
 
 export const ABILITIES = [
   {
@@ -93,6 +93,36 @@ export const ABILITIES = [
       return { kind: 'reflect', amount: ret };
     },
   },
+  // --- Tier 2 (prestige-gated) — chacune scale avec une catégorie de talents ---
+  {
+    id: 'ab_war_scholar', emoji: '📕', name: 'Érudit de Guerre', rank: 2,
+    desc: '+8% dégâts par point investi en catégorie Combat.',
+    unlockText: 'Prestige 3', unlock: (s) => (s.prestige?.level || 0) >= ABILITY_RANK2_PRESTIGE,
+    onDamageCalc: () => {
+      const pts = categoryPoints('combat');
+      return pts > 0 ? { kind: 'mult', mult: 1 + 0.08 * pts, label: '📕 Érudit de Guerre' } : null;
+    },
+  },
+  {
+    id: 'ab_treasury', emoji: '🏦', name: 'Trésorier', rank: 2,
+    desc: 'Crit garanti tous les 5 tours · +5% dégâts par point en Richesse.',
+    unlockText: 'Prestige 3', unlock: (s) => (s.prestige?.level || 0) >= ABILITY_RANK2_PRESTIGE,
+    initState: () => ({ t: 0 }),
+    onPlayerAttack: (ctx) => { ctx.skillState.t += 1; return ctx.skillState.t % 5 === 0 ? { kind: 'forceCrit' } : null; },
+    onDamageCalc: () => {
+      const pts = categoryPoints('wealth');
+      return pts > 0 ? { kind: 'mult', mult: 1 + 0.05 * pts, label: '🏦 Trésorier' } : null;
+    },
+  },
+  {
+    id: 'ab_overload', emoji: '🔆', name: 'Surcharge', rank: 2,
+    desc: 'Soigne 6% PV max par tour, +1% par point en Utilitaire.',
+    unlockText: 'Prestige 3', unlock: (s) => (s.prestige?.level || 0) >= ABILITY_RANK2_PRESTIGE,
+    onTurnStart: (ctx) => {
+      const pct = 0.06 + 0.01 * categoryPoints('utility');
+      return { kind: 'heal', amount: Math.floor(ctx.playerMaxHp * pct) };
+    },
+  },
 ];
 
 export const ABILITY_BY_ID = Object.fromEntries(ABILITIES.map(a => [a.id, a]));
@@ -109,7 +139,7 @@ export function unlockedAbilities() {
 // The loadout as an array of ability ids (cleaned of unknown/locked entries).
 export function getLoadout() {
   const raw = Array.isArray(state.loadout) ? state.loadout : [];
-  return raw.filter(id => ABILITY_BY_ID[id] && isAbilityUnlocked(id)).slice(0, ABILITY_SLOTS);
+  return raw.filter(id => ABILITY_BY_ID[id] && isAbilityUnlocked(id)).slice(0, abilitySlots());
 }
 
 // Ability definitions currently slotted (used by combat).
@@ -130,7 +160,7 @@ export function toggleAbility(id) {
     state.loadout.splice(idx, 1);
     return true;
   }
-  if (getLoadout().length >= ABILITY_SLOTS) return false;
+  if (getLoadout().length >= abilitySlots()) return false;
   state.loadout.push(id);
   return true;
 }

@@ -499,6 +499,14 @@ input, select { font-family: inherit; }
 .mastery { display: inline-flex; gap: 3px; }
 .mastery-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--surface-raised); border: 1px solid var(--border); }
 .mastery-dot.on { background: var(--gold-200); border-color: var(--gold-200); }
+.mastery-dot.tier { box-shadow: 0 0 0 1px var(--gold-400); }
+.talent-respec { margin-top: 12px; text-align: center; }
+.btn-respec { font-size: 12px; padding: 8px 14px; border-radius: var(--r-sm); cursor: pointer;
+  background: rgba(245,200,66,.12); border: 1px solid rgba(245,200,66,.45); color: var(--gold-200); }
+.btn-respec.disabled { opacity: .4; pointer-events: none; }
+.ab-badge { font-size: 9px; letter-spacing: .04em; padding: 1px 5px; margin-left: 6px; border-radius: var(--r-sm);
+  vertical-align: middle; }
+.ab-badge.t2 { background: rgba(150,100,220,.2); border: 1px solid rgba(170,120,240,.5); color: #d9c2ff; }
 .talent { display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--surface-sunken); border: 1px solid var(--border-soft); border-radius: var(--r-sm); margin-bottom: 6px; }
 .talent-ico { font-size: 22px; }
 .talent-info { flex: 1; }

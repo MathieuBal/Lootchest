@@ -20,9 +20,9 @@ import { FORGE_ACTIONS, availableMasterCraftAffixes } from './forge.js';
 import { shardYield, autoActionFor } from './inventory.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
-import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talents.js';
+import { rankOf, canUpgradeTalent, pityReduction, categoryPoints, abilitySlots, totalPointsSpent, respecCost, canRespecTalents } from './talents.js';
 import { SKILLS, getActiveSkills } from './skills.js';
-import { ABILITIES, ABILITY_SLOTS, getLoadout, isSlotted, isAbilityUnlocked } from './abilities.js';
+import { ABILITIES, getLoadout, isSlotted, isAbilityUnlocked } from './abilities.js';
 import { canDive, getSession, DIVE_BOON_BY_ID } from './dive.js';
 import * as Village from './village.js';
 import { buildingArtSVG } from './villageArt.js';
@@ -663,7 +663,7 @@ function screenMeta() {
     { ov: 'stats', icon: '⚡', name: 'Statistiques', sub: `Puissance ${fmt(power)}` },
     { ov: 'talents', icon: '🌳', name: 'Talents', sub: tp ? `${tp} point${tp > 1 ? 's' : ''} dispo` : 'Arbre de talents' },
     { ov: 'skills', icon: '📜', name: 'Compétences', sub: `${skills}/${SKILLS.length} actives` },
-    { ov: 'abilities', icon: '✦', name: 'Capacités', sub: `${getLoadout().length}/${ABILITY_SLOTS} équipées` },
+    { ov: 'abilities', icon: '✦', name: 'Capacités', sub: `${getLoadout().length}/${abilitySlots()} équipées` },
     { ov: 'story', icon: '📜', name: 'Chronique', sub: Story.storyReady() ? '◈ Chapitre à accomplir !' : (Story.activeChapter()?.title || 'Histoire'), ready: Story.storyReady() },
     { ov: 'contracts', icon: '📋', name: 'Contrats', sub: `${(state.bounties?.active || []).length} actifs` },
     { ov: 'codex', icon: '📖', name: 'Codex', sub: 'Découvertes' },
@@ -1080,7 +1080,8 @@ function ovStats() {
 function ovTalents() {
   const cats = Object.entries(TALENT_CATEGORIES).map(([cid, cat]) => {
     const pts = categoryPoints(cid);
-    const dots = Array.from({ length: 5 }, (_, i) => `<span class="mastery-dot${i < Math.min(5, pts) ? ' on' : ''}"></span>`).join('');
+    const dots = Array.from({ length: 10 }, (_, i) =>
+      `<span class="mastery-dot${i < Math.min(10, pts) ? ' on' : ''}${(i === 4 || i === 9) ? ' tier' : ''}"></span>`).join('');
     const talents = TALENTS.filter(t => t.category === cid).map(t => {
       const rank = rankOf(t.id);
       const can = canUpgradeTalent(t.id);
@@ -1093,7 +1094,13 @@ function ovTalents() {
     }).join('');
     return `<div class="talent-cat"><div class="tc-head" style="color:${cat.color}">${cat.emoji} ${cat.name} <span class="mastery">${dots}</span></div>${talents}</div>`;
   }).join('');
-  return overlayShell(`Talents · ${state.talentPoints || 0} pts`, cats, { wide: true });
+  const spent = totalPointsSpent();
+  const cost = respecCost();
+  const can = canRespecTalents();
+  const respec = spent > 0
+    ? `<div class="talent-respec"><button class="btn-respec${can ? '' : ' disabled'}" data-respec ${can ? '' : 'disabled'}>↺ Réinitialiser les talents (${fmt(cost)} or)</button></div>`
+    : '';
+  return overlayShell(`Talents · ${state.talentPoints || 0} pts`, cats + respec, { wide: true });
 }
 
 // ── ③ Skills ─────────────────────────────────────────────────
@@ -1113,15 +1120,16 @@ function ovSkills() {
 // ── Abilities loadout (player-chosen active abilities) ───────
 function ovAbilities() {
   const loadout = getLoadout();
+  const maxSlots = abilitySlots();
   const slots = [];
-  for (let i = 0; i < ABILITY_SLOTS; i++) {
+  for (let i = 0; i < maxSlots; i++) {
     const id = loadout[i];
     const a = id ? ABILITIES.find(x => x.id === id) : null;
     slots.push(a
       ? `<button class="ab-slot filled" data-ability="${a.id}" title="Retirer"><span class="ab-ico">${a.emoji}</span><span class="smallcap">${a.name}</span></button>`
       : `<div class="ab-slot empty"><span class="ab-ico">＋</span><span class="smallcap">Vide</span></div>`);
   }
-  const full = loadout.length >= ABILITY_SLOTS;
+  const full = loadout.length >= maxSlots;
   const grid = ABILITIES.map(a => {
     const unlocked = isAbilityUnlocked(a.id);
     const on = isSlotted(a.id);
@@ -1129,16 +1137,17 @@ function ovAbilities() {
     const stateLabel = on ? '<div class="skill-state gold-text smallcap">ÉQUIPÉE</div>'
       : (unlocked ? (full ? '<div class="skill-state smallcap">Slots pleins</div>' : '<div class="skill-state smallcap">Tap pour équiper</div>')
                   : `<div class="skill-state smallcap">🔒 ${a.unlockText || 'Verrouillée'}</div>`);
+    const badge = a.rank >= 2 ? '<span class="ab-badge t2">T2</span>' : '';
     const attr = unlocked ? `data-ability="${a.id}"` : '';
     return `<button class="skill${cls}" ${attr} ${unlocked ? '' : 'disabled'}>
       <span class="skill-ico">${a.emoji}</span>
-      <div class="skill-info"><div class="skill-name">${a.name}</div><div class="skill-desc smallcap">${a.desc}</div>${stateLabel}</div>
+      <div class="skill-info"><div class="skill-name">${a.name}${badge}</div><div class="skill-desc smallcap">${a.desc}</div>${stateLabel}</div>
     </button>`;
   }).join('');
-  const inner = `<p class="smallcap">Équipe jusqu'à ${ABILITY_SLOTS} capacités actives. Elles se déclenchent automatiquement en combat — le choix du loadout est ta décision de build.</p>
+  const inner = `<p class="smallcap">Équipe jusqu'à ${maxSlots} capacités actives (talent 🎯 Tacticien = +1 slot/rang). Elles se déclenchent automatiquement en combat — le choix du loadout est ta décision de build.</p>
     <div class="ab-slots">${slots.join('')}</div>
     <div class="skills-grid">${grid}</div>`;
-  return overlayShell(`Capacités · ${loadout.length}/${ABILITY_SLOTS}`, inner, { wide: true });
+  return overlayShell(`Capacités · ${loadout.length}/${maxSlots}`, inner, { wide: true });
 }
 
 // ── Deep Dive: boon checkpoint ───────────────────────────────
