@@ -134,10 +134,15 @@ export const TALENT_MASTERY_BONUS = 0.10;
 
 export const TALENT_BY_ID = Object.fromEntries(TALENTS.map(t => [t.id, t]));
 
-export const CHEST_OPEN_COOLDOWN_MS = 800;
+export const CHEST_OPEN_COOLDOWN_MS = 300;
 
 // Pity timer: every N non-legendary+ drops, force a legendary on the next chest open.
 export const PITY_THRESHOLD = 50;
+// Extended pity: guarantees rarer outcomes so long droughts can't happen.
+// Ancestral is forced after this many opens without one; unique after this many
+// legendaries without a unique.
+export const PITY_ANCESTRAL_THRESHOLD = 120;
+export const PITY_UNIQUE_THRESHOLD = 15;
 
 // Biomes for the dungeon. Each biome covers a floor range and has its own monsters + boss.
 export const BIOMES = [
@@ -372,6 +377,7 @@ export const CURRENCY_TYPES = [
   { id: 'exil',    name: 'Orbe d\'Exil',          emoji: '🔴', color: '#ff3050', desc: 'Ajoute un affixe à un rare+ (max +1)',                baseDropChance: 0.004 },
   { id: 'pierre',  name: 'Pierre de Forge',       emoji: '🪨', color: '#a07840', desc: 'Augmente le tier de l\'objet de +1 (max T5)',         baseDropChance: 0.01 },
   { id: 'maitre',  name: 'Orbe Maître',           emoji: '🟪', color: '#ff5fd0', desc: 'Ajoute un affixe AU CHOIX (respecte les limites prefix/suffix)', baseDropChance: 0.004 },
+  { id: 'focus',   name: 'Orbe de Focalisation',  emoji: '🎯', color: '#46d0c0', desc: 'Cible le slot du prochain coffre ouvert (consommée à l\'ouverture)', baseDropChance: 0.02 },
 ];
 
 export const CURRENCY_BY_ID = Object.fromEntries(CURRENCY_TYPES.map(c => [c.id, c]));

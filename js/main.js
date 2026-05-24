@@ -4,7 +4,7 @@
 import { state, subscribe, resetState, notify } from './state.js';
 import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS, CURRENCY_BY_ID } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
-import { openChest, upgradeChest, canOpen } from './chest.js';
+import { openChest, openChests, upgradeChest, canOpen } from './chest.js';
 import { attemptCurrentFloor, setCurrentFloor, attemptDiveFight } from './combat.js';
 import {
   startDive, isDiving, getSession, recordWin, openBoonChoice, chooseBoon,
@@ -144,6 +144,14 @@ document.body.addEventListener('click', async (e) => {
 
   // ── Hub: open chest ──
   if (t.closest('#btn-open')) { openChestFlow(); return; }
+  if (t.closest('#btn-open10')) { openBulkFlow(10); return; }
+  if (t.closest('#btn-open-max')) { openBulkFlow(state.keys || 0); return; }
+  const focusBtn = t.closest('[data-focus-slot]');
+  if (focusBtn) {
+    const slot = focusBtn.dataset.focusSlot || null;
+    state.focusSlot = (slot && state.focusSlot === slot) ? null : slot; // toggle off if re-clicked
+    notify(); soundClick(); return;
+  }
   if (t.closest('#btn-upgrade')) {
     if (upgradeChest()) { soundUpgrade(); const c = UI.getChestCenter(); spawnParticles('#f5c842', c.x, c.y, 30); }
     return;
@@ -314,7 +322,9 @@ function openChestFlow() {
   soundChestOpen();
   const result = openChest();
   if (!result) return;
-  const { item, orbs } = result;
+  const { items, orbs } = result;
+  const item = items[0];                   // primary item drives the reveal
+  const extras = items.slice(1);
   UI.playChestOpen();
   flashAndCooldown(item);
   soundDrop(item.rarity);
@@ -330,11 +340,42 @@ function openChestFlow() {
     for (const oid of orbs) { const d = CURRENCY_BY_ID[oid]; if (!d) continue; floatingText(`+1 ${d.emoji}`, center.x, center.y - 40 - off, d.color); off += 22; spawnParticles(d.color, center.x, center.y, 12); }
     soundCoin();
   }
+  // Bonus items (item quantity) are auto-handled and reported via a toast.
+  if (extras.length) {
+    let off = 0;
+    for (const ex of extras) {
+      const act = autoActionFor(ex.rarity);
+      if (act === 'sell') sellDrop(ex);
+      else if (act === 'salvage') salvageDrop(ex);
+      else addToInventory(ex);
+      floatingText('+1 🎁', center.x, center.y - 60 - off, '#46d0c0'); off += 20;
+    }
+    UI.showToast('🎁', `+${extras.length} objet${extras.length > 1 ? 's' : ''} bonus`, 'Quantité de butin');
+  }
   const action = autoActionFor(item.rarity);
   if (action === 'sell') { sellDrop(item); soundCoin(); return; }
   if (action === 'salvage') { salvageDrop(item); soundForge(); return; }
   // Let the lid-lift + flash read before the reveal slides in.
   setTimeout(() => UI.showDropPopup(item), 300);
+}
+
+function openBulkFlow(n) {
+  n = Math.min(n | 0, state.keys || 0);
+  if (n < 1) { UI.showToast('🗝', 'Pas de clé', 'Farme des clés au donjon'); return; }
+  soundChestOpen();
+  const { items, orbs, opened } = openChests(n);
+  const summary = { opened, total: items.length, byRarity: {}, gold: 0, shards: 0, kept: 0, notable: [], orbs: {} };
+  for (const it of items) {
+    summary.byRarity[it.rarity] = (summary.byRarity[it.rarity] || 0) + 1;
+    if (it.uniqueId || it.setId || it.rarity === 'legendary' || it.rarity === 'ancestral') summary.notable.push(it);
+    const act = autoActionFor(it.rarity);
+    if (act === 'sell') summary.gold += sellDrop(it);
+    else if (act === 'salvage') summary.shards += salvageDrop(it);
+    else { addToInventory(it); summary.kept += 1; }
+  }
+  for (const oid of orbs) summary.orbs[oid] = (summary.orbs[oid] || 0) + 1;
+  soundCoin();
+  UI.showBulkResult(summary);
 }
 
 function flashAndCooldown(item) {

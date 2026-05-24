@@ -2,7 +2,7 @@
 import { state, replaceState, subscribe } from './state.js';
 
 const KEY = 'lootchest.save.v1';
-export const CURRENT_SAVE_VERSION = 3;
+export const CURRENT_SAVE_VERSION = 4;
 
 // Migrations are run sequentially: from version N → N+1.
 // Each function receives `data` and mutates it in place (or returns a new object).
@@ -31,6 +31,17 @@ const MIGRATIONS = {
       data.keys = Math.min(50, Math.max(10, data.opened || 10));
     }
     data.version = 3;
+    return data;
+  },
+  // 3 → 4 : extended pity (ancestral + unique counters), focus orb + focusSlot.
+  3: (data) => {
+    if (!data.pity) data.pity = { sinceLegendary: 0 };
+    if (data.pity.sinceAncestral === undefined) data.pity.sinceAncestral = 0;
+    if (data.pity.sinceUnique === undefined) data.pity.sinceUnique = 0;
+    if (!data.orbs) data.orbs = {};
+    if (data.orbs.focus === undefined) data.orbs.focus = 0;
+    if (data.focusSlot === undefined) data.focusSlot = null;
+    data.version = 4;
     return data;
   },
 };

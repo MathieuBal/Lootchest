@@ -4,11 +4,12 @@ import { SLOTS, AUTOSELL_UNLOCK_COSTS } from './data.js';
 const listeners = new Set();
 
 export const state = {
-  version: 3,
+  version: 4,
   gold: 0,
   keys: 10,               // 🗝 chest opening currency — farmed in dungeon
   chestTier: 1,
   opened: 0,
+  focusSlot: null,        // 🎯 slot targeted for the next open (consumes a focus orb)
   inventory: [],          // array of Item
   equipment: {},          // { slotId: Item | null }
   autoSell: {             // { rarityId: { unlocked: bool, on: bool, mode: 'sell'|'salvage' } }
@@ -29,6 +30,8 @@ export const state = {
   },
   pity: {
     sinceLegendary: 0,
+    sinceAncestral: 0,   // opens since last ancestral
+    sinceUnique: 0,      // legendaries since last unique
   },
   ui: {
     leftTab: 'chest',     // 'chest' | 'dungeon'
@@ -83,7 +86,7 @@ export const state = {
   },
   orbs: {
     transmu: 0, augm: 0, alte: 0, regal: 0,
-    chaos: 0, divin: 0, exil: 0, pierre: 0, maitre: 0,
+    chaos: 0, divin: 0, exil: 0, pierre: 0, maitre: 0, focus: 0,
   },
   talents: {},        // { talentId: rank }
   talentPoints: 0,    // unspent points
@@ -141,7 +144,10 @@ export function replaceState(newState) {
     if (!state.autoSell[r].mode) state.autoSell[r].mode = 'sell';
   }
   if (!state.combat) state.combat = { currentFloor: 1, highestUnlocked: 1, kills: 0, deaths: 0, bossKills: 0 };
-  if (!state.pity) state.pity = { sinceLegendary: 0 };
+  if (!state.pity) state.pity = { sinceLegendary: 0, sinceAncestral: 0, sinceUnique: 0 };
+  if (state.pity.sinceAncestral === undefined) state.pity.sinceAncestral = 0;
+  if (state.pity.sinceUnique === undefined) state.pity.sinceUnique = 0;
+  if (state.focusSlot === undefined) state.focusSlot = null;
   if (!state.ui) state.ui = { leftTab: 'chest', muted: false, hasSeenWelcome: false };
   if (state.ui.muted === undefined) state.ui.muted = false;
   if (state.ui.hasSeenWelcome === undefined) {
@@ -177,7 +183,7 @@ export function replaceState(newState) {
     if (state.shards[k] === undefined) state.shards[k] = 0;
   }
   if (!state.orbs) state.orbs = {};
-  for (const k of ['transmu','augm','alte','regal','chaos','divin','exil','pierre','maitre']) {
+  for (const k of ['transmu','augm','alte','regal','chaos','divin','exil','pierre','maitre','focus']) {
     if (state.orbs[k] === undefined) state.orbs[k] = 0;
   }
   if (!state.talents) state.talents = {};
@@ -209,13 +215,14 @@ export function resetState() {
     state.autoSell[r].on = false;
   }
   state.combat = { currentFloor: 1, highestUnlocked: 1, kills: 0, deaths: 0, bossKills: 0 };
-  state.pity = { sinceLegendary: 0 };
+  state.pity = { sinceLegendary: 0, sinceAncestral: 0, sinceUnique: 0 };
+  state.focusSlot = null;
   state.ui = { leftTab: 'chest', muted: state.ui?.muted || false };
   state.achievements = { unlocked: {} };
   state.stats = { legendaryDropped: 0, ancestralDropped: 0, uniquesDropped: 0, itemsSold: 0, totalGoldEarned: 0, forgesPerformed: 0, maxSetEquipped: 0 };
   state.prestige = { level: 0, totalAscensions: 0, relics: {}, pendingRelicChoice: null };
   state.shards = { common: 0, magic: 0, rare: 0, epic: 0, legendary: 0, ancestral: 0 };
-  state.orbs = { transmu: 0, augm: 0, alte: 0, regal: 0, chaos: 0, divin: 0, exil: 0, pierre: 0, maitre: 0 };
+  state.orbs = { transmu: 0, augm: 0, alte: 0, regal: 0, chaos: 0, divin: 0, exil: 0, pierre: 0, maitre: 0, focus: 0 };
   state.talents = {};
   state.talentPoints = 0;
   state.loadout = ['ab_power_strike', 'ab_frenzy', 'ab_second_wind'];

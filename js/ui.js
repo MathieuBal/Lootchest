@@ -6,6 +6,7 @@ import { state, notify } from './state.js';
 import {
   RARITIES, RARITY_BY_ID, SLOTS, SLOT_BY_ID,
   CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, PITY_THRESHOLD,
+  PITY_ANCESTRAL_THRESHOLD, PITY_UNIQUE_THRESHOLD,
   ACHIEVEMENTS, biomeForFloor, BIOMES, AUTOSELL_UNLOCK_COSTS,
   CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID,
   SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, TALENT_CATEGORIES,
@@ -105,6 +106,14 @@ function affixTypeBadge(aff) {
   return '';
 }
 
+// Roll-quality stars (1–3) from the affix's recorded `roll` (0..1).
+function affixQualityStars(aff) {
+  if (typeof aff.roll !== 'number') return '';
+  const stars = Math.max(1, Math.round(aff.roll * 3));
+  const color = aff.roll >= 0.8 ? '#ffe14a' : aff.roll >= 0.5 ? '#9aa0a6' : '#6b7075';
+  return ` <span class="affix-q" style="color:${color}" title="Qualité du roll ${Math.round(aff.roll * 100)}%">${'★'.repeat(stars)}</span>`;
+}
+
 function sourcesHTML(item) {
   if (!item.statSources || item.statSources.length === 0) return '';
   const SOURCE_ICON = { part: '🧩', material: '🔩', element: '✨', faction: '🏷', condition: '🌀' };
@@ -137,7 +146,7 @@ export function itemDetailsHTML(item) {
   const r = RARITY_BY_ID[item.rarity];
   const slot = SLOT_BY_ID[item.slot];
   const baseLines = Object.entries(item.baseStats || {}).map(([k, v]) => `<div class="tt-base">+${v} ${statLabel(k)}</div>`).join('');
-  const affixLines = (item.affixes || []).map(a => `<div class="tt-affix">${affixTypeBadge(a)}${a.value > 0 ? '+' : ''}${a.value}${a.percent ? '%' : ''} ${a.label}</div>`).join('');
+  const affixLines = (item.affixes || []).map(a => `<div class="tt-affix">${affixTypeBadge(a)}${a.value > 0 ? '+' : ''}${a.value}${a.percent ? '%' : ''} ${a.label}${affixQualityStars(a)}</div>`).join('');
   const uniqueBadge = item.uniqueId ? '<span class="unique-badge">UNIQUE</span>' : '';
   let setBlock = '';
   if (item.setId && SETS_BY_ID[item.setId]) {
@@ -333,6 +342,9 @@ function screenHub() {
   const lockedBy = nextTierLockedBy();
   const canUp = canUpgrade();
   const enoughKeys = (state.keys || 0) > 0;
+  const ancPity = Math.min(PITY_ANCESTRAL_THRESHOLD, state.pity?.sinceAncestral || 0);
+  const uniPity = Math.min(PITY_UNIQUE_THRESHOLD, state.pity?.sinceUnique || 0);
+  const focusOrbs = state.orbs?.focus || 0;
 
   // Next-step hint text
   let nextStep = '';
@@ -362,6 +374,15 @@ function screenHub() {
           <div class="pity-bar"><div class="pity-fill" style="width:${(pity / pityMax) * 100}%"></div></div>
           <span class="mono pity-num">${pity}/${pityMax}</span>
         </div>
+        <div class="pity-sub smallcap" title="Garanties anti-malchance">
+          <span style="color:${RARITY_BY_ID.ancestral.color}">Ancestral ${ancPity}/${PITY_ANCESTRAL_THRESHOLD}</span>
+          · <span style="color:${RARITY_BY_ID.legendary.color}">Unique ${uniPity}/${PITY_UNIQUE_THRESHOLD}</span>
+        </div>
+      </div>
+
+      <div class="focus-row">
+        <span class="smallcap" title="Cible le slot du prochain coffre (consomme une orbe)">🎯 ${fmt(focusOrbs)}</span>
+        ${SLOTS.map(s => `<button class="focus-chip${state.focusSlot === s.id ? ' active' : ''}" data-focus-slot="${s.id}" title="${s.name}" ${(focusOrbs > 0 || state.focusSlot === s.id) ? '' : 'disabled'}>${s.emptyEmoji}</button>`).join('')}
       </div>
     </div>
 
@@ -376,6 +397,10 @@ function screenHub() {
         title="${next ? (lockedBy ? 'Débloqué via Ascension Niv ' + lockedBy : 'Améliorer → ' + next.name + ' (' + fmt(next.upgradeCost) + ' or)') : 'Tier max'}">
         ⬆ ${next ? (lockedBy ? '🔒 Niv ' + lockedBy : 'Améliorer') : 'Max'}
       </button>
+    </div>
+    <div class="open-bar bulk-bar">
+      <button class="btn-ghost btn-open-bulk" id="btn-open10" ${(state.keys || 0) >= 1 ? '' : 'disabled'} title="Ouvrir jusqu'à 10 coffres">Ouvrir ×10</button>
+      <button class="btn-ghost btn-open-bulk" id="btn-open-max" ${(state.keys || 0) >= 1 ? '' : 'disabled'} title="Ouvrir toutes les clés">Ouvrir Max</button>
     </div>
     ${nextStep ? `<div class="next-step pulse-gold">${nextStep}</div>` : '<div class="next-step-spacer"></div>'}
     <div class="chest-cooldown"><div class="chest-cooldown-fill" id="cooldown-fill"></div></div>
@@ -640,6 +665,9 @@ function dtHub() {
   const power = computePower(stats);
   const pityMax = Math.max(1, PITY_THRESHOLD - pityReduction());
   const pity = Math.min(pityMax, state.pity?.sinceLegendary || 0);
+  const ancPity = Math.min(PITY_ANCESTRAL_THRESHOLD, state.pity?.sinceAncestral || 0);
+  const uniPity = Math.min(PITY_UNIQUE_THRESHOLD, state.pity?.sinceUnique || 0);
+  const focusOrbs = state.orbs?.focus || 0;
   const weights = tier.weights;
   const rows = RARITIES.filter(r => (weights[r.id] || 0) > 0).map(r =>
     `<div class="dt-droprow"><span class="rt-${r.cssClass}">${r.name}</span><div class="dt-droptrack"><i style="width:${weights[r.id]}%;background:${r.color}"></i></div><span class="mono">${weights[r.id]}%</span></div>`).join('');
@@ -655,13 +683,25 @@ function dtHub() {
         <button class="btn-key" data-nav="dungeon"><span class="cur-glyph">🗝</span><span class="mono">${fmt(state.keys)}</span></button>
         <button class="btn-gold btn-open ${enoughKeys ? '' : 'is-disabled'}" id="btn-open"><span class="open-ico">⬢</span> Ouvrir <span class="open-cost">· 1 clé</span></button>
       </div>
+      <div class="open-bar bulk-bar">
+        <button class="btn-ghost btn-open-bulk" id="btn-open10" ${enoughKeys ? '' : 'disabled'} title="Ouvrir jusqu'à 10 coffres">Ouvrir ×10</button>
+        <button class="btn-ghost btn-open-bulk" id="btn-open-max" ${enoughKeys ? '' : 'disabled'} title="Ouvrir toutes les clés">Ouvrir Max</button>
+      </div>
       <div class="chest-cooldown"><div class="chest-cooldown-fill" id="cooldown-fill"></div></div>
     </div>
     <aside class="dt-panel">
       <div class="dt-card panel"><div class="smallcap">Puissance</div><div class="mono power-val gold-text">${fmt(power)}</div></div>
       <div class="dt-card panel"><div class="smallcap">Taux de butin</div>${rows}</div>
       <div class="dt-card panel"><div class="smallcap">Pity légendaire</div>
-        <div class="pity-row"><div class="pity-bar"><div class="pity-fill" style="width:${(pity / pityMax) * 100}%"></div></div><span class="mono">${pity}/${pityMax}</span></div></div>
+        <div class="pity-row"><div class="pity-bar"><div class="pity-fill" style="width:${(pity / pityMax) * 100}%"></div></div><span class="mono">${pity}/${pityMax}</span></div>
+        <div class="pity-sub smallcap" title="Garanties anti-malchance">
+          <span style="color:${RARITY_BY_ID.ancestral.color}">Ancestral ${ancPity}/${PITY_ANCESTRAL_THRESHOLD}</span>
+          · <span style="color:${RARITY_BY_ID.legendary.color}">Unique ${uniPity}/${PITY_UNIQUE_THRESHOLD}</span>
+        </div></div>
+      <div class="dt-card panel"><div class="smallcap">🎯 Focalisation · ${fmt(focusOrbs)} orbe${focusOrbs > 1 ? 's' : ''}</div>
+        <div class="focus-row">
+          ${SLOTS.map(s => `<button class="focus-chip${state.focusSlot === s.id ? ' active' : ''}" data-focus-slot="${s.id}" title="${s.name}" ${(focusOrbs > 0 || state.focusSlot === s.id) ? '' : 'disabled'}>${s.emptyEmoji}</button>`).join('')}
+        </div></div>
       <button class="btn-ghost btn-upgrade ${canUp ? 'ready' : ''}" id="btn-upgrade" ${next && canUp ? '' : 'disabled'}>
         ⬆ ${next ? `${next.name} · ${fmt(next.upgradeCost)} 💰` : 'Tier max'}</button>
     </aside>
@@ -793,6 +833,7 @@ const OVERLAYS = {
   help: ovHelp,
   menu: ovMenu,
   autosell: ovAutosell,
+  bulkResult: ovBulkResult,
 };
 
 function overlayShell(title, inner, { wide = false, dark = false } = {}) {
@@ -838,6 +879,37 @@ let currentDrop = null;
 export function getCurrentDrop() { return currentDrop; }
 export function showDropPopup(item) { currentDrop = item; navOverlay('loot', {}); }
 export function hideDropPopup() { currentDrop = null; if (nav.overlay === 'loot') closeOverlay(); }
+
+// ── Bulk open recap ──────────────────────────────────────────
+let bulkSummary = null;
+export function showBulkResult(summary) { bulkSummary = summary; navOverlay('bulkResult', {}); }
+
+function ovBulkResult() {
+  const s = bulkSummary;
+  if (!s) return '';
+  const rarityRows = RARITIES.filter(r => (s.byRarity[r.id] || 0) > 0).map(r =>
+    `<div class="bulk-rar"><span class="rarity-tag rt-${r.cssClass}">${r.name}</span><span class="mono">×${s.byRarity[r.id]}</span></div>`).join('');
+  const notable = s.notable.slice(0, 12).map(it => {
+    const r = RARITY_BY_ID[it.rarity];
+    const tag = it.uniqueId ? ' ✦UNIQUE' : it.setId ? ' ⬡SET' : '';
+    return `<div class="bulk-notable rt-${r.cssClass}" style="color:${r.color}">${it.emoji || '◆'} ${it.name}${tag}</div>`;
+  }).join('');
+  const orbBits = Object.entries(s.orbs).map(([oid, q]) => {
+    const o = CURRENCY_BY_ID[oid]; return o ? `${o.emoji} ×${q}` : '';
+  }).filter(Boolean).join(' · ');
+  const totals = [];
+  if (s.gold > 0) totals.push(`💰 +${fmt(s.gold)}`);
+  if (s.shards > 0) totals.push(`💎 +${fmt(s.shards)}`);
+  if (s.kept > 0) totals.push(`🎒 ${fmt(s.kept)} gardé${s.kept > 1 ? 's' : ''}`);
+  const inner = `
+    <div class="bulk-head smallcap">${fmt(s.opened)} coffre${s.opened > 1 ? 's' : ''} ouvert${s.opened > 1 ? 's' : ''} · ${fmt(s.total)} objet${s.total > 1 ? 's' : ''}</div>
+    <div class="bulk-rars">${rarityRows || '<span class="smallcap">Aucun objet</span>'}</div>
+    ${totals.length ? `<div class="bulk-totals">${totals.join(' &nbsp; ')}</div>` : ''}
+    ${orbBits ? `<div class="bulk-orbs smallcap">Orbes : ${orbBits}</div>` : ''}
+    ${notable ? `<div class="bulk-notables"><div class="smallcap">Trouvailles notables</div>${notable}</div>` : ''}
+    <button class="btn-gold" data-close-overlay="1" style="margin-top:12px;width:100%">Continuer</button>`;
+  return overlayShell('📦 Butin en masse', inner);
+}
 
 function ovLoot() {
   const item = currentDrop;
