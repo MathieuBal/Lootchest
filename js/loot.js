@@ -14,6 +14,7 @@ import { rollFaction, rollFactionStats, factionStatSource, mergeFactionStats, FA
 import { rollLegendaryEffect } from './legendaryEffects.js';
 import { rareDropMultiplier, pityReduction } from './talents.js';
 import { relicDropMult } from './relics.js';
+import { affinityDropMult } from './affinities.js';
 import { trackProgress as bountyTrack } from './bounties.js';
 import { villageRareMult } from './village.js';
 
@@ -50,7 +51,7 @@ export function hasHDParts(id) { return HD_PART_TYPES.has(id); }
 export function rollRarity(chestTier) {
   const tier = CHEST_TIERS.find(t => t.tier === chestTier);
   const prestigeLevel = state.prestige?.level || 0;
-  const rareMult = prestigeRareMult(prestigeLevel) * rareDropMultiplier() * relicDropMult() * villageRareMult();
+  const rareMult = prestigeRareMult(prestigeLevel) * rareDropMultiplier() * relicDropMult() * affinityDropMult() * villageRareMult();
   const rarePlusSet = new Set(['rare', 'epic', 'legendary', 'ancestral']);
   const entries = Object.entries(tier.weights)
     .filter(([_, w]) => w > 0)

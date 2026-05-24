@@ -507,6 +507,22 @@ input, select { font-family: inherit; }
 .ab-badge { font-size: 9px; letter-spacing: .04em; padding: 1px 5px; margin-left: 6px; border-radius: var(--r-sm);
   vertical-align: middle; }
 .ab-badge.t2 { background: rgba(150,100,220,.2); border: 1px solid rgba(170,120,240,.5); color: #d9c2ff; }
+.aff-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 8px; }
+@media (min-width: 560px) { .aff-grid { grid-template-columns: 1fr 1fr; } }
+.aff-card { padding: 12px; border-radius: var(--r-md); background: var(--surface-sunken);
+  border: 1px solid var(--border-soft); opacity: .7; }
+.aff-card.on { opacity: 1; border-color: color-mix(in srgb, var(--c) 55%, transparent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c) 12%, var(--surface-sunken)), var(--surface-sunken)); }
+.aff-head { display: flex; align-items: center; gap: 8px; }
+.aff-emoji { font-size: 20px; }
+.aff-name { font-size: 15px; color: var(--c); flex: 1; }
+.aff-pips { display: inline-flex; gap: 3px; }
+.aff-pip { width: 8px; height: 8px; border-radius: 50%; background: var(--surface-raised); border: 1px solid var(--border); }
+.aff-pip.on { background: var(--c); border-color: var(--c); }
+.aff-score { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+.aff-bonus { color: var(--c); font-weight: 700; }
+.aff-next { color: var(--text-dim); }
+.aff-desc { color: var(--text-dim); line-height: 1.35; margin-top: 4px; }
 .talent { display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--surface-sunken); border: 1px solid var(--border-soft); border-radius: var(--r-sm); margin-bottom: 6px; }
 .talent-ico { font-size: 22px; }
 .talent-info { flex: 1; }

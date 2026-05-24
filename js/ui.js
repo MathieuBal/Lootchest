@@ -23,6 +23,7 @@ import { canAscend, ascensionRequirements } from './prestige.js';
 import { rankOf, canUpgradeTalent, pityReduction, categoryPoints, abilitySlots, totalPointsSpent, respecCost, canRespecTalents } from './talents.js';
 import { SKILLS, getActiveSkills } from './skills.js';
 import { ABILITIES, getLoadout, isSlotted, isAbilityUnlocked } from './abilities.js';
+import { affinitySummary } from './affinities.js';
 import { canDive, getSession, DIVE_BOON_BY_ID } from './dive.js';
 import * as Village from './village.js';
 import { buildingArtSVG } from './villageArt.js';
@@ -664,6 +665,7 @@ function screenMeta() {
     { ov: 'talents', icon: '🌳', name: 'Talents', sub: tp ? `${tp} point${tp > 1 ? 's' : ''} dispo` : 'Arbre de talents' },
     { ov: 'skills', icon: '📜', name: 'Compétences', sub: `${skills}/${SKILLS.length} actives` },
     { ov: 'abilities', icon: '✦', name: 'Capacités', sub: `${getLoadout().length}/${abilitySlots()} équipées` },
+    { ov: 'affinities', icon: '🜂', name: 'Affinités', sub: affinitiesSub() },
     { ov: 'story', icon: '📜', name: 'Chronique', sub: Story.storyReady() ? '◈ Chapitre à accomplir !' : (Story.activeChapter()?.title || 'Histoire'), ready: Story.storyReady() },
     { ov: 'contracts', icon: '📋', name: 'Contrats', sub: `${(state.bounties?.active || []).length} actifs` },
     { ov: 'codex', icon: '📖', name: 'Codex', sub: 'Découvertes' },
@@ -871,6 +873,7 @@ const OVERLAYS = {
   talents: ovTalents,
   skills: ovSkills,
   abilities: ovAbilities,
+  affinities: ovAffinities,
   diveBoon: ovDiveBoon,
   diveSummary: ovDiveSummary,
   villageBuilding: ovVillageBuilding,
@@ -1148,6 +1151,34 @@ function ovAbilities() {
     <div class="ab-slots">${slots.join('')}</div>
     <div class="skills-grid">${grid}</div>`;
   return overlayShell(`Capacités · ${loadout.length}/${maxSlots}`, inner, { wide: true });
+}
+
+// ── Affinités d'archétype (synergies transversales) ──────────
+const AFFINITY_BONUS_LABELS = { damage: 'dégâts', hp: 'PV max', elem: 'dégâts élém.', gold: 'or', drop: 'drops rares' };
+function affinityBonusText(bonus) {
+  if (!bonus) return '—';
+  return Object.entries(bonus).map(([k, v]) => `+${Math.round(v * 100)}% ${AFFINITY_BONUS_LABELS[k] || k}`).join(' · ');
+}
+// Hub sub-label: count of axes that have reached at least tier 1.
+function affinitiesSub() {
+  const active = affinitySummary().filter(a => a.tier > 0).length;
+  return active ? `${active}/4 actives` : 'Synergies de build';
+}
+function ovAffinities() {
+  const cards = affinitySummary().map(a => {
+    const pips = Array.from({ length: 3 }, (_, i) => `<span class="aff-pip${i < a.tier ? ' on' : ''}"></span>`).join('');
+    const next = a.tier < 3 ? `<div class="smallcap aff-next">Palier ${a.tier + 1} à ${[4, 8, 12][a.tier]} pts</div>` : '<div class="smallcap aff-next">Palier max</div>';
+    return `<div class="aff-card${a.tier > 0 ? ' on' : ''}" style="--c:${a.color}">
+      <div class="aff-head"><span class="aff-emoji">${a.emoji}</span><span class="aff-name display">${a.name}</span><span class="aff-pips">${pips}</span></div>
+      <div class="aff-score mono">${a.score} pts</div>
+      <div class="aff-bonus smallcap">${a.tier > 0 ? affinityBonusText(a.activeBonus) : 'Inactif'}</div>
+      ${next}
+      <div class="aff-desc smallcap">${a.desc}</div>
+    </div>`;
+  }).join('');
+  const inner = `<p class="smallcap">Aligne tes investissements à travers plusieurs systèmes (talents, reliques, set, éléments). Plus un axe est nourri, plus son bonus passif grandit — la cohérence de build est récompensée.</p>
+    <div class="aff-grid">${cards}</div>`;
+  return overlayShell('Affinités d\'archétype', inner, { wide: true });
 }
 
 // ── Deep Dive: boon checkpoint ───────────────────────────────

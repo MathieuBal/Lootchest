@@ -895,6 +895,56 @@ export const RELICS = [
 
 export const RELIC_BY_ID = Object.fromEntries(RELICS.map(r => [r.id, r]));
 
+// === Affinités d'archétype (synergies transversales) ===
+// Couche méta qui récompense l'alignement d'un build à travers PLUSIEURS systèmes
+// (talents + reliques + set + éléments d'équipement). Le score d'un axe ne peut
+// pas être maximisé via un seul système : c'est le levier de synergie. Paliers à
+// 4/8/12 pts → tier 1/2/3. Bonus additifs (philosophie linéaire) consommés par
+// le combat et le loot. `sources` décrit comment scorer ; `tiers` les bonus.
+export const AFFINITY_THRESHOLDS = [4, 8, 12];
+export const AFFINITIES = [
+  {
+    id: 'force', emoji: '⚔', name: 'Force', color: '#ff7a1a',
+    desc: 'Dégâts accrus. Aligne talents combat, reliques offensives et sets offensifs.',
+    sources: {
+      talents: ['berserker'],
+      relics: { ids: ['berserker', 'glasscannon', 'cataclysm', 'momentum', 'reaper'], cap: 6 },
+      setEffects: { ids: ['dragon_breath', 'demon_pact', 'shadow_strike'], points: 3 },
+    },
+    tiers: [{ damage: 0.05 }, { damage: 0.12 }, { damage: 0.20 }],
+  },
+  {
+    id: 'garde', emoji: '🛡', name: 'Garde', color: '#5a8af0',
+    desc: 'PV max accrus. Aligne talents défensifs, reliques de protection et sets défensifs.',
+    sources: {
+      talents: ['tanky'],
+      relics: { ids: ['bulwark', 'titan', 'thornmail'], cap: 6 },
+      setEffects: { ids: ['titan_wall', 'frost_freeze', 'druid_growth', 'phoenix_rebirth'], points: 3 },
+    },
+    tiers: [{ hp: 0.06 }, { hp: 0.14 }, { hp: 0.24 }],
+  },
+  {
+    id: 'arcane', emoji: '✨', name: 'Arcane', color: '#c9a3ff',
+    desc: 'Dégâts élémentaires accrus. Aligne éléments d\'équipement, relique Élémentaliste et sets élémentaires.',
+    sources: {
+      elementPieces: 1,                                   // +1 par pièce équipée portant un élément
+      relics: { ids: ['elementalist'], cap: 8, points: 2 },
+      setEffects: { ids: ['dragon_breath', 'frost_freeze', 'lich_drain', 'phoenix_rebirth'], points: 3 },
+    },
+    tiers: [{ elem: 0.08 }, { elem: 0.18 }, { elem: 0.30 }],
+  },
+  {
+    id: 'cupidite', emoji: '💰', name: 'Cupidité', color: '#ffe14a',
+    desc: 'Or et drops rares accrus. Aligne talents richesse et reliques de fortune.',
+    sources: {
+      wealthCategory: 1,                                  // +1 par point de catégorie wealth
+      relics: { ids: ['midas', 'fortune', 'avarice'], cap: 6 },
+    },
+    tiers: [{ gold: 0.15, drop: 0.10 }, { gold: 0.35, drop: 0.20 }, { gold: 0.60, drop: 0.30 }],
+  },
+];
+export const AFFINITY_BY_ID = Object.fromEntries(AFFINITIES.map(a => [a.id, a]));
+
 
 // Auto-sell unlock costs (per rarity). Common is free from start.
 export const AUTOSELL_UNLOCK_COSTS = {

@@ -6,6 +6,7 @@ import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
 import { relicDamageMult, relicHpMult, relicDmgTakenMult, relicElemMult, relicGoldMult, relicLifesteal, relicEffects } from './relics.js';
 import { villageCombatBonus, villageGoldMult } from './village.js';
+import { affinityDamageMult, affinityHpMult, affinityElemMult, affinityGoldMult } from './affinities.js';
 import { buildSkillContext } from './skills.js';
 import { activeLegendaryEffectIds } from './legendaryEffects.js';
 import { trackProgress as bountyTrack, syncAbsoluteProgress as bountySync } from './bounties.js';
@@ -153,8 +154,8 @@ export function resolveFight(monster, opts = {}) {
   const stats = computeStats();
   const vlg = villageCombatBonus();
   const pLvl = state.prestige?.level || 0;
-  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * prestigeHpMult(pLvl) * vlg.hpMult * maxHpMod);
-  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * prestigeDamageMult(pLvl) * vlg.dmgMult * dmgMod * (1 - armorMitigation(monster.armor))));
+  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * prestigeHpMult(pLvl) * affinityHpMult() * vlg.hpMult * maxHpMod);
+  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * prestigeDamageMult(pLvl) * affinityDamageMult() * vlg.dmgMult * dmgMod * (1 - armorMitigation(monster.armor))));
   const playerArmor = (stats.armor || 0);
   const monsterDmg = Math.max(1, Math.round(monster.damage * relicDmgTakenMult() * takenMod * (1 - armorMitigation(playerArmor))));
   const lifestealPct = relicLifesteal();
@@ -166,7 +167,8 @@ export function resolveFight(monster, opts = {}) {
   const voidBonus    = (stats.voidDmg     || 0) / 100;
   const poisonBonus  = (stats.poisonDmg   || 0) / 100;
   const lightBonus   = (stats.lightningDmg|| 0) / 100;
-  const elemBonus    = Math.min(ELEM_DMG_CAP, (fireBonus + frostBonus + voidBonus + poisonBonus + lightBonus) * relicElemMult());
+  const arcaneMult   = affinityElemMult();
+  const elemBonus    = Math.min(ELEM_DMG_CAP * arcaneMult, (fireBonus + frostBonus + voidBonus + poisonBonus + lightBonus) * relicElemMult() * arcaneMult);
 
   // Skill context (active skills + per-fight state)
   const { active: activeSkills, states: skillStates } = buildSkillContext();
@@ -558,7 +560,7 @@ export function attemptCurrentFloor() {
         state.codex.bosses[biome.id] = (state.codex.bosses[biome.id] || 0) + 1;
       }
     }
-    monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier() * relicGoldMult() * villageGoldMult());
+    monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier() * relicGoldMult() * affinityGoldMult() * villageGoldMult());
     // Legendary effect: goldenTouch → +30% gold per kill (compounds with other multipliers)
     if (activeLegendaryEffectIds().has('goldenTouch')) {
       monster.goldReward = Math.round(monster.goldReward * 1.30);
@@ -639,13 +641,14 @@ export function predictDifficulty(monster) {
   const stats = computeStats();
   const vlg = villageCombatBonus();
   const pLvl = state.prestige?.level || 0;
-  const playerMaxHp = (PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * prestigeHpMult(pLvl) * vlg.hpMult;
-  const playerDmg = Math.max(1, (PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * prestigeDamageMult(pLvl) * vlg.dmgMult * (1 - armorMitigation(monster.armor)));
+  const playerMaxHp = (PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * prestigeHpMult(pLvl) * affinityHpMult() * vlg.hpMult;
+  const playerDmg = Math.max(1, (PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * prestigeDamageMult(pLvl) * affinityDamageMult() * vlg.dmgMult * (1 - armorMitigation(monster.armor)));
   const monsterDmg = Math.max(1, monster.damage * relicDmgTakenMult() * (1 - armorMitigation(stats.armor || 0)));
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   // Sum all elemental %damages for difficulty preview (same model as resolveFight)
-  const elemBonus = Math.min(ELEM_DMG_CAP, (((stats.fireDmg || 0) + (stats.frostDmg || 0) + (stats.voidDmg || 0)
-                   + (stats.poisonDmg || 0) + (stats.lightningDmg || 0)) / 100) * relicElemMult());
+  const arcaneMult = affinityElemMult();
+  const elemBonus = Math.min(ELEM_DMG_CAP * arcaneMult, (((stats.fireDmg || 0) + (stats.frostDmg || 0) + (stats.voidDmg || 0)
+                   + (stats.poisonDmg || 0) + (stats.lightningDmg || 0)) / 100) * relicElemMult() * arcaneMult);
   let avgDmg = playerDmg * (1 + critChance + elemBonus);
   // A damage-cap affix throttles per-swing damage, lengthening the fight.
   for (const m of (monster.mechanics || [])) {
