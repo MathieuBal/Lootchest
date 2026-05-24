@@ -1,7 +1,7 @@
 // Combat / dungeon logic. Resolution is instant (no per-turn animation in V1).
 import { state, notify } from './state.js';
 import { computeStats, activeSetEffects } from './character.js';
-import { PLAYER_BASE, biomeForFloor, MONSTER_AFFIXES } from './data.js';
+import { PLAYER_BASE, biomeForFloor, MONSTER_AFFIXES, ELITE_VARIANTS, echoLevelForFloor, maxAllowedChestTier } from './data.js';
 import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
 import { relicDamageMult, relicHpMult, relicDmgTakenMult, relicElemMult, relicGoldMult, relicLifesteal } from './relics.js';
@@ -56,30 +56,25 @@ function pickStableMonster(floor) {
   return biome.monsters[floor % biome.monsters.length];
 }
 
-// Elite monster prefixes: each adds a name marker + stat skew. Not used for bosses.
-const ELITE_VARIANTS = [
-  { id: 'savage',     prefix: 'Sauvage',     icon: '⚡', dmgMult: 1.6, hpMult: 1.2 },
-  { id: 'armored',    prefix: 'Cuirassé',    icon: '🛡', armorBonus: 8, hpMult: 1.4 },
-  { id: 'frenzied',   prefix: 'Frénétique',  icon: '💢', dmgMult: 1.3, hpMult: 1.1, goldMult: 1.5 },
-  { id: 'colossal',   prefix: 'Colossal',    icon: '💀', hpMult: 2.0, dmgMult: 1.1 },
-];
-
 export function generateMonster(floor) {
   const rng = encounterRng(floor);
   const boss = isBossFloor(floor);
   const base = pickStableMonster(floor);
-  const scale = 1 + (floor - 1) * 0.28;
+  const echo = echoLevelForFloor(floor);
+  const echoMult = 1 + echo * 0.15; // deep "echo" floors scale up further
+  const scale = (1 + (floor - 1) * 0.28) * echoMult;
   // HP scales faster than damage so geared fights last several turns instead of
   // being one-shot, without making monster damage spike into one-shotting the player.
-  const hpScale = 1 + (floor - 1) * 0.55;
+  const hpScale = (1 + (floor - 1) * 0.55) * echoMult;
   const bossMult = boss ? 2.6 : 1;
   const hard = !!state.settings?.hardMode;
   const hardCombat = hard ? 1.5 : 1;
   const hardLoot = hard ? 1.5 : 1;
 
-  // Elite: 8% chance on non-boss floors, scales with floor for extra danger/reward
+  // Elite: 8% chance on non-boss floors, rising with floor + echo for extra danger/reward
   let elite = null;
-  if (!boss && floor >= 3 && rng() < 0.08) {
+  const eliteChance = Math.min(0.30, 0.08 + Math.max(0, floor - 20) * 0.004 + echo * 0.03);
+  if (!boss && floor >= 3 && rng() < eliteChance) {
     elite = ELITE_VARIANTS[Math.floor(rng() * ELITE_VARIANTS.length)];
   }
   const elDmg = elite?.dmgMult || 1;
@@ -90,24 +85,34 @@ export function generateMonster(floor) {
   const damage = Math.round(base.dmgBase * scale * bossMult * hardCombat * elDmg);
 
   // Monster affixes: combat mechanics on elites (always) and deeper normals.
-  // Néant (41+) can stack a second affix for endgame variety.
+  // Deep floors (Néant + echoes) stack up to 3 affixes for endgame variety,
+  // and bosses gain extra affixes layered on top of their native mechanic.
+  const maxAffixes = floor >= 60 ? 3 : (floor >= 41 ? 2 : (floor >= 8 ? 2 : 1));
   const mechanics = [];
-  if (boss && base.mechanic) {
-    mechanics.push(base.mechanic);
-  } else if (!boss) {
+  const pool = [...MONSTER_AFFIXES];
+  const rollAffix = () => {
+    if (!pool.length) return;
+    const idx = Math.floor(rng() * pool.length);
+    const def = pool.splice(idx, 1)[0];
+    mechanics.push(def.build({ dmg: damage }));
+  };
+  if (boss) {
+    if (base.mechanic) mechanics.push(base.mechanic);
+    // Deep/echo bosses layer extra affixes on top of their signature mechanic.
+    const extra = echo > 0 ? Math.min(2, 1 + Math.floor(echo / 2)) : (floor >= 25 ? 1 : 0);
+    for (let i = 0; i < extra; i++) rollAffix();
+  } else {
     let affixCount = 0;
     if (elite) {
-      affixCount = floor >= 41 ? 2 : 1;
+      affixCount = Math.min(maxAffixes, floor >= 41 ? 2 : 1);
     } else {
-      const chance = floor >= 8 ? Math.min(0.40, 0.05 + (floor - 8) * 0.012) : 0;
-      if (rng() < chance) affixCount = (floor >= 41 && rng() < 0.4) ? 2 : 1;
+      const chance = floor >= 8 ? Math.min(0.45, 0.05 + (floor - 8) * 0.012 + echo * 0.05) : 0;
+      if (rng() < chance) {
+        affixCount = 1;
+        while (affixCount < maxAffixes && rng() < 0.35) affixCount++;
+      }
     }
-    const pool = [...MONSTER_AFFIXES];
-    for (let i = 0; i < affixCount && pool.length; i++) {
-      const idx = Math.floor(rng() * pool.length);
-      const def = pool.splice(idx, 1)[0];
-      mechanics.push(def.build({ dmg: damage }));
-    }
+    for (let i = 0; i < affixCount; i++) rollAffix();
   }
   const affixCount = boss ? 0 : mechanics.length;
   const affixBoost = 1 + 0.30 * affixCount;
@@ -194,6 +199,15 @@ export function resolveFight(monster, opts = {}) {
   const events = [];
   const mechanics = monster.mechanics || (monster.mechanic ? [monster.mechanic] : []);
 
+  // Monster affix: healBlock → reduce all player healing this fight.
+  const healMod = mechanics.reduce((m, x) => x.type === 'healBlock' ? m * (1 - (x.pct || 0.5)) : m, 1);
+  const applyHeal = (amount) => Math.max(0, Math.round(amount * healMod));
+  // Monster affix: damageCap → cap each player swing to a share of monster max HP.
+  let playerHitCap = Infinity;
+  for (const m of mechanics) {
+    if (m.type === 'damageCap') playerHitCap = Math.min(playerHitCap, Math.max(1, Math.round(monster.hp * (m.pctMaxHp || 0.2))));
+  }
+
   // Apply one monster attack: damage + phoenix revive + lifesteal affixes.
   function applyMonsterHit(dmg, opts = {}) {
     pHp = Math.max(0, pHp - dmg);
@@ -217,7 +231,7 @@ export function resolveFight(monster, opts = {}) {
 
     // Set effect: druid_growth → heal 20% max HP every 4 turns
     if (setEffectIds.has('druid_growth') && turns > 1 && (turns % 4) === 0 && pHp > 0 && pHp < playerMaxHp) {
-      const heal = Math.max(1, Math.round(playerMaxHp * 0.20));
+      const heal = applyHeal(Math.max(1, Math.round(playerMaxHp * 0.20)));
       const before = pHp;
       pHp = Math.min(playerMaxHp, pHp + heal);
       events.push({ type: 'set_heal', amount: pHp - before, emoji: '🌿', playerHp: pHp, monsterHp: mHp });
@@ -255,6 +269,12 @@ export function resolveFight(monster, opts = {}) {
         if (mHp / monsterMaxHp <= (m.triggerHpPct || 0.3)) monsterDmgMod *= (m.dmgMult || 2);
       } else if (m.type === 'phaseShift') {
         if ((turns % (m.everyTurns || 4)) === 0) monsterDmgMod *= (m.dmgMult || 1.5);
+      } else if (m.type === 'executioner') {
+        if ((turns % (m.everyTurns || 4)) === 0) {
+          let mult = m.dmgMult || 2.5;
+          if (pHp / playerMaxHp < 0.4) mult *= (m.lowHpBonus || 1.5);
+          monsterDmgMod *= mult;
+        }
       }
     }
     if (playerDiedToMechanic) break;
@@ -263,8 +283,9 @@ export function resolveFight(monster, opts = {}) {
     const startHooks = runHook('onTurnStart', { playerHp: pHp, playerMaxHp, monsterHp: mHp, monsterMaxHp });
     for (const h of startHooks) {
       if (h.result.kind === 'heal') {
-        pHp = Math.min(playerMaxHp, pHp + h.result.amount);
-        events.push({ type: 'skill_heal', amount: h.result.amount, skill: h.skill.id, emoji: h.skill.emoji, playerHp: pHp });
+        const amt = applyHeal(h.result.amount);
+        pHp = Math.min(playerMaxHp, pHp + amt);
+        events.push({ type: 'skill_heal', amount: amt, skill: h.skill.id, emoji: h.skill.emoji, playerHp: pHp });
       }
     }
 
@@ -277,7 +298,7 @@ export function resolveFight(monster, opts = {}) {
       if (h.result.kind === 'forceCrit') forceCrit = true;
       if (h.result.kind === 'heal') {
         const before = pHp;
-        pHp = Math.min(playerMaxHp, pHp + h.result.amount);
+        pHp = Math.min(playerMaxHp, pHp + applyHeal(h.result.amount));
         if (pHp > before) {
           events.push({ type: 'skill_heal', amount: pHp - before, skill: h.skill.id, emoji: h.skill.emoji, playerHp: pHp });
         }
@@ -318,13 +339,14 @@ export function resolveFight(monster, opts = {}) {
     }
     const isCrit = forceCrit || Math.random() < critChance;
     let hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + elemBonus * Math.random()) * extraMult);
+    if (hit > playerHitCap) hit = playerHitCap;
     if (monsterShielded) hit = 0;
     mHp = Math.max(0, mHp - hit);
     events.push({ type: 'player_hit', dmg: hit, isCrit, forceCrit, monsterHp: mHp, playerHp: pHp, mults, blocked: monsterShielded });
 
     // Relic: lifesteal → heal a share of damage dealt
     if (lifestealPct > 0 && hit > 0) {
-      const healed = Math.max(1, Math.round(hit * lifestealPct));
+      const healed = applyHeal(Math.max(1, Math.round(hit * lifestealPct)));
       const before = pHp;
       pHp = Math.min(playerMaxHp, pHp + healed);
       if (pHp > before) events.push({ type: 'set_drain', amount: pHp - before, emoji: '🩸', playerHp: pHp, monsterHp: mHp });
@@ -358,7 +380,7 @@ export function resolveFight(monster, opts = {}) {
     }
     // Legendary effect: vampireMark → heal 8% of damage dealt
     if (legendaryEffects.has('vampireMark') && hit > 0) {
-      const healed = Math.max(1, Math.round(hit * 0.08));
+      const healed = applyHeal(Math.max(1, Math.round(hit * 0.08)));
       const before = pHp;
       pHp = Math.min(playerMaxHp, pHp + healed);
       if (pHp > before) {
@@ -368,7 +390,7 @@ export function resolveFight(monster, opts = {}) {
 
     // Set effect: lich_drain → heal 10% of damage dealt
     if (setEffectIds.has('lich_drain') && hit > 0) {
-      const healed = Math.max(1, Math.round(hit * 0.10));
+      const healed = applyHeal(Math.max(1, Math.round(hit * 0.10)));
       const before = pHp;
       pHp = Math.min(playerMaxHp, pHp + healed);
       if (pHp > before) {
@@ -464,6 +486,23 @@ function grantMilestoneReward(level) {
   return reward;
 }
 
+// Loot tier for a dungeon drop. Scales with floor depth but is capped by the
+// player's prestige (same gate as chests), so deep floors stay relevant past T5
+// once ascended. Elite/boss drop one tier higher and re-roll once if they land
+// on a low rarity, guaranteeing a meaningful drop.
+const RARITY_ORDER = ['common', 'magic', 'rare', 'epic', 'legendary', 'ancestral'];
+export function rollDungeonItem(floor, eliteOrBoss) {
+  const cap = maxAllowedChestTier(state.prestige?.level || 0);
+  const baseTier = Math.max(1, Math.ceil(floor / 8));
+  const itemTier = Math.min(cap, baseTier + (eliteOrBoss ? 1 : 0));
+  let item = generateItem(itemTier);
+  // Elite/boss: re-roll once to clear common/magic into something worthwhile.
+  if (eliteOrBoss && RARITY_ORDER.indexOf(item.rarity) < RARITY_ORDER.indexOf('rare')) {
+    item = generateItem(itemTier);
+  }
+  return item;
+}
+
 // Returns { result, monster, droppedItem, advanced, milestone }
 export function attemptCurrentFloor() {
   const floor = state.combat.currentFloor;
@@ -503,13 +542,7 @@ export function attemptCurrentFloor() {
     }
 
     if (Math.random() < monster.dropChance) {
-      const baseTier = Math.min(5, Math.max(1, Math.ceil(floor / 5)));
-      // Elite/boss drop at one tier higher (capped to 5)
-      const itemTier = Math.min(5, baseTier + (monster.isBoss || monster.isElite ? 1 : 0));
-      droppedItem = generateItem(itemTier);
-      if ((monster.isBoss || monster.isElite) && (droppedItem.rarity === 'common' || droppedItem.rarity === 'magic')) {
-        droppedItem = generateItem(itemTier);
-      }
+      droppedItem = rollDungeonItem(floor, monster.isBoss || monster.isElite);
     }
 
     if (floor === state.combat.highestUnlocked) {
@@ -578,21 +611,28 @@ export function predictDifficulty(monster) {
   // Sum all elemental %damages for difficulty preview (same model as resolveFight)
   const elemBonus = Math.min(ELEM_DMG_CAP, (((stats.fireDmg || 0) + (stats.frostDmg || 0) + (stats.voidDmg || 0)
                    + (stats.poisonDmg || 0) + (stats.lightningDmg || 0)) / 100) * relicElemMult());
-  const avgDmg = playerDmg * (1 + critChance + elemBonus);
-  const turnsToKill = Math.ceil(monster.hp / avgDmg);
+  let avgDmg = playerDmg * (1 + critChance + elemBonus);
+  // A damage-cap affix throttles per-swing damage, lengthening the fight.
+  for (const m of (monster.mechanics || [])) {
+    if (m.type === 'damageCap') avgDmg = Math.min(avgDmg, monster.hp * (m.pctMaxHp || 0.2));
+  }
+  const turnsToKill = Math.ceil(monster.hp / Math.max(1, avgDmg));
   const damageTaken = monsterDmg * Math.max(0, turnsToKill - 1);
   // Account for affix/boss mechanics that raise effective danger.
   let affixFactor = 1;
   for (const m of (monster.mechanics || [])) {
-    if (m.type === 'swift') affixFactor += 0.30;
+    if (m.type === 'swift' || m.type === 'executioner') affixFactor += 0.30;
     else if (m.type === 'burn') affixFactor += 0.25;
-    else if (m.type === 'enrage' || m.type === 'thorns' || m.type === 'lifesteal' || m.type === 'regen') affixFactor += 0.20;
+    else if (m.type === 'enrage' || m.type === 'thorns' || m.type === 'lifesteal' || m.type === 'regen' || m.type === 'healBlock') affixFactor += 0.20;
     else affixFactor += 0.15;
   }
-  const ratio = (damageTaken * affixFactor) / playerMaxHp;
-  if (ratio < 0.25) return { label: 'Facile',   color: '#6acc6a' };
-  if (ratio < 0.6)  return { label: 'Modéré',   color: '#ffe14a' };
-  if (ratio < 0.95) return { label: 'Risqué',   color: '#ff7a1a' };
-  if (ratio < 1.5)  return { label: 'Difficile',color: '#ff3050' };
-  return { label: 'Suicide', color: '#b35bd6' };
+  const effectiveTaken = damageTaken * affixFactor;
+  const ratio = effectiveTaken / playerMaxHp;
+  const hpLeftPct = Math.max(0, Math.min(100, Math.round((1 - ratio) * 100)));
+  const meta = { hpLeftPct, turnsToKill };
+  if (ratio < 0.25) return { label: 'Facile',   color: '#6acc6a', ...meta };
+  if (ratio < 0.6)  return { label: 'Modéré',   color: '#ffe14a', ...meta };
+  if (ratio < 0.95) return { label: 'Risqué',   color: '#ff7a1a', ...meta };
+  if (ratio < 1.5)  return { label: 'Difficile',color: '#ff3050', ...meta };
+  return { label: 'Suicide', color: '#b35bd6', ...meta };
 }

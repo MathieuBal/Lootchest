@@ -5,7 +5,7 @@ import { state, subscribe, resetState, notify } from './state.js';
 import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS, CURRENCY_BY_ID } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
 import { openChest, openChests, upgradeChest, canOpen } from './chest.js';
-import { attemptCurrentFloor, setCurrentFloor, attemptDiveFight } from './combat.js';
+import { attemptCurrentFloor, setCurrentFloor, attemptDiveFight, generateMonster, predictDifficulty } from './combat.js';
 import {
   startDive, isDiving, getSession, recordWin, openBoonChoice, chooseBoon,
   finalizeDive, nextStartHp, diveMods, diveDepth,
@@ -164,7 +164,11 @@ document.body.addEventListener('click', async (e) => {
     if (state.combat.loopMode) { state.combat.loopMode = false; }
     notify(); soundClick(); return;
   }
-  if (t.closest('#btn-fight')) { fightFlow(); return; }
+  if (t.closest('#btn-fight')) {
+    if (!confirmSuicideFloor()) return;
+    fightFlow();
+    return;
+  }
   if (t.closest('#btn-loop')) {
     const floor = state.combat.currentFloor;
     if (floor >= state.combat.highestUnlocked) return;
@@ -392,6 +396,22 @@ function resumeLoop() {
 }
 
 let fighting = false;
+
+// Guard against accidental fatal fights: on a "Suicide"-rated floor, the first
+// Combattre click warns and arms a short confirmation window; a second click
+// within it proceeds. Returns true when the fight may start.
+let suicideArmedUntil = 0;
+function confirmSuicideFloor() {
+  // Looping/diving already committed — don't nag.
+  if (state.combat.loopMode || isDiving()) return true;
+  const diff = predictDifficulty(generateMonster(state.combat.currentFloor));
+  if (diff.label !== 'Suicide') { suicideArmedUntil = 0; return true; }
+  if (Date.now() < suicideArmedUntil) { suicideArmedUntil = 0; return true; }
+  suicideArmedUntil = Date.now() + 4000;
+  soundLose();
+  UI.showToast('💀', 'Étage mortel', 'Mort quasi certaine — re-clique pour confirmer');
+  return false;
+}
 async function fightFlow() {
   if (fighting || isDiving()) return;
   fighting = true;

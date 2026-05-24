@@ -199,7 +199,7 @@ export const BIOMES = [
             mechanic: { type: 'burn', dmgPerTurn: 8, desc: 'Brûlure : 8 dmg/tour passifs' } },
   },
   {
-    id: 'void', name: 'Néant', emoji: '🌌', floors: [41, 9999],
+    id: 'void', name: 'Néant', emoji: '🌌', floors: [41, 50],
     bgGradient: 'linear-gradient(135deg, #1a0838, #2a1448)',
     monsters: [
       { name: 'Ombre',          emoji: '🌑', hpBase: 50, dmgBase: 14, armorBase: 3, goldBase: 24 },
@@ -213,11 +213,30 @@ export const BIOMES = [
   },
 ];
 
+// Last floor covered by a fixed biome. Beyond it, the dungeon loops through all
+// biomes as escalating "echoes" so the endgame keeps visual + mechanical variety.
+export const FIXED_MAX_FLOOR = BIOMES[BIOMES.length - 1].floors[1];
+const ECHO_SPAN = 10; // floors per echo biome before cycling to the next
+
+// Echo level for deep floors (0 = within fixed biomes). Each full pass through
+// the biome list bumps the echo level, which raises monster danger/affixes.
+export function echoLevelForFloor(floor) {
+  if (floor <= FIXED_MAX_FLOOR) return 0;
+  return Math.floor((floor - FIXED_MAX_FLOOR - 1) / (ECHO_SPAN * BIOMES.length)) + 1;
+}
+
 export function biomeForFloor(floor) {
-  for (const b of BIOMES) {
-    if (floor >= b.floors[0] && floor <= b.floors[1]) return b;
+  if (floor <= FIXED_MAX_FLOOR) {
+    for (const b of BIOMES) {
+      if (floor >= b.floors[0] && floor <= b.floors[1]) return b;
+    }
+    return BIOMES[BIOMES.length - 1];
   }
-  return BIOMES[BIOMES.length - 1];
+  // Deep floors: cycle through biomes as echoes.
+  const idx = Math.floor((floor - FIXED_MAX_FLOOR - 1) / ECHO_SPAN) % BIOMES.length;
+  const echo = echoLevelForFloor(floor);
+  const base = BIOMES[idx];
+  return { ...base, name: `${base.name} · Écho ${echo}`, echoLevel: echo, baseId: base.id };
 }
 
 // === Monster affixes ===
@@ -243,6 +262,35 @@ export const MONSTER_AFFIXES = [
     build: () => ({ type: 'lifesteal', pct: 0.4, icon: '🩸', name: 'Vampirique', desc: 'Se soigne de 40% de ses dégâts' }) },
   { id: 'veloce', icon: '⚡', name: 'Véloce',
     build: () => ({ type: 'swift', chance: 0.30, icon: '⚡', name: 'Véloce', desc: '30% de frapper deux fois' }) },
+  { id: 'maudit', icon: '🚫', name: 'Maudit',
+    build: () => ({ type: 'healBlock', pct: 0.5, icon: '🚫', name: 'Maudit', desc: 'Réduit tes soins de 50%' }) },
+  { id: 'carapace', icon: '🐢', name: 'Carapacé',
+    build: () => ({ type: 'damageCap', pctMaxHp: 0.18, icon: '🐢', name: 'Carapacé', desc: 'Plafonne tes coups à 18% de ses PV' }) },
+  { id: 'bourreau', icon: '🪓', name: 'Bourreau',
+    build: ({ dmg }) => ({ type: 'executioner', everyTurns: 4, dmgMult: 2.5, lowHpBonus: 1.5, icon: '🪓', name: 'Bourreau', desc: 'Coup brutal tous les 4 tours (pire à bas PV)' }) },
+];
+
+// Short counterplay hint per affix/mechanic type, shown in the combat preview.
+export const AFFIX_TIP = {
+  regen:       'Tue-le vite : DPS > régénération',
+  enrage:      'Burst sous 35% PV ou meurs',
+  shieldCycle: 'Garde ton burst hors des tours d\'immunité',
+  burn:        'Soins/vol de vie pour tenir la brûlure',
+  phaseShift:  'Plus de PV pour encaisser les pics',
+  thorns:      'PV/armure : tes coups te blessent',
+  lifesteal:   'Frappe fort, ne traîne pas',
+  swift:       'Armure & PV contre les doubles coups',
+  healBlock:   'Mise sur les PV bruts, pas les soins',
+  damageCap:   'Crit/élémentaire : multiplie sous le plafond',
+  executioner: 'Reste haut en PV avant le coup',
+};
+
+// Elite monster prefixes: each adds a name marker + stat skew. Not used for bosses.
+export const ELITE_VARIANTS = [
+  { id: 'savage',     prefix: 'Sauvage',     icon: '⚡', dmgMult: 1.6, hpMult: 1.2 },
+  { id: 'armored',    prefix: 'Cuirassé',    icon: '🛡', armorBonus: 8, hpMult: 1.4 },
+  { id: 'frenzied',   prefix: 'Frénétique',  icon: '💢', dmgMult: 1.3, hpMult: 1.1, goldMult: 1.5 },
+  { id: 'colossal',   prefix: 'Colossal',    icon: '💀', hpMult: 2.0, dmgMult: 1.1 },
 ];
 
 // Player base stats (without equipment)

@@ -11,7 +11,7 @@ import {
   CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID,
   SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, TALENT_CATEGORIES,
   TALENT_MASTERY_THRESHOLD, UNIQUE_LEGENDARIES,
-  RELIC_BY_ID,
+  RELIC_BY_ID, AFFIX_TIP, maxAllowedChestTier, FIXED_MAX_FLOOR,
 } from './data.js';
 import { computeStats, computePower, computeSetSummary, itemPowerContribution, computeStatsBreakdown } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, canOpen, hasKey, cooldownRemaining, nextTierLockedBy } from './chest.js';
@@ -417,7 +417,52 @@ function monsterAffixIcons(monster) {
 function monsterMechLines(monster) {
   const ms = monster.mechanics || [];
   if (!ms.length) return '';
-  return `<div class="mob-mech smallcap">${ms.map(m => `${m.icon ? m.icon + ' ' : ''}${m.desc || ''}`).join('<br>')}</div>`;
+  return `<div class="mob-mech smallcap">${ms.map(m => {
+    const tip = AFFIX_TIP[m.type];
+    return `${m.icon ? m.icon + ' ' : ''}${m.desc || ''}${tip ? ` <span class="mech-tip">→ ${tip}</span>` : ''}`;
+  }).join('<br>')}</div>`;
+}
+
+// Loot/key drop preview for the fight dock.
+function monsterDropLine(monster) {
+  const cap = maxAllowedChestTier(state.prestige?.level || 0);
+  const baseTier = Math.max(1, Math.ceil(monster.floor / 8));
+  const tier = Math.min(cap, baseTier + (monster.isBoss || monster.isElite ? 1 : 0));
+  const tDef = CHEST_TIERS[tier - 1];
+  const dropPct = Math.round((monster.dropChance || 0) * 100);
+  const keyTxt = monster.isBoss ? '3 🗝' : (monster.isElite ? '1 🗝' : `${Math.round((0.30 + 0.15 * (monster.affixCount || 0)) * 100)}% 🗝`);
+  return `<div class="mob-drop smallcap">🎁 ${dropPct}% · T${tier} ${tDef ? tDef.emoji : ''} · ${keyTxt}</div>`;
+}
+
+// Sliding 10-floor window over the endless echo region, anchored on the
+// player's frontier (deep floors are reached by progressing, not by selecting).
+function echoFloorWindow(highest) {
+  const winTop = Math.max(FIXED_MAX_FLOOR + 10, highest);
+  return { lo: Math.max(FIXED_MAX_FLOOR + 1, winTop - 9), top: winTop };
+}
+
+// Endless "Échos" node for floors beyond the fixed biomes (mobile dungeon map).
+function echoNodeHTML(cur, highest) {
+  if (highest <= FIXED_MAX_FLOOR) return '';
+  const unlockedHere = highest > FIXED_MAX_FLOOR;
+  const isCurrent = cur > FIXED_MAX_FLOOR;
+  const echoBiome = biomeForFloor(Math.max(cur, FIXED_MAX_FLOOR + 1));
+  const { lo: winLo, top: winTop } = echoFloorWindow(highest);
+  let floors = '';
+  for (let f = winLo; f <= winTop; f++) {
+    const boss = isBossFloor(f);
+    const unlocked = f <= highest;
+    const sel = f === cur;
+    floors += `<button class="floor${unlocked ? '' : ' locked'}${sel ? ' sel' : ''}${boss ? ' boss' : ''}" data-floor="${f}" ${unlocked ? '' : 'disabled'}>${boss ? '★' : (unlocked ? f : '🔒')}</button>`;
+  }
+  return `<div class="biome-node${isCurrent ? ' open' : ''}${unlockedHere ? '' : ' dim'}">
+    <div class="biome-head">
+      <span class="biome-emoji">🌀</span>
+      <div class="biome-info"><div class="biome-name display">Échos${isCurrent ? ` · ${echoBiome.name}` : ''}</div><div class="smallcap">Étages ${FIXED_MAX_FLOOR + 1}–∞</div></div>
+    </div>
+    ${isCurrent ? `<div class="floor-grid">${floors}</div>
+      <div class="biome-boss-line"><span class="biome-emoji">${echoBiome.boss.emoji}</span><span>${echoBiome.boss.name}</span><span class="smallcap">${echoBiome.boss.mechanic?.desc || ''}</span></div>` : ''}
+  </div>`;
 }
 
 // ── ① Dungeon map — vertical biome path ──────────────────────
@@ -447,7 +492,7 @@ function screenDungeon() {
       ${isCurrent ? `<div class="floor-grid">${floors.join('')}</div>
         <div class="biome-boss-line"><span class="biome-emoji">${b.boss.emoji}</span><span>${b.boss.name}</span><span class="smallcap">${b.boss.mechanic?.desc || ''}</span></div>` : ''}
     </div>`;
-  }).join('');
+  }).join('') + echoNodeHTML(cur, highest);
 
   const monster = generateMonster(cur);
   const diff = predictDifficulty(monster);
@@ -469,8 +514,9 @@ function screenDungeon() {
         <span class="mob-emoji pixel">${hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, 44) : monster.emoji}</span>
         <div class="ft-info">
           <div class="ft-name">${monster.name}${monster.isBoss ? ' 👑' : ''}${monster.isElite ? ' ⭐' : ''}${monsterAffixIcons(monster)}</div>
-          <div class="ft-diff" style="color:${diff.color}">${diff.label}</div>
+          <div class="ft-diff" style="color:${diff.color}">${diff.label}${diff.hpLeftPct != null ? ` <span class="smallcap">· ~${diff.hpLeftPct}% PV restants · ${diff.turnsToKill}t</span>` : ''}</div>
           ${monsterMechLines(monster)}
+          ${monsterDropLine(monster)}
         </div>
       </div>
       <button class="btn-gold btn-fight" id="btn-fight">⚔ Combattre</button>
@@ -716,16 +762,22 @@ function dtDungeon() {
   const diff = predictDifficulty(monster);
   const biome = biomeForFloor(cur);
   const beaten = cur < highest;
-  const biomeList = BIOMES.map(b => {
+  const inEcho = cur > FIXED_MAX_FLOOR;
+  let biomeList = BIOMES.map(b => {
     const [lo, hi] = b.floors;
     const unlocked = highest >= lo;
-    const active = cur >= lo && cur <= (hi > 900 ? 99999 : hi);
-    return `<button class="dt-biome${active ? ' active' : ''}${unlocked ? '' : ' locked'}" data-floor="${unlocked ? Math.max(lo, Math.min(highest, hi > 900 ? highest : hi)) : lo}" ${unlocked ? '' : 'disabled'}>
-      <span class="biome-emoji">${b.emoji}</span><div><div class="biome-name">${b.name}</div><div class="smallcap">${lo}–${hi > 900 ? '∞' : hi}</div></div>${unlocked ? '' : '<span class="biome-lock">🔒</span>'}</button>`;
+    const active = !inEcho && cur >= lo && cur <= hi;
+    return `<button class="dt-biome${active ? ' active' : ''}${unlocked ? '' : ' locked'}" data-floor="${unlocked ? Math.max(lo, Math.min(highest, hi)) : lo}" ${unlocked ? '' : 'disabled'}>
+      <span class="biome-emoji">${b.emoji}</span><div><div class="biome-name">${b.name}</div><div class="smallcap">${lo}–${hi}</div></div>${unlocked ? '' : '<span class="biome-lock">🔒</span>'}</button>`;
   }).join('');
-  const top = biome.floors[1] > 900 ? biome.floors[0] + 9 : biome.floors[1];
+  if (highest > FIXED_MAX_FLOOR) {
+    const win = echoFloorWindow(highest);
+    biomeList += `<button class="dt-biome${inEcho ? ' active' : ''}" data-floor="${Math.min(highest, win.top)}">
+      <span class="biome-emoji">🌀</span><div><div class="biome-name">Échos</div><div class="smallcap">${FIXED_MAX_FLOOR + 1}–∞</div></div></button>`;
+  }
+  const range = inEcho ? echoFloorWindow(highest) : { lo: biome.floors[0], top: biome.floors[1] };
   const floors = [];
-  for (let f = biome.floors[0]; f <= top; f++) {
+  for (let f = range.lo; f <= range.top; f++) {
     const boss = isBossFloor(f), unlocked = f <= highest, sel = f === cur;
     floors.push(`<button class="floor${unlocked ? '' : ' locked'}${sel ? ' sel' : ''}${boss ? ' boss' : ''}" data-floor="${f}" ${unlocked ? '' : 'disabled'}>${boss ? '★' : (unlocked ? f : '🔒')}</button>`);
   }
@@ -745,9 +797,10 @@ function dtDungeon() {
       <div class="dt-card panel mob-preview">
         <div class="mob-sprite-lg pixel">${hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, 96) : `<span style="font-size:72px">${monster.emoji}</span>`}</div>
         <div class="ft-name">${monster.name}${monster.isBoss ? ' 👑' : ''}${monster.isElite ? ' ⭐' : ''}${monsterAffixIcons(monster)}</div>
-        <div class="ft-diff" style="color:${diff.color}">${diff.label}</div>
+        <div class="ft-diff" style="color:${diff.color}">${diff.label}${diff.hpLeftPct != null ? ` <span class="smallcap">· ~${diff.hpLeftPct}% PV · ${diff.turnsToKill}t</span>` : ''}</div>
         <div class="mob-stats smallcap">❤ ${fmt(monster.hp)} · ⚔ ${fmt(monster.damage)} · 🛡 ${fmt(monster.armor)}</div>
         ${monsterMechLines(monster)}
+        ${monsterDropLine(monster)}
       </div>
     </aside>
   </div>`;
