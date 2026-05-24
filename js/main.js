@@ -11,7 +11,7 @@ import {
   finalizeDive, nextStartHp, diveMods, diveDepth,
 } from './dive.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
-import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
+import { FORGE_ACTIONS, applyMasterCraft, applyExchange, toggleAffixLock } from './forge.js';
 import { upgradeTalent, respecTalents } from './talents.js';
 import { refreshBoardIfEmpty, rerollBounty, onBountyComplete } from './bounties.js';
 import { canAscend, ascend } from './prestige.js';
@@ -227,6 +227,16 @@ document.body.addEventListener('click', async (e) => {
   // Forge actions
   const fAct = t.closest('[data-forge-action]');
   if (fAct) { forgeAction(fAct.dataset.forgeAction); return; }
+  const fMode = t.closest('[data-forge-mode]');
+  if (fMode) { UI.setForgeMode(fMode.dataset.forgeMode); soundClick(); return; }
+  const exRow = t.closest('.ex-row[data-exchange-from]');
+  if (exRow && !exRow.disabled) { if (applyExchange(exRow.dataset.exchangeFrom)) soundForge(); return; }
+  const lockBtn = t.closest('[data-lock-index]');
+  if (lockBtn && !lockBtn.disabled) {
+    const item = state.inventory.find(i => i.id === UI.getForgeSelectedId());
+    if (item && toggleAffixLock(item, Number(lockBtn.dataset.lockIndex))) soundClick();
+    return;
+  }
   const mcRow = t.closest('.mc-row[data-affix-id]');
   if (mcRow) {
     const item = state.inventory.find(i => i.id === UI.getForgeSelectedId());
@@ -631,7 +641,7 @@ function itemAction(action) {
 }
 
 function forgeAction(actionId) {
-  if (actionId === 'cancel-master') { UI.setForgeMode('actions'); soundClick(); return; }
+  if (actionId === 'cancel-master' || actionId === 'cancel-exchange') { UI.setForgeMode('actions'); soundClick(); return; }
   const action = FORGE_ACTIONS.find(a => a.id === actionId);
   if (!action) return;
   const item = state.inventory.find(i => i.id === UI.getForgeSelectedId());

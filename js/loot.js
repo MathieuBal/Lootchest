@@ -95,12 +95,16 @@ function pickDistinctAffixes(pool, count, out, chestTier, highHalf) {
 
 // Decide how the N affixes split between prefix/suffix, respecting AFFIX_LIMITS
 // and pool sizes, biased toward a balanced spread (≥1 of each as soon as n≥2).
-function splitAffixCounts(rarity, n, prefixPoolSize, suffixPoolSize) {
+// usedPrefix/usedSuffix: slots already occupied (e.g. by locked affixes kept
+// across a reroll). Counts toward the limits but only the NEWLY added counts are
+// returned, so the pick loop semantics stay identical for default (0,0) callers.
+function splitAffixCounts(rarity, n, prefixPoolSize, suffixPoolSize, usedPrefix = 0, usedSuffix = 0) {
   const limits = AFFIX_LIMITS[rarity] || { prefix: n, suffix: n };
-  let pCount = 0, sCount = 0;
+  let pCount = usedPrefix, sCount = usedSuffix;
+  let addP = 0, addS = 0;
   for (let i = 0; i < n; i++) {
-    const canP = pCount < limits.prefix && pCount < prefixPoolSize;
-    const canS = sCount < limits.suffix && sCount < suffixPoolSize;
+    const canP = pCount < limits.prefix && addP < prefixPoolSize;
+    const canS = sCount < limits.suffix && addS < suffixPoolSize;
     if (!canP && !canS) break;
     let pickP;
     if (canP && !canS) pickP = true;
@@ -108,18 +112,24 @@ function splitAffixCounts(rarity, n, prefixPoolSize, suffixPoolSize) {
     else if (pCount < sCount) pickP = true;       // under-represented → prefix
     else if (sCount < pCount) pickP = false;      // under-represented → suffix
     else pickP = Math.random() < 0.5;             // tie → random
-    if (pickP) pCount++; else sCount++;
+    if (pickP) { pCount++; addP++; } else { sCount++; addS++; }
   }
-  return { pCount, sCount };
+  return { pCount: addP, sCount: addS };
 }
 
-function rollAffixes(rarity, chestTier, { highHalf = false } = {}) {
+// keep: affixes to preserve verbatim (locked). They occupy slots and exclude
+// their stats from the pools; only the remaining slots are rolled.
+function rollAffixes(rarity, chestTier, { highHalf = false, keep = [] } = {}) {
   const n = RARITY_BY_ID[rarity].affixes;
   if (n === 0) return [];
-  const prefixPool = AFFIXES.filter(a => a.type === 'prefix');
-  const suffixPool = AFFIXES.filter(a => a.type === 'suffix');
-  const { pCount, sCount } = splitAffixCounts(rarity, n, prefixPool.length, suffixPool.length);
-  const picked = [];
+  const keptPrefix = keep.filter(a => (a.type || 'prefix') === 'prefix').length;
+  const keptSuffix = keep.length - keptPrefix;
+  const keptStats = new Set(keep.map(a => a.stat));
+  const prefixPool = AFFIXES.filter(a => a.type === 'prefix' && !keptStats.has(a.stat));
+  const suffixPool = AFFIXES.filter(a => a.type === 'suffix' && !keptStats.has(a.stat));
+  const remaining = Math.max(0, n - keep.length);
+  const { pCount, sCount } = splitAffixCounts(rarity, remaining, prefixPool.length, suffixPool.length, keptPrefix, keptSuffix);
+  const picked = [...keep];
   pickDistinctAffixes(prefixPool, pCount, picked, chestTier, highHalf);
   pickDistinctAffixes(suffixPool, sCount, picked, chestTier, highHalf);
   return picked;
@@ -362,9 +372,10 @@ export function rebuildItemAffixesAndStats(item) {
   }
 }
 
-export function rebuildItemAffixesOnly(item) {
+export function rebuildItemAffixesOnly(item, { highHalf = false } = {}) {
   if (item.uniqueId) return; // unique fixed affixes cannot be rerolled
-  item.affixes = rollAffixes(item.rarity, item.chestTier);
+  const keep = (item.affixes || []).filter(a => a.locked);
+  item.affixes = rollAffixes(item.rarity, item.chestTier, { highHalf, keep });
 }
 
 // Alias matching the procedural-engine plan terminology.
@@ -443,7 +454,8 @@ export function rescaleItemToTier(item, newTier) {
 // Used by the "Reroll+" forge action that costs crystals.
 export function rebuildItemAffixesPlus(item) {
   if (item.uniqueId) return;
-  item.affixes = rollAffixes(item.rarity, item.chestTier, { highHalf: true });
+  const keep = (item.affixes || []).filter(a => a.locked);
+  item.affixes = rollAffixes(item.rarity, item.chestTier, { highHalf: true, keep });
 }
 
 function buildItem(chestTier, rarity, opts = {}) {

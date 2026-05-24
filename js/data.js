@@ -437,6 +437,12 @@ export const CURRENCY_TYPES = [
 
 export const CURRENCY_BY_ID = Object.fromEntries(CURRENCY_TYPES.map(c => [c.id, c]));
 
+// Comptoir de change : échelle de conversion vers le haut (exclut pierre/focus,
+// orbes utilitaires). Coût croissant = puits + décision « thésauriser les petits
+// orbes pour fabriquer les rares ». maître = destination finale uniquement.
+export const CURRENCY_EXCHANGE_LADDER = ['transmu', 'augm', 'alte', 'regal', 'chaos', 'divin', 'exil', 'maitre'];
+export const CURRENCY_EXCHANGE_COST = [3, 3, 3, 4, 4, 5, 6]; // N de tier i → 1 de tier i+1
+
 // Number of additional affixes craftable beyond the rarity's default count.
 export const MAX_BONUS_AFFIXES = 1;
 

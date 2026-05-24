@@ -8,7 +8,7 @@ import {
   CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, PITY_THRESHOLD,
   PITY_ANCESTRAL_THRESHOLD, PITY_UNIQUE_THRESHOLD,
   ACHIEVEMENTS, biomeForFloor, BIOMES, AUTOSELL_UNLOCK_COSTS,
-  CURRENCY_TYPES, CURRENCY_BY_ID, AFFIXES_BY_ID,
+  CURRENCY_TYPES, CURRENCY_BY_ID, CURRENCY_EXCHANGE_LADDER, AFFIXES_BY_ID,
   SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, TALENT_CATEGORIES,
   TALENT_MASTERY_THRESHOLD, UNIQUE_LEGENDARIES,
   RELIC_BY_ID, AFFIX_TIP, maxAllowedChestTier, FIXED_MAX_FLOOR,
@@ -16,7 +16,7 @@ import {
 import { computeStats, computePower, computeSetSummary, itemPowerContribution, computeStatsBreakdown } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, canOpen, hasKey, cooldownRemaining, nextTierLockedBy } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
-import { FORGE_ACTIONS, availableMasterCraftAffixes } from './forge.js';
+import { FORGE_ACTIONS, availableMasterCraftAffixes, canToggleAffixLock, exchangeNext, exchangeCost, canExchange } from './forge.js';
 import { shardYield, autoActionFor } from './inventory.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
@@ -612,7 +612,25 @@ function screenForge() {
     `<span class="orb-chip" style="--c:${o.color}" title="${o.name}">${o.emoji}<span class="mono">${state.orbs[o.id] || 0}</span></span>`).join('');
 
   let body;
-  if (!item) {
+  if (forgeMode === 'exchange') {
+    const rows = CURRENCY_EXCHANGE_LADDER.map(id => {
+      const next = exchangeNext(id);
+      if (!next) return '';
+      const from = CURRENCY_BY_ID[id], to = CURRENCY_BY_ID[next];
+      const cost = exchangeCost(id);
+      const ok = canExchange(id);
+      return `<button class="ex-row${ok ? '' : ' disabled'}" data-exchange-from="${id}" ${ok ? '' : 'disabled'}>
+        <span class="ex-from" style="--c:${from.color}">${from.emoji} <span class="mono">${state.orbs[id] || 0}</span></span>
+        <span class="ex-cost mono">${cost} →</span>
+        <span class="ex-to" style="--c:${to.color}">${to.emoji} +1</span>
+      </button>`;
+    }).join('');
+    body = `<div class="forge-exchange">
+      <div class="smallcap">Comptoir de change — convertis tes orbes vers le haut</div>
+      <div class="ex-list">${rows}</div>
+      <button class="btn-ghost" data-forge-action="cancel-exchange">← Retour</button>
+    </div>`;
+  } else if (!item) {
     const forgeable = state.inventory.slice(0, 60);
     body = `<div class="forge-pick">
       <div class="smallcap">Choisis un objet à forger</div>
@@ -637,18 +655,28 @@ function screenForge() {
       </button>`;
     }).join('');
     const r = RARITY_BY_ID[item.rarity];
+    const affixList = (item.affixes || []).map((a, i) => {
+      const lockable = canToggleAffixLock(item, i);
+      return `<div class="forge-affix${a.locked ? ' locked' : ''}">
+        ${affixTypeBadge(a)}<span class="fa-name">${a.label}</span>
+        <span class="fa-val mono">+${a.value}${a.percent ? '%' : ''}</span>
+        <button class="affix-lock${a.locked ? ' on' : ''}" data-lock-index="${i}" ${lockable ? '' : 'disabled'} title="${a.locked ? 'Déverrouiller' : 'Verrouiller (préservé au reroll)'}">${a.locked ? '🔒' : '🔓'}</button>
+      </div>`;
+    }).join('');
     body = `<div class="forge-work">
       <div class="forge-slot rar-glow-${r.cssClass} pixel">${itemVisualHTML(item, 84)}</div>
       <div class="forge-item-name display rt-${r.cssClass}">${item.name}</div>
       <div class="forge-item-sub smallcap">T${item.chestTier} · ${SLOT_BY_ID[item.slot].name} · ${r.name}</div>
       ${compChips(item) ? `<div class="detail-chips">${compChips(item)}</div>` : ''}
       <div class="forge-detail">${statBars(item)}</div>
+      ${affixList ? `<div class="forge-affixes">${affixList}</div>` : ''}
       <div class="forge-actions">${actions}</div>
       <button class="btn-ghost" id="forge-deselect">← Changer d'objet</button>
     </div>`;
   }
+  const exchangeBtn = forgeMode === 'exchange' ? '' : '<button class="btn-ghost ex-open" data-forge-mode="exchange">🔄 Comptoir</button>';
   return `<div class="forge">
-    <div class="orb-strip panel">${orbStrip}</div>
+    <div class="orb-strip panel">${orbStrip}${exchangeBtn}</div>
     ${body}
   </div>`;
 }
