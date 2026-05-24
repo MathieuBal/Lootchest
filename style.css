@@ -587,6 +587,12 @@ input, select { font-family: inherit; }
 .relic-emoji { font-size: 34px; }
 .relic-name { font-size: 15px; color: var(--gold-200); }
 .relic-desc { color: var(--text-dim); line-height: 1.35; }
+.relic-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+.relic-badge { font-size: 10px; letter-spacing: .04em; padding: 2px 6px; border-radius: var(--r-sm);
+  text-transform: uppercase; }
+.relic-badge.rank2 { background: rgba(245,200,66,.16); border: 1px solid rgba(245,200,66,.5); color: var(--gold-200); }
+.relic-badge.fx { background: rgba(150,100,220,.18); border: 1px solid rgba(170,120,240,.5); color: #d9c2ff; }
+#btn-reroll-relic { width: 100%; margin-top: 14px; }
 
 /* Deep Dive */
 .btn-dive { border-color: rgba(90,216,232,.5); color: #9fe9f2; }

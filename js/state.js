@@ -63,6 +63,7 @@ export const state = {
     totalAscensions: 0,
     relics: {},                // { relicId: count } — permanent build modifiers
     pendingRelicChoice: null,  // [relicId, relicId, relicId] awaiting a pick
+    pendingRelicRerolls: 0,    // free rerolls left on the pending choice
   },
   dive: {                      // Deep Dive roguelite run (persisted: best score only)
     bestDepth: 0,
@@ -169,6 +170,7 @@ export function replaceState(newState) {
   if (!state.prestige) state.prestige = { level: 0, totalAscensions: 0 };
   if (!state.prestige.relics) state.prestige.relics = {};
   if (state.prestige.pendingRelicChoice === undefined) state.prestige.pendingRelicChoice = null;
+  if (state.prestige.pendingRelicRerolls === undefined) state.prestige.pendingRelicRerolls = 0;
   if (!state.dive) state.dive = { bestDepth: 0, totalDives: 0 };
   if (!state.village) state.village = { townhall: 1, resources: { wood: 60, stone: 40, metal: 0, essence: 0 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0 };
   if (!state.village.resources) state.village.resources = { wood: 60, stone: 40, metal: 0 };

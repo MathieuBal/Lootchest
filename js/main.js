@@ -15,7 +15,7 @@ import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
 import { upgradeTalent } from './talents.js';
 import { refreshBoardIfEmpty, rerollBounty, onBountyComplete } from './bounties.js';
 import { canAscend, ascend } from './prestige.js';
-import { chooseRelic } from './relics.js';
+import { chooseRelic, rerollRelicChoice } from './relics.js';
 import { toggleAbility } from './abilities.js';
 import {
   accruePassive, grantDungeonResources, buildOrUpgrade, upgradeTownhall, assignWorker, commitCraft,
@@ -250,6 +250,7 @@ document.body.addEventListener('click', async (e) => {
   if (t.closest('#btn-ascend')) { ascendFlow(); return; }
 
   // Relic choice (after ascension)
+  if (t.closest('#btn-reroll-relic')) { if (rerollRelicChoice()) { soundClick(); notify(); } return; }
   const relicBtn = t.closest('[data-relic]');
   if (relicBtn) { chooseRelicFlow(relicBtn.dataset.relic); return; }
 
@@ -637,7 +638,7 @@ function ascendFlow() {
   const newLevel = (state.prestige?.level || 0) + 1;
   let ok = true;
   if (state.settings?.confirmAscend !== false) {
-    ok = confirm(`🌟 Ascension Niv ${newLevel} ?\n\nTu repars de zéro (or, items, coffre T1, étage 1).\nTu gardes succès, prestige, stats.\nBonus permanent : +${15 * newLevel}% drops & or.\n\nConfirmer ?`);
+    ok = confirm(`🌟 Ascension Niv ${newLevel} ?\n\nTu repars de zéro (or, items, coffre T1, étage 1).\nTu gardes succès, prestige, stats.\nBonus permanent : +${6 * newLevel}% dégâts & PV, +${15 * newLevel}% drops & or.\n\nConfirmer ?`);
   }
   if (ok && ascend()) {
     soundAscension(); screenShake(8, 600);

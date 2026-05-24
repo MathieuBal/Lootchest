@@ -1553,6 +1553,8 @@ function ovAscension() {
       <div class="asc-title display">Ascension</div>
       <div class="asc-sub smallcap">Niveau de prestige ${lvl} → ${next}</div>
       <div class="asc-grid">
+        <div class="asc-cell"><span class="smallcap">Dégâts</span><span class="mono">+${cbonus}%</span></div>
+        <div class="asc-cell"><span class="smallcap">PV max</span><span class="mono">+${cbonus}%</span></div>
         <div class="asc-cell"><span class="smallcap">Drops raretés</span><span class="mono">+${bonus}%</span></div>
         <div class="asc-cell"><span class="smallcap">Or de vente</span><span class="mono">+${bonus}%</span></div>
         <div class="asc-cell"><span class="smallcap">Points talent</span><span class="mono">+2</span></div>
@@ -1581,22 +1583,30 @@ function ownedRelicsBlock() {
 // ── Relic choice (after ascension) ───────────────────────────
 function ovRelicChoice() {
   const choice = state.prestige?.pendingRelicChoice || [];
+  const rerolls = state.prestige?.pendingRelicRerolls || 0;
   const cards = choice.map(id => {
     const r = RELIC_BY_ID[id];
     if (!r) return '';
     const have = state.prestige?.relics?.[id] || 0;
+    const rankBadge = (r.rank || 1) >= 2 ? `<span class="relic-badge rank2">★ Rang ${r.rank}</span>` : '';
+    const fxBadge = r.effect ? `<span class="relic-badge fx">✦ Effet</span>` : '';
     return `<button class="relic-card" data-relic="${id}">
         <div class="relic-emoji">${r.emoji}</div>
         <div class="relic-name display">${r.name}${have ? ` <span class="smallcap">(×${have})</span>` : ''}</div>
         <div class="relic-desc smallcap">${r.desc}</div>
+        <div class="relic-badges">${rankBadge}${fxBadge}</div>
       </button>`;
   }).join('');
+  const rerollBtn = `<button class="btn-ghost ${rerolls > 0 ? '' : 'is-disabled'}" id="btn-reroll-relic">
+      🔄 Relancer le choix${rerolls > 0 ? ` (${rerolls})` : ' (0)'}
+    </button>`;
   return `<div class="overlay-backdrop"></div>
     <div class="sheet dark">
       <div class="sheet-head"><span class="display">🏺 Choisis une relique</span></div>
       <div class="sheet-body scroll">
-        <p class="smallcap">Modificateur permanent et cumulable. Il survit à chaque ascension et oriente ton build.</p>
+        <p class="smallcap">Modificateur permanent et cumulable. Il survit à chaque ascension et oriente ton build. Les reliques à effet ✦ modifient le combat ; les reliques de rang ★ se débloquent en profondeur.</p>
         <div class="relic-grid">${cards}</div>
+        ${rerollBtn}
       </div>
     </div>`;
 }

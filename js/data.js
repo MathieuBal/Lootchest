@@ -828,10 +828,14 @@ export const PRESTIGE_REQUIREMENTS = {
 export const PRESTIGE_BONUS_PER_LEVEL = {
   rareDropWeightMult: 0.15, // additive per level
   goldMult: 0.15,           // additive per level
+  damageMult: 0.06,         // additive per level — direct combat power
+  hpMult: 0.06,             // additive per level — direct combat power
 };
 
 export function prestigeGoldMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.goldMult * (level || 0); }
 export function prestigeRareMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.rareDropWeightMult * (level || 0); }
+export function prestigeDamageMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.damageMult * (level || 0); }
+export function prestigeHpMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.hpMult * (level || 0); }
 
 // Item stat scaling per chest tier. Previously stats scaled linearly (× tier),
 // which — compounded with rarity statMult and 8 equipment slots — made player
@@ -855,15 +859,31 @@ export const CRIT_GEAR_SCALE = 0.28;
 // elles survivent au reset d'ascension : c'est le levier de build long terme.
 // `mods` : damagePct / hpPct / dmgTakenPct / goldPct / dropPct (fractions),
 //          critFlat / armorFlat (valeurs plates), elemPct, lifesteal (fraction).
+// `effect` (optionnel) : comportement de combat lu par resolveFight, dont la
+//          magnitude cumule avec le nombre de copies possédées (comme les
+//          effets légendaires). `rank` : 1 = base, 2 = avancé (débloqué au
+//          prestige ≥ RELIC_RANK2_PRESTIGE).
+export const RELIC_RANK2_PRESTIGE = 3;
+
 export const RELICS = [
-  { id: 'berserker',    emoji: '⚔️', name: 'Pacte du Berserker', desc: '+40% dégâts · −15% PV max',          mods: { damagePct: 0.40, hpPct: -0.15 } },
-  { id: 'midas',        emoji: '💰', name: 'Main de Midas',       desc: '+50% or',                            mods: { goldPct: 0.50 } },
-  { id: 'deadeye',      emoji: '🎯', name: 'Œil de Lynx',         desc: '+12% chance de critique',            mods: { critFlat: 12 } },
-  { id: 'elementalist', emoji: '✨',  name: 'Élémentaliste',       desc: '+30% dégâts élémentaires',           mods: { elemPct: 0.30 } },
-  { id: 'bulwark',      emoji: '🛡', name: 'Rempart',             desc: '+25% PV max · +20 armure',           mods: { hpPct: 0.25, armorFlat: 20 } },
-  { id: 'fortune',      emoji: '🍀', name: 'Fortune',             desc: '+30% drops rares',                   mods: { dropPct: 0.30 } },
-  { id: 'vampire',      emoji: '🩸', name: 'Soif de Sang',        desc: 'Vol de vie 5% des dégâts',           mods: { lifesteal: 0.05 } },
-  { id: 'glasscannon',  emoji: '💥', name: 'Canon de Verre',      desc: '+80% dégâts · +40% dégâts subis',     mods: { damagePct: 0.80, dmgTakenPct: 0.40 } },
+  // — Rang 1 : stats —
+  { id: 'berserker',    emoji: '⚔️', name: 'Pacte du Berserker', desc: '+40% dégâts · −15% PV max',          rank: 1, mods: { damagePct: 0.40, hpPct: -0.15 } },
+  { id: 'midas',        emoji: '💰', name: 'Main de Midas',       desc: '+50% or',                            rank: 1, mods: { goldPct: 0.50 } },
+  { id: 'deadeye',      emoji: '🎯', name: 'Œil de Lynx',         desc: '+12% chance de critique',            rank: 1, mods: { critFlat: 12 } },
+  { id: 'elementalist', emoji: '✨',  name: 'Élémentaliste',       desc: '+30% dégâts élémentaires',           rank: 1, mods: { elemPct: 0.30 } },
+  { id: 'bulwark',      emoji: '🛡', name: 'Rempart',             desc: '+25% PV max · +20 armure',           rank: 1, mods: { hpPct: 0.25, armorFlat: 20 } },
+  { id: 'fortune',      emoji: '🍀', name: 'Fortune',             desc: '+30% drops rares',                   rank: 1, mods: { dropPct: 0.30 } },
+  { id: 'vampire',      emoji: '🩸', name: 'Soif de Sang',        desc: 'Vol de vie 5% des dégâts',           rank: 1, mods: { lifesteal: 0.05 } },
+  { id: 'glasscannon',  emoji: '💥', name: 'Canon de Verre',      desc: '+80% dégâts · +40% dégâts subis',     rank: 1, mods: { damagePct: 0.80, dmgTakenPct: 0.40 } },
+  // — Rang 1 : effets de combat (cumulables) —
+  { id: 'momentum',     emoji: '🌀', name: 'Élan',                desc: '+6% dégâts cumulés par tour (×copies)', rank: 1, mods: {}, effect: 'relicMomentum' },
+  { id: 'reaper',       emoji: '🪓', name: 'Faucheur',            desc: '+50% dégâts sous 30% PV ennemi (×copies)', rank: 1, mods: {}, effect: 'relicExecute' },
+  { id: 'thornmail',    emoji: '🌵', name: 'Carapace d\'Épines',  desc: 'Renvoie 20% des dégâts subis (×copies)', rank: 1, mods: { armorFlat: 8 }, effect: 'relicThorns' },
+  // — Rang 2 : avancé (prestige ≥ 3) —
+  { id: 'phoenix',      emoji: '🔥', name: 'Cœur de Phénix',      desc: 'Revit à 30% PV (1 fois par copie)',  rank: 2, mods: {}, effect: 'relicPhoenix' },
+  { id: 'avarice',      emoji: '💎', name: 'Avarice',             desc: '+100% or · +50% drops rares',        rank: 2, mods: { goldPct: 1.0, dropPct: 0.50 } },
+  { id: 'titan',        emoji: '🗿', name: 'Titan',               desc: '+60% PV max · +40 armure',           rank: 2, mods: { hpPct: 0.60, armorFlat: 40 } },
+  { id: 'cataclysm',    emoji: '☄️', name: 'Cataclysme',          desc: '+120% dégâts · −30% PV max',         rank: 2, mods: { damagePct: 1.20, hpPct: -0.30 } },
 ];
 
 export const RELIC_BY_ID = Object.fromEntries(RELICS.map(r => [r.id, r]));

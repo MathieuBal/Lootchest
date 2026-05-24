@@ -1,10 +1,10 @@
 // Combat / dungeon logic. Resolution is instant (no per-turn animation in V1).
 import { state, notify } from './state.js';
 import { computeStats, activeSetEffects } from './character.js';
-import { PLAYER_BASE, biomeForFloor, MONSTER_AFFIXES, ELITE_VARIANTS, echoLevelForFloor, maxAllowedChestTier } from './data.js';
+import { PLAYER_BASE, biomeForFloor, MONSTER_AFFIXES, ELITE_VARIANTS, echoLevelForFloor, maxAllowedChestTier, prestigeDamageMult, prestigeHpMult } from './data.js';
 import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
-import { relicDamageMult, relicHpMult, relicDmgTakenMult, relicElemMult, relicGoldMult, relicLifesteal } from './relics.js';
+import { relicDamageMult, relicHpMult, relicDmgTakenMult, relicElemMult, relicGoldMult, relicLifesteal, relicEffects } from './relics.js';
 import { villageCombatBonus, villageGoldMult } from './village.js';
 import { buildSkillContext } from './skills.js';
 import { activeLegendaryEffectIds } from './legendaryEffects.js';
@@ -152,8 +152,9 @@ export function resolveFight(monster, opts = {}) {
   const maxHpMod = mods.maxHpMult || 1;
   const stats = computeStats();
   const vlg = villageCombatBonus();
-  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * vlg.hpMult * maxHpMod);
-  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * vlg.dmgMult * dmgMod * (1 - armorMitigation(monster.armor))));
+  const pLvl = state.prestige?.level || 0;
+  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * prestigeHpMult(pLvl) * vlg.hpMult * maxHpMod);
+  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * prestigeDamageMult(pLvl) * vlg.dmgMult * dmgMod * (1 - armorMitigation(monster.armor))));
   const playerArmor = (stats.armor || 0);
   const monsterDmg = Math.max(1, Math.round(monster.damage * relicDmgTakenMult() * takenMod * (1 - armorMitigation(playerArmor))));
   const lifestealPct = relicLifesteal();
@@ -179,6 +180,14 @@ export function resolveFight(monster, opts = {}) {
   // Active legendary effects (one per equipped legendary item)
   const legendaryEffects = activeLegendaryEffectIds();
   let bloodPactReady = legendaryEffects.has('bloodPact'); // mirror demon_pact for legendaries
+
+  // Relic combat effects (magnitude scales with copies owned). Counts capped at
+  // 4 stacks so deep relic farming stays meaningful without trivializing fights.
+  const relicFx = relicEffects();
+  const momentumStacks = Math.min(relicFx.relicMomentum || 0, 4); // +6%/turn per stack
+  const executeStacks  = Math.min(relicFx.relicExecute  || 0, 4); // +50% under 30% HP per stack
+  const thornsStacks   = Math.min(relicFx.relicThorns   || 0, 4); // reflect 20% taken per stack
+  let phoenixCharges   = relicFx.relicPhoenix || 0;               // 1 revive at 30% HP per stack
 
   function runHook(hookName, ctx) {
     const results = [];
@@ -214,6 +223,12 @@ export function resolveFight(monster, opts = {}) {
     events.push({ type: 'monster_hit', dmg, monsterHp: mHp, playerHp: pHp, ...opts });
     if (setEffectIds.has('phoenix_rebirth') && !phoenixUsed && pHp <= 0) {
       phoenixUsed = true;
+      pHp = Math.round(playerMaxHp * 0.30);
+      events.push({ type: 'set_rebirth', emoji: '🔥', amount: pHp, playerHp: pHp, monsterHp: mHp });
+    }
+    // Relic: Cœur de Phénix → revive at 30% HP, once per owned copy
+    if (phoenixCharges > 0 && pHp <= 0) {
+      phoenixCharges -= 1;
       pHp = Math.round(playerMaxHp * 0.30);
       events.push({ type: 'set_rebirth', emoji: '🔥', amount: pHp, playerHp: pHp, monsterHp: mHp });
     }
@@ -337,6 +352,17 @@ export function resolveFight(monster, opts = {}) {
       extraMult *= 3;
       mults.push({ emoji: '🩸', label: 'Pacte de Sang' });
     }
+    // Relic: Élan → damage ramps +6% per turn elapsed, per stack
+    if (momentumStacks > 0 && turns > 1) {
+      const mom = 1 + 0.06 * momentumStacks * (turns - 1);
+      extraMult *= mom;
+      mults.push({ emoji: '🌀', label: 'Élan' });
+    }
+    // Relic: Faucheur → +50% per stack when monster is under 30% HP
+    if (executeStacks > 0 && mHp / monsterMaxHp < 0.30) {
+      extraMult *= 1 + 0.5 * executeStacks;
+      mults.push({ emoji: '🪓', label: 'Faucheur' });
+    }
     const isCrit = forceCrit || Math.random() < critChance;
     let hit = Math.round(playerDmg * (isCrit ? 2 : 1) * (1 + elemBonus * Math.random()) * extraMult);
     if (hit > playerHitCap) hit = playerHitCap;
@@ -434,6 +460,14 @@ export function resolveFight(monster, opts = {}) {
     const swift = mechanics.find(m => m.type === 'swift');
     if (swift && pHp > 0 && Math.random() < (swift.chance || 0.3)) {
       applyMonsterHit(monsterFinalDmg, { swift: true });
+    }
+
+    // Relic: Carapace d'Épines → reflect 20% of the blow taken, per stack
+    if (thornsStacks > 0 && mHp > 0) {
+      const ret = Math.max(1, Math.round(monsterFinalDmg * 0.20 * thornsStacks));
+      mHp = Math.max(0, mHp - ret);
+      events.push({ type: 'skill_reflect', amount: ret, emoji: '🌵', monsterHp: mHp, playerHp: pHp });
+      if (mHp <= 0) break;
     }
 
     // On-take-damage hook: reflect damage
@@ -604,8 +638,9 @@ export function setCurrentFloor(floor) {
 export function predictDifficulty(monster) {
   const stats = computeStats();
   const vlg = villageCombatBonus();
-  const playerMaxHp = (PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * vlg.hpMult;
-  const playerDmg = Math.max(1, (PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * vlg.dmgMult * (1 - armorMitigation(monster.armor)));
+  const pLvl = state.prestige?.level || 0;
+  const playerMaxHp = (PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * prestigeHpMult(pLvl) * vlg.hpMult;
+  const playerDmg = Math.max(1, (PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * prestigeDamageMult(pLvl) * vlg.dmgMult * (1 - armorMitigation(monster.armor)));
   const monsterDmg = Math.max(1, monster.damage * relicDmgTakenMult() * (1 - armorMitigation(stats.armor || 0)));
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   // Sum all elemental %damages for difficulty preview (same model as resolveFight)
