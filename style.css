@@ -713,6 +713,22 @@ input, select { font-family: inherit; }
 .vlg-craft-slot .smallcap { font-size: 8px; }
 .vlg-craft-slot:disabled { opacity: .3; cursor: default; }
 
+/* Chronicle (story) */
+.chr { display: flex; flex-direction: column; gap: 10px; }
+.chr-row { padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--border-soft);
+  background: var(--surface-sunken); border-left: 3px solid var(--border-soft); }
+.chr-act { color: var(--ink-400); letter-spacing: .14em; }
+.chr-title { font-family: var(--f-display); font-weight: 600; font-size: 15px; margin: 2px 0 4px; }
+.chr-text { font-size: 13px; line-height: 1.55; color: #d8cdb6; margin: 4px 0; }
+.chr-done { opacity: .72; border-left-color: var(--gold-400); }
+.chr-done .chr-title { color: var(--gold-200); }
+.chr-active { border-left-color: var(--gold-200); background: linear-gradient(180deg, rgba(240,196,99,.1), var(--surface-sunken)); }
+.chr-active .chr-title { color: var(--gold-200); }
+.chr-goal { margin: 6px 0 8px; color: var(--gold-200); }
+.chr-wait { color: var(--ink-400); }
+.chr-locked { opacity: .5; }
+.chr-locked .chr-text { display: none; }
+
 /* Intro cinematic */
 .cine { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
   background: #07040d; color: var(--ink-100); cursor: pointer; animation: cine-in .5s ease; }

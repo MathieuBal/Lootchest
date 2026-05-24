@@ -26,6 +26,7 @@ import { canDive, getSession, DIVE_BOON_BY_ID } from './dive.js';
 import * as Village from './village.js';
 import { buildingArtSVG } from './villageArt.js';
 import { introSlides } from './cinematic.js';
+import * as Story from './story.js';
 import { rerollCost as bountyRerollCost } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
@@ -592,6 +593,7 @@ function screenMeta() {
     { ov: 'talents', icon: '🌳', name: 'Talents', sub: tp ? `${tp} point${tp > 1 ? 's' : ''} dispo` : 'Arbre de talents' },
     { ov: 'skills', icon: '📜', name: 'Compétences', sub: `${skills}/${SKILLS.length} actives` },
     { ov: 'abilities', icon: '✦', name: 'Capacités', sub: `${getLoadout().length}/${ABILITY_SLOTS} équipées` },
+    { ov: 'story', icon: '📜', name: 'Chronique', sub: Story.storyReady() ? '◈ Chapitre à accomplir !' : (Story.activeChapter()?.title || 'Histoire'), ready: Story.storyReady() },
     { ov: 'contracts', icon: '📋', name: 'Contrats', sub: `${(state.bounties?.active || []).length} actifs` },
     { ov: 'codex', icon: '📖', name: 'Codex', sub: 'Découvertes' },
     { ov: 'achievements', icon: '🏆', name: 'Succès', sub: `${ap.unlocked}/${ap.total}` },
@@ -608,7 +610,7 @@ function screenMeta() {
       </div>
     </div>
     <div class="meta-grid">
-      ${cards.map(c => `<button class="meta-card panel" data-overlay="${c.ov}">
+      ${cards.map(c => `<button class="meta-card panel${c.ready ? ' pulse-gold' : ''}" data-overlay="${c.ov}">
         <span class="mc-icon">${c.icon}</span>
         <span class="mc-name">${c.name}</span>
         <span class="mc-sub smallcap">${c.sub}</span></button>`).join('')}
@@ -780,6 +782,7 @@ const OVERLAYS = {
   diveSummary: ovDiveSummary,
   villageBuilding: ovVillageBuilding,
   intro: ovIntro,
+  story: ovStory,
   contracts: ovContracts,
   codex: ovCodex,
   achievements: ovAchievements,
@@ -1081,6 +1084,33 @@ function workerDots(id) {
   let s = '';
   for (let i = 0; i < max; i++) s += `<span class="vp-dot${i < on ? ' on' : ''}"></span>`;
   return `<span class="vp-dots">${s}</span>`;
+}
+
+// ── Chronicle (story) ────────────────────────────────────────
+function ovStory() {
+  const step = Story.storyStep();
+  const ready = Story.storyReady();
+  const rows = Story.CHAPTERS.map((c, i) => {
+    const status = Story.chapterStatus(i);
+    if (status === 'locked') {
+      return `<div class="chr-row chr-locked"><div class="chr-act smallcap">${c.act}</div>
+        <div class="chr-title">🔒 ${i === step + 1 ? 'Chapitre scellé' : '???'}</div></div>`;
+    }
+    const isActive = status === 'active';
+    const rwd = [];
+    if (c.reward?.gold) rwd.push(`💰 ${fmt(c.reward.gold)}`);
+    if (c.reward?.keys) rwd.push(`🗝 ${c.reward.keys}`);
+    if (c.reward?.orbs) rwd.push(`🔮 ${c.reward.orbs}`);
+    return `<div class="chr-row ${isActive ? 'chr-active' : 'chr-done'}">
+      <div class="chr-act smallcap">${c.act}</div>
+      <div class="chr-title">${isActive ? '◈' : '✓'} ${c.title}</div>
+      <p class="chr-text">${c.text}</p>
+      ${isActive ? `<div class="chr-goal smallcap">🎯 ${c.goal}${rwd.length ? ` · récompense ${rwd.join(' ')}` : ''}</div>
+        ${ready ? `<button class="btn-gold" data-story-claim="1">Accomplir ce chapitre</button>`
+                : `<div class="smallcap chr-wait">En cours…</div>`}` : ''}
+    </div>`;
+  }).join('');
+  return overlayShell('📜 Chronique', `<div class="chr">${rows}</div>`, { wide: true });
 }
 
 // ── Intro cinematic ──────────────────────────────────────────
