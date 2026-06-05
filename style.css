@@ -1213,6 +1213,90 @@ button, input, select {
 .drop-stat-base  { color: var(--text); }
 .drop-stat-affix { color: var(--r-magic); }
 
+/* === Recent loot strip (multi-open recap) === */
+.recent-loot {
+  margin: 12px 0;
+  padding: 10px;
+  background: linear-gradient(180deg, rgba(245,200,66,0.06), rgba(0,0,0,0.3));
+  border: 2px solid var(--border);
+}
+.recent-loot.hidden { display: none; }
+.recent-loot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.recent-loot-title { font-size: 10px; color: var(--gold); letter-spacing: 1px; }
+.recent-loot-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 6px;
+}
+.recent-loot-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 4px;
+  background: var(--bg-panel-light);
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: transform 80ms, border-color 80ms, box-shadow 80ms;
+  font-size: 8px;
+  overflow: hidden;
+}
+.recent-loot-card.rt-common    { border-color: var(--r-common); }
+.recent-loot-card.rt-magic     { border-color: var(--r-magic); }
+.recent-loot-card.rt-rare      { border-color: var(--r-rare); }
+.recent-loot-card.rt-epic      { border-color: var(--r-epic); }
+.recent-loot-card.rt-legendary { border-color: var(--r-legendary); box-shadow: 0 0 8px rgba(255,122,26,0.3); }
+.recent-loot-card.rt-ancestral { border-color: var(--r-ancestral); box-shadow: 0 0 10px rgba(255,48,80,0.4); }
+.recent-loot-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+}
+.recent-loot-card[data-disposition="sold"],
+.recent-loot-card[data-disposition="salvaged"],
+.recent-loot-card[data-disposition="equipped"] {
+  opacity: 0.65;
+}
+.recent-loot-thumb {
+  width: 40px;
+  height: 40px;
+}
+.recent-loot-thumb .item-icon {
+  width: 100%;
+  height: 100%;
+  font-size: 22px;
+}
+.recent-loot-name {
+  text-align: center;
+  line-height: 1.3;
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 7px;
+}
+.recent-loot-delta {
+  font-size: 8px;
+  font-weight: bold;
+  padding: 1px 4px;
+  border-radius: 0;
+}
+.recent-loot-delta.better { color: #6acc6a; }
+.recent-loot-delta.worse  { color: #ff5050; }
+.recent-loot-delta.same   { color: var(--text-dim); }
+.recent-loot-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 10px;
+  filter: drop-shadow(0 0 2px #000);
+}
+
 /* === Drop popup item comparison (vs currently equipped, phase fix-bug) === */
 .drop-item-compare {
   margin: 6px 0 14px;

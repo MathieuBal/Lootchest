@@ -21,7 +21,7 @@ import {
   floatingDamage, floatingText,
 } from './fx.js';
 import {
-  equipItem, unequipSlot, autoEquipBest,
+  equipItem, unequipSlot, autoEquipBest, itemPowerContribution,
 } from './character.js';
 import {
   sellItem, sellAllOfRarities, addToInventory, sellDrop,
@@ -199,6 +199,90 @@ function findItem(id) {
 // `(pointer: coarse)` was too aggressive: it matched touchscreen laptops
 // where the user actually wants the desktop click-to-equip behavior.
 const isTouchDevice = () => window.matchMedia('(hover: none)').matches;
+
+// === Recent loot strip (multi-open recap) ===
+// Ephemeral list of the last N dropped items with their disposition.
+// Lets the player compare what they just looted vs what they're wearing
+// without scrolling through inventory — especially useful when opening
+// many chests in sequence.
+const _recentLoot = [];
+const RECENT_LOOT_MAX = 8;
+const DISPO_BADGE = { fresh: '📥', sold: '💰', salvaged: '💎', equipped: '⚔', kept: '✅' };
+
+function pushRecentLoot(item, disposition) {
+  _recentLoot.unshift({ item, disposition, ts: Date.now() });
+  if (_recentLoot.length > RECENT_LOOT_MAX) _recentLoot.pop();
+  renderRecentLoot();
+}
+
+function setRecentLootDisposition(itemId, disposition) {
+  const entry = _recentLoot.find(e => e.item.id === itemId);
+  if (entry) { entry.disposition = disposition; renderRecentLoot(); }
+}
+
+function renderRecentLoot() {
+  const wrap = document.getElementById('recent-loot');
+  const list = document.getElementById('recent-loot-list');
+  if (!wrap || !list) return;
+  if (_recentLoot.length === 0) {
+    wrap.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+  wrap.classList.remove('hidden');
+  // Import dynamically to avoid circular: we need itemIconHTML + power compute
+  // (already available via the ui.js import at top of file)
+  const cards = _recentLoot.map(entry => {
+    const item = entry.item;
+    const equipped = state.equipment[item.slot];
+    let powerDeltaHTML = '';
+    if (equipped && equipped.id !== item.id) {
+      const pa = Math.round(itemPowerContribution(item));
+      const pb = Math.round(itemPowerContribution(equipped));
+      const pd = pa - pb;
+      const cls = pd > 0 ? 'better' : pd < 0 ? 'worse' : 'same';
+      const arrow = pd > 0 ? '▲' : pd < 0 ? '▼' : '=';
+      const sign = pd > 0 ? '+' : '';
+      powerDeltaHTML = `<div class="recent-loot-delta ${cls}">${arrow} ${sign}${pd}</div>`;
+    } else if (!equipped) {
+      powerDeltaHTML = `<div class="recent-loot-delta better">▲ slot vide</div>`;
+    }
+    const rCls = RARITY_BY_ID[item.rarity].cssClass;
+    const badge = DISPO_BADGE[entry.disposition] || '';
+    return `<div class="recent-loot-card rt-${rCls}" data-item-id="${item.id}" data-disposition="${entry.disposition}">
+      <div class="recent-loot-thumb">${itemIconHTML(item)}</div>
+      <div class="recent-loot-name rt-${rCls}">${item.name}</div>
+      ${powerDeltaHTML}
+      <div class="recent-loot-badge" title="${entry.disposition}">${badge}</div>
+    </div>`;
+  });
+  list.innerHTML = cards.join('');
+}
+
+// Click on a recent-loot card → equip it if it's still in inventory.
+document.addEventListener('DOMContentLoaded', () => {
+  const list = document.getElementById('recent-loot-list');
+  if (list) {
+    list.addEventListener('click', (e) => {
+      const card = e.target.closest('.recent-loot-card');
+      if (!card) return;
+      const item = findItem(card.dataset.itemId);
+      if (!item) return;  // already gone (sold/salvaged)
+      equipItem(item);
+      setRecentLootDisposition(item.id, 'equipped');
+      soundClick();
+    });
+  }
+  const clearBtn = document.getElementById('btn-clear-recent');
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    _recentLoot.length = 0;
+    renderRecentLoot();
+  });
+});
+
+// Re-render the recent-loot strip whenever state changes (power deltas
+// depend on what's equipped, which can change).
+subscribe(renderRecentLoot);
 
 // === Combat animation helpers ===
 // Add a CSS animation class for a brief duration, then remove it so the
@@ -391,13 +475,16 @@ btnOpen.addEventListener('click', () => {
   if (action === 'sell') {
     sellDrop(item);
     soundCoin();
+    pushRecentLoot(item, 'sold');
     return;
   }
   if (action === 'salvage') {
     salvageDrop(item);
     soundForge();
+    pushRecentLoot(item, 'salvaged');
     return;
   }
+  pushRecentLoot(item, 'fresh');
   showDropPopup(item);
   // Phase 4B — celebratory particles bursting from the popup item frame.
   // Scale intensity by rarity so the "wow" matches the loot.
@@ -443,6 +530,7 @@ document.getElementById('btn-equip').addEventListener('click', () => {
   const drop = getCurrentDrop();
   if (!drop) return;
   equipItem(drop);
+  setRecentLootDisposition(drop.id, 'equipped');
   soundClick();
   hideDropPopup();
   resumeLoopIfActive();
@@ -452,6 +540,7 @@ document.getElementById('btn-keep').addEventListener('click', () => {
   const drop = getCurrentDrop();
   if (!drop) return;
   addToInventory(drop);
+  setRecentLootDisposition(drop.id, 'kept');
   soundClick();
   hideDropPopup();
   resumeLoopIfActive();
@@ -461,6 +550,7 @@ document.getElementById('btn-sell').addEventListener('click', () => {
   const drop = getCurrentDrop();
   if (!drop) return;
   sellDrop(drop);
+  setRecentLootDisposition(drop.id, 'sold');
   soundCoin();
   hideDropPopup();
   resumeLoopIfActive();
