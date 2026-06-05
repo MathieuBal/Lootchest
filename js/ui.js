@@ -101,12 +101,26 @@ function comparisonHTML(item) {
     if (diff === 0) continue;
     const cls = diff > 0 ? 'better' : 'worse';
     const sign = diff > 0 ? '+' : '';
-    rows.push(`<div class="${cls}">${sign}${diff}${PCT_STATS.has(k) ? '%' : ''} ${statLabel(k)}</div>`);
+    const arrow = diff > 0 ? '▲' : '▼';
+    rows.push(`<div class="tt-compare-row ${cls}"><span class="tt-compare-arrow">${arrow}</span><span class="tt-compare-val">${sign}${diff}${PCT_STATS.has(k) ? '%' : ''}</span><span class="tt-compare-stat">${statLabel(k)}</span></div>`);
   }
+  // Power delta (overall summary) — what really matters to the player
+  const aPower = Math.round(itemPowerContribution(item));
+  const bPower = Math.round(itemPowerContribution(equipped));
+  const powerDiff = aPower - bPower;
+  const powerCls = powerDiff > 0 ? 'better' : powerDiff < 0 ? 'worse' : 'same';
+  const powerArrow = powerDiff > 0 ? '▲' : powerDiff < 0 ? '▼' : '=';
+  const powerSign = powerDiff > 0 ? '+' : '';
+  const powerLine = `<div class="tt-compare-power ${powerCls}"><span>${powerArrow} Puissance</span><span>${powerSign}${powerDiff}</span></div>`;
+
+  // Compact equipped preview line with item name
+  const r = RARITY_BY_ID[equipped.rarity];
+  const equippedLine = `<div class="tt-compare-equipped">Équipé : <span class="rt-${r.cssClass}">${equipped.name}</span></div>`;
+
   if (rows.length === 0) {
-    return `<div class="tt-compare"><div class="tt-compare-title">vs équipé</div><div class="same">Identique</div></div>`;
+    return `<div class="tt-compare"><div class="tt-compare-title">⚖ Comparaison</div>${equippedLine}${powerLine}<div class="tt-compare-same">Stats identiques</div></div>`;
   }
-  return `<div class="tt-compare"><div class="tt-compare-title">vs équipé</div>${rows.join('')}</div>`;
+  return `<div class="tt-compare"><div class="tt-compare-title">⚖ Comparaison</div>${equippedLine}${powerLine}<div class="tt-compare-rows">${rows.join('')}</div></div>`;
 }
 
 function affixTypeBadge(aff) {
@@ -747,9 +761,18 @@ function renderInventory() {
 
 const tooltipEl = () => document.getElementById('tooltip');
 
+// Cache the currently displayed item so we don't rewrite the tooltip's
+// innerHTML on every mousemove (~60×/s) — that was thrashing the SVG and
+// restarting all child CSS animations, which felt like the popup was
+// flickering. We only rebuild the DOM when the item actually changes.
+let _tooltipItemId = null;
+
 export function showTooltip(item, x, y) {
   const tt = tooltipEl();
-  tt.innerHTML = itemDetailsHTML(item);
+  if (_tooltipItemId !== item.id) {
+    tt.innerHTML = itemDetailsHTML(item);
+    _tooltipItemId = item.id;
+  }
   tt.classList.remove('hidden');
   positionTooltip(x, y);
 }
@@ -767,6 +790,7 @@ function positionTooltip(x, y) {
 
 export function hideTooltip() {
   tooltipEl().classList.add('hidden');
+  _tooltipItemId = null;
 }
 
 // === Drop popup ===
@@ -842,6 +866,53 @@ export function showDropPopup(item) {
     .map(a => `<div class="drop-stat-affix">${affixTypeBadge(a)}+${a.value}${a.percent ? '%' : ''} ${a.label}</div>`)
     .join('');
   document.getElementById('drop-item-stats').innerHTML = baseHTML + affixHTML;
+
+  // 7b. Comparison vs currently equipped in same slot.
+  // Shows the equipped item's sprite + name, power delta, and stat-by-stat diff.
+  // This is the most important info when looking at a fresh drop ("est-ce un upgrade ?").
+  const compareEl = document.getElementById('drop-item-compare');
+  const equipped = state.equipment[item.slot];
+  if (equipped && equipped.id !== item.id) {
+    const aStats = itemTotalStats(item);
+    const bStats = itemTotalStats(equipped);
+    const keys = new Set([...Object.keys(aStats), ...Object.keys(bStats)]);
+    const diffRows = [];
+    for (const k of keys) {
+      const d = (aStats[k] || 0) - (bStats[k] || 0);
+      if (d === 0) continue;
+      const cls = d > 0 ? 'better' : 'worse';
+      const arrow = d > 0 ? '▲' : '▼';
+      diffRows.push(`<div class="drop-cmp-row ${cls}"><span>${arrow}</span><span>${d > 0 ? '+' : ''}${d}${PCT_STATS.has(k) ? '%' : ''}</span><span>${statLabel(k)}</span></div>`);
+    }
+    const pa = Math.round(itemPowerContribution(item));
+    const pb = Math.round(itemPowerContribution(equipped));
+    const pd = pa - pb;
+    const pCls = pd > 0 ? 'better' : pd < 0 ? 'worse' : 'same';
+    const pArrow = pd > 0 ? '▲' : pd < 0 ? '▼' : '=';
+    const equippedR = RARITY_BY_ID[equipped.rarity];
+    compareEl.innerHTML = `
+      <div class="drop-cmp-title">⚖ Comparaison avec l'équipé</div>
+      <div class="drop-cmp-side-by-side">
+        <div class="drop-cmp-item">
+          <div class="drop-cmp-thumb">${itemIconHTML(equipped)}</div>
+          <div class="drop-cmp-label rt-${equippedR.cssClass}">${equipped.name}</div>
+          <div class="drop-cmp-sub">T${equipped.chestTier} · ${equippedR.name}</div>
+        </div>
+        <div class="drop-cmp-arrow-col">
+          <div class="drop-cmp-power ${pCls}">
+            <span class="drop-cmp-power-arrow">${pArrow}</span>
+            <span class="drop-cmp-power-val">${pd > 0 ? '+' : ''}${pd}</span>
+            <span class="drop-cmp-power-lbl">⚡ Puiss.</span>
+          </div>
+        </div>
+      </div>
+      ${diffRows.length > 0 ? `<div class="drop-cmp-diffs">${diffRows.join('')}</div>` : '<div class="drop-cmp-same">Stats identiques</div>'}
+    `;
+    compareEl.style.display = '';
+  } else {
+    compareEl.innerHTML = '';
+    compareEl.style.display = 'none';
+  }
 
   // 8. Legendary effect block
   const effectEl = document.getElementById('drop-item-effect');

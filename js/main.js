@@ -195,8 +195,10 @@ function findItem(id) {
 }
 
 // === Mobile detection ===
-// Coarse pointer = touch device (phone/tablet). Use to branch behavior.
-const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches;
+// Use (hover: none) — true ONLY on touch-primary devices (phones/tablets).
+// `(pointer: coarse)` was too aggressive: it matched touchscreen laptops
+// where the user actually wants the desktop click-to-equip behavior.
+const isTouchDevice = () => window.matchMedia('(hover: none)').matches;
 
 // === Mobile Action Sheet ===
 // On touch, replaces modifier-key interactions (Shift/Ctrl/Alt+click) with a

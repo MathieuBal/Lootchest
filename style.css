@@ -1213,6 +1213,81 @@ button, input, select {
 .drop-stat-base  { color: var(--text); }
 .drop-stat-affix { color: var(--r-magic); }
 
+/* === Drop popup item comparison (vs currently equipped, phase fix-bug) === */
+.drop-item-compare {
+  margin: 6px 0 14px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(245,200,66,0.08), rgba(0,0,0,0.3));
+  border: 2px solid var(--gold);
+}
+.drop-cmp-title {
+  font-size: 10px;
+  color: var(--gold);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  text-shadow: 0 0 6px rgba(245,200,66,0.4);
+}
+.drop-cmp-side-by-side {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border);
+}
+.drop-cmp-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.drop-cmp-thumb {
+  width: 48px; height: 48px;
+}
+.drop-cmp-thumb .item-icon { width: 100%; height: 100%; }
+.drop-cmp-label { font-size: 9px; text-align: center; }
+.drop-cmp-sub { font-size: 8px; color: var(--text-dim); }
+.drop-cmp-arrow-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  background: rgba(0,0,0,0.4);
+  border: 2px solid var(--border);
+  min-width: 80px;
+}
+.drop-cmp-power {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-weight: bold;
+  font-size: 11px;
+}
+.drop-cmp-power.better { color: #6acc6a; text-shadow: 0 0 8px rgba(106,204,106,0.5); }
+.drop-cmp-power.worse  { color: #ff5050; text-shadow: 0 0 8px rgba(255,80,80,0.4); }
+.drop-cmp-power.same   { color: var(--text-dim); }
+.drop-cmp-power-arrow { font-size: 14px; }
+.drop-cmp-power-val { font-size: 13px; }
+.drop-cmp-power-lbl { font-size: 7px; color: var(--text-dim); margin-top: 2px; }
+.drop-cmp-diffs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 12px;
+  font-size: 9px;
+  text-align: left;
+}
+.drop-cmp-row {
+  display: grid;
+  grid-template-columns: 10px 48px 1fr;
+  gap: 4px;
+  align-items: center;
+}
+.drop-cmp-row.better { color: #6acc6a; }
+.drop-cmp-row.worse  { color: #ff5050; }
+.drop-cmp-same { font-size: 9px; color: var(--text-dim); font-style: italic; text-align: center; }
+
 /* Legendary effect block — visually stronger than tooltip version */
 .drop-item-effect {
   margin: 4px 0 14px;
@@ -1889,20 +1964,58 @@ button, input, select {
   border-radius: 0;
 }
 
-/* === Item comparison in tooltip === */
+/* === Item comparison in tooltip (rewritten for legibility) === */
 .tt-compare {
-  margin-top: 6px;
-  padding-top: 4px;
-  border-top: 1px dashed var(--border);
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, rgba(245,200,66,0.08), rgba(0,0,0,0.2));
+  border: 2px solid var(--border);
+  border-radius: 0;
 }
 .tt-compare-title {
-  font-size: 8px;
-  color: var(--text-dim);
-  margin-bottom: 3px;
+  font-size: 10px;
+  color: var(--gold);
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+  text-shadow: 0 0 4px rgba(245,200,66,0.4);
 }
-.tt-compare .better { color: #6acc6a; }
-.tt-compare .worse  { color: #ff5050; }
-.tt-compare .same   { color: var(--text-dim); font-style: italic; }
+.tt-compare-equipped {
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--border);
+}
+.tt-compare-power {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 4px 0;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.tt-compare-power.better { color: #6acc6a; text-shadow: 0 0 6px rgba(106,204,106,0.5); }
+.tt-compare-power.worse  { color: #ff5050; text-shadow: 0 0 6px rgba(255,80,80,0.4); }
+.tt-compare-power.same   { color: var(--text-dim); }
+.tt-compare-rows {
+  display: grid;
+  gap: 2px;
+}
+.tt-compare-row {
+  display: grid;
+  grid-template-columns: 10px 50px 1fr;
+  gap: 6px;
+  align-items: center;
+  font-size: 10px;
+  padding: 2px 0;
+}
+.tt-compare-arrow { font-size: 8px; }
+.tt-compare-val { font-weight: bold; text-align: right; }
+.tt-compare-stat { color: var(--text-dim); }
+.tt-compare-row.better { color: #6acc6a; }
+.tt-compare-row.worse  { color: #ff5050; }
+.tt-compare-same { font-size: 9px; color: var(--text-dim); font-style: italic; text-align: center; padding: 4px; }
 
 /* === Monster card during combat === */
 .monster-card.combat .monster-difficulty { display: none; }
