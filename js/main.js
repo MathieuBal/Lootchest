@@ -200,6 +200,62 @@ function findItem(id) {
 // where the user actually wants the desktop click-to-equip behavior.
 const isTouchDevice = () => window.matchMedia('(hover: none)').matches;
 
+// === Combat animation helpers ===
+// Add a CSS animation class for a brief duration, then remove it so the
+// animation can re-trigger on the next hit. CSS handles the actual motion;
+// JS just toggles the class.
+function triggerCombatAnim(elementId, className, durationMs) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  el.classList.remove(className);
+  // Force reflow so the animation restarts even if it's already in progress.
+  void el.offsetWidth;
+  el.classList.add(className);
+  setTimeout(() => el.classList.remove(className), durationMs);
+}
+
+function triggerMonsterCardPulse() {
+  const card = document.getElementById('monster-card');
+  if (!card || !card.classList.contains('combat')) return;
+  card.classList.remove('dmg-pulse');
+  void card.offsetWidth;
+  card.classList.add('dmg-pulse');
+  setTimeout(() => card.classList.remove('dmg-pulse'), 350);
+}
+
+function triggerPlayerCardPulse() {
+  const el = document.getElementsByClassName('character-avatar')[0];
+  if (!el) return;
+  el.classList.remove('dmg-pulse');
+  void el.offsetWidth;
+  el.classList.add('dmg-pulse');
+  setTimeout(() => el.classList.remove('dmg-pulse'), 350);
+}
+
+// Spawn a glowing slash streak between the player avatar and the monster.
+function spawnSlashFromPlayerToMonster() {
+  const playerEl  = document.getElementsByClassName('character-avatar')[0];
+  const monsterEl = document.getElementById('monster-emoji');
+  if (!playerEl || !monsterEl) return;
+  const p = playerEl.getBoundingClientRect();
+  const m = monsterEl.getBoundingClientRect();
+  const x1 = p.left + p.width / 2;
+  const y1 = p.top  + p.height / 2;
+  const x2 = m.left + m.width / 2;
+  const y2 = m.top  + m.height / 2;
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+  const slash = document.createElement('div');
+  slash.className = 'combat-slash';
+  slash.style.left  = x1 + 'px';
+  slash.style.top   = (y1 - 3) + 'px';
+  slash.style.width = len + 'px';
+  slash.style.setProperty('--slash-rot', angle + 'deg');
+  document.body.appendChild(slash);
+  setTimeout(() => slash.remove(), 350);
+}
+
 // === Mobile Action Sheet ===
 // On touch, replaces modifier-key interactions (Shift/Ctrl/Alt+click) with a
 // bottom sheet that surfaces all item actions in large, tappable buttons.
@@ -481,10 +537,16 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
     if (ev.type === 'player_hit') {
       updateMonsterHp(ev.monsterHp, monsterMaxHp);
       const c = getMonsterEmojiCenter();
+      // Player swings: lunge animation on the avatar
+      triggerCombatAnim('character-avatar', 'attacking', 240);
       if (ev.blocked) {
         floatingText('🛡 BLOQUÉ', c.x, c.y, '#5a8af0');
         soundClick();
       } else {
+        // Monster recoils + flashes red; crit punches harder + screen shake
+        triggerCombatAnim('monster-emoji', ev.isCrit ? 'hit-crit' : 'hit', ev.isCrit ? 450 : 320);
+        triggerMonsterCardPulse();
+        if (ev.dmg > 0) spawnSlashFromPlayerToMonster();
         floatingDamage(ev.dmg, c.x, c.y, ev.isCrit ? 'crit' : 'normal');
         ev.isCrit ? soundCrit() : soundHit();
         if (ev.isCrit) screenShake(3, 120);
@@ -497,6 +559,9 @@ document.getElementById('btn-fight').addEventListener('click', async () => {
     } else if (ev.type === 'monster_hit') {
       updatePlayerHp(ev.playerHp, playerMaxHp);
       const c = getCharacterAvatarCenter();
+      // Player flinches + red flash on avatar
+      triggerCombatAnim('character-avatar', 'took-hit', 280);
+      triggerPlayerCardPulse();
       floatingDamage(ev.dmg, c.x, c.y, 'player-took');
       soundHit();
     } else if (ev.type === 'skill_heal') {
