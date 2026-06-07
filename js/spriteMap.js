@@ -125,3 +125,38 @@ export function spriteImg(src, fallbackHTML, { size = null, title = '', extraCla
   const cls = `pixel-sprite${extraClass ? ' ' + extraClass : ''}`;
   return `<img src="${src}" alt="${title}" title="${title}" class="${cls}"${sizeAttr}>`;
 }
+
+// === Debug helper: expose a live audit of every known sprite URL ===
+// Usage from devtools: window.spriteAudit()
+// Prints a console table grouped by category with status (ok / missing / probing).
+// Triggers probes for unknown URLs so a 2nd call gives definitive results.
+export function spriteAudit() {
+  // Lazy-imported so this module stays self-contained at the top of the file.
+  return import('./data.js').then(d => {
+    const rows = [];
+    const push = (category, label, url) => {
+      if (!url) return;
+      let status = _assetCache.get(url) || 'unknown';
+      if (status === 'unknown') probeAssetAsync(url);
+      rows.push({ category, label, url, status });
+    };
+    for (const b of d.BIOMES) {
+      for (const m of b.monsters) push('monster', m.name, monsterSpriteSrc(m.name, { hires: true }));
+      push('boss', b.boss.name, bossSpriteSrcByName(b.boss.name, { hires: true }));
+    }
+    for (const t of d.CHEST_TIERS) push('chest', `T${t.tier} ${t.name}`, chestSpriteSrc(t.tier, { hires: true }));
+    push('chest', 'Mimic',       mimicSpriteSrc({ hires: true }));
+    push('chest', 'Mimic doré',  mimicSpriteSrc({ golden: true, hires: true }));
+    for (const c of d.CURRENCY_TYPES) push('orb', c.id, orbSpriteSrc(c.id, { hires: true }));
+    push('treasure', 'cle',     treasureSpriteSrc('cle',     { hires: true }));
+    push('treasure', 'crystal', treasureSpriteSrc('crystal', { hires: true }));
+    console.table(rows);
+    const counts = rows.reduce((a, r) => (a[r.status] = (a[r.status] || 0) + 1, a), {});
+    console.log('%cTotal:', 'font-weight:bold', counts);
+    console.log('%cReprends la commande dans 2 secondes pour avoir les résultats finaux (les "unknown" / "probing" auront résolu).', 'color:#aaa');
+    return rows;
+  });
+}
+
+// Expose on window so non-developers can call it from devtools without an import.
+if (typeof window !== 'undefined') window.spriteAudit = spriteAudit;
