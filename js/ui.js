@@ -16,7 +16,7 @@ import {
 import { computeStats, computePower, computeSetSummary, itemPowerContribution, computeStatsBreakdown } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, canOpen, hasKey, cooldownRemaining, nextTierLockedBy } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
-import { FORGE_ACTIONS, availableMasterCraftAffixes, canToggleAffixLock, exchangeNext, exchangeCost, canExchange } from './forge.js';
+import { FORGE_ACTIONS, availableMasterCraftAffixes, canToggleAffixLock, exchangeNext, exchangeCost, canExchange, REROLL_PLUS_SHARD_COST } from './forge.js';
 import { shardYield, autoActionFor } from './inventory.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
