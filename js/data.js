@@ -351,6 +351,34 @@ export const CURRENCY_TYPES = [
 
 export const CURRENCY_BY_ID = Object.fromEntries(CURRENCY_TYPES.map(c => [c.id, c]));
 
+// === Mimic — push-your-luck encounter on chest open ===
+// Replaces the normal drop ~0.5% of the time. Player ladders 6 rungs;
+// each rung is keep-or-gamble: stake the haul on a coin flip, win = next
+// tier, lose = "bite" (small punishment + lose the rung's haul).
+// Golden mimic (~0.2%) doubles all loot and adds a guaranteed unique on top.
+export const MIMIC = {
+  triggerChance: 0.005,
+  goldenChance:  0.002,
+  // Bite probability per ladder step (index 0 = first decision after reveal)
+  biteCurve: [0, 0.15, 0.30, 0.48, 0.68, 0.80],
+  // 6 ladder rungs — each is what you LOCK IN if you stop now.
+  // Multipliers apply on top of the chest's normal drop.
+  ladder: [
+    { rung: 1, label: 'Bouchée',     goldMult: 1.5,  orbBonus: 1, rarityFloor: null,      flavor: 'Un goûter avant le festin.' },
+    { rung: 2, label: 'Repas',       goldMult: 2.5,  orbBonus: 2, rarityFloor: 'magic',   flavor: 'Ça commence à compter.' },
+    { rung: 3, label: 'Banquet',     goldMult: 4,    orbBonus: 3, rarityFloor: 'rare',    flavor: 'Tu sens que tu joues avec le feu.' },
+    { rung: 4, label: 'Festin',      goldMult: 7,    orbBonus: 5, rarityFloor: 'epic',    flavor: 'Le mimic salive autant que toi.' },
+    { rung: 5, label: 'Jackpot',     goldMult: 12,   orbBonus: 8, rarityFloor: 'legendary', flavor: 'C\'est presque indécent.' },
+    { rung: 6, label: 'Apothéose',   goldMult: 25,   orbBonus: 14, rarityFloor: 'ancestral', flavor: 'Personne ne va te croire.' },
+  ],
+  // What happens when you LOSE a coin flip — you forfeit everything on the table.
+  bite: [
+    { id: 'starve', label: 'Affamé',   desc: 'Tu repars les mains vides.',                      effect: { goldPct: 0 } },
+    { id: 'nip',    label: 'Morsure',  desc: 'Le mimic te croque un peu d\'or au passage.',     effect: { goldPct: 0, goldLossPct: 0.05 } },
+    { id: 'curse',  label: 'Maudit',   desc: '-1 clé au prochain coffre, et plus rien.',        effect: { goldPct: 0, keyLoss: 1 } },
+  ],
+};
+
 // Number of additional affixes craftable beyond the rarity's default count.
 export const MAX_BONUS_AFFIXES = 1;
 

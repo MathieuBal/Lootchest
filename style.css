@@ -574,9 +574,132 @@ button, input, select {
   filter: drop-shadow(2px 4px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 8px rgba(255,80,80,0.35));
   animation: boss-idle 3s ease-in-out infinite;
 }
-.monster-emoji.monster-sprite svg {
+.monster-emoji.monster-sprite svg,
+.monster-emoji.monster-sprite img {
   display: block;
 }
+/* === Pixel-art PNG sprites — crisp upscale, no blur === */
+.pixel-sprite {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  display: inline-block;
+  vertical-align: middle;
+}
+/* Elite monster tint — purple-shifted, saturated, slightly larger */
+.monster-emoji.monster-elite {
+  filter: drop-shadow(2px 4px 0 rgba(0,0,0,0.7)) drop-shadow(0 0 10px rgba(180,80,255,0.55)) hue-rotate(270deg) saturate(1.4) brightness(1.1);
+  transform: scale(1.12);
+}
+/* === Mimic encounter modal === */
+.mimic-inner {
+  border: 3px solid #c92020;
+  background: radial-gradient(ellipse at 50% 30%, #3a0a0a 0%, #100404 90%);
+  box-shadow: 0 0 60px rgba(255, 60, 60, 0.4), inset 0 0 40px rgba(255, 80, 80, 0.15);
+  max-width: 560px;
+}
+.mimic-banner {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #ff5050;
+  text-shadow: 0 0 8px rgba(255, 60, 60, 0.6);
+  text-align: center;
+  margin-bottom: 12px;
+  animation: mimic-pulse 1.2s ease-in-out infinite;
+}
+.mimic-banner.golden {
+  color: #ffd84a;
+  text-shadow: 0 0 12px rgba(255, 200, 80, 0.7);
+}
+@keyframes mimic-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+.mimic-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.mimic-sprite {
+  font-size: 64px;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.8)) drop-shadow(0 0 12px rgba(255, 80, 80, 0.5));
+  animation: mimic-wiggle 2s ease-in-out infinite;
+}
+.mimic-sprite img { width: 96px; height: 96px; }
+@keyframes mimic-wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+.mimic-flavor {
+  font-style: italic;
+  color: #ffb0b0;
+  font-size: 12px;
+  text-align: center;
+  min-height: 16px;
+}
+.mimic-ladder {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.mimic-rung {
+  padding: 6px 4px;
+  border: 1px solid #553030;
+  border-radius: 4px;
+  background: #1a0808;
+  text-align: center;
+  font-size: 10px;
+  opacity: 0.5;
+  transition: all 0.2s ease;
+}
+.mimic-rung.reached {
+  opacity: 1;
+  border-color: #d8a040;
+  background: #2a1808;
+  box-shadow: 0 0 6px rgba(255, 180, 80, 0.4);
+}
+.mimic-rung.current {
+  border-color: #ff5050;
+  box-shadow: 0 0 10px rgba(255, 80, 80, 0.6);
+  transform: translateY(-2px);
+}
+.mimic-rung .rung-label { font-weight: 700; color: #ffc888; }
+.mimic-rung .rung-gold { color: #ffd060; font-size: 9px; }
+.mimic-haul {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid #4a2828;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  text-align: center;
+  font-size: 13px;
+  color: #ffc888;
+  min-height: 20px;
+}
+.mimic-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.mimic-bite {
+  color: #ff7070;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* Crystal rarity tints — one PNG, hue-rotated */
+.crystal { image-rendering: pixelated; vertical-align: middle; }
+.crystal.r-common    { filter: grayscale(0.4) brightness(0.95); }
+.crystal.r-magic     { filter: hue-rotate(200deg) saturate(1.2); }
+.crystal.r-rare      { filter: hue-rotate(40deg)  saturate(1.4) brightness(1.1); }
+.crystal.r-epic      { filter: hue-rotate(280deg) saturate(1.3); }
+.crystal.r-legendary { filter: hue-rotate(330deg) saturate(1.5) brightness(1.1); }
+.crystal.r-ancestral { filter: hue-rotate(0deg)   saturate(1.6) brightness(1.15) drop-shadow(0 0 6px #ff3050); }
 @keyframes boss-idle {
   0%, 100% { transform: translateY(0) scale(1); }
   50%      { transform: translateY(-2px) scale(1.02); }

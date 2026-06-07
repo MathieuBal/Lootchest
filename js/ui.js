@@ -19,6 +19,7 @@ import { rankOf, canUpgradeTalent, pityReduction, categoryPoints } from './talen
 import { SKILLS, getActiveSkills } from './skills.js';
 import { REROLL_COST_GOLD as BOUNTY_REROLL_COST } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
+import { monsterSpriteSrc, bossSpriteSrcByName, chestSpriteSrc, orbSpriteSrc, treasureSpriteSrc, spriteImg } from './spriteMap.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
 import { MATERIALS } from './materials.js';
 import { ELEMENTS } from './elements.js';
@@ -297,7 +298,10 @@ export function renderBountiesModal() {
     rewardChips.push(`<span class="bounty-reward-chip" style="color: var(--gold)">💰 ${b.reward.gold.toLocaleString('fr-FR')}</span>`);
     for (const [orbId, q] of Object.entries(b.reward.orbs)) {
       const orb = CURRENCY_BY_ID[orbId];
-      if (orb) rewardChips.push(`<span class="bounty-reward-chip" style="color:${orb.color}">${orb.emoji} ×${q}</span>`);
+      if (orb) {
+        const icon = spriteImg(orbSpriteSrc(orbId), orb.emoji, { size: 18, title: orb.name });
+        rewardChips.push(`<span class="bounty-reward-chip" style="color:${orb.color}">${icon} ×${q}</span>`);
+      }
     }
     if (b.reward.talents) rewardChips.push(`<span class="bounty-reward-chip" style="color:#6acc6a">🌳 ×${b.reward.talents}</span>`);
     const canReroll = (state.gold || 0) >= BOUNTY_REROLL_COST && !b.completed;
@@ -421,9 +425,10 @@ function renderOrbs() {
     return;
   }
   el.style.display = '';
-  el.innerHTML = nonZero.map(c =>
-    `<span class="orb-chip" style="border-color:${c.color};color:${c.color}" title="${c.name}: ${c.desc}">${c.emoji}<span class="orb-count">${orbs[c.id]}</span></span>`
-  ).join('');
+  el.innerHTML = nonZero.map(c => {
+    const icon = spriteImg(orbSpriteSrc(c.id), c.emoji, { size: 20, title: c.name });
+    return `<span class="orb-chip" style="border-color:${c.color};color:${c.color}" title="${c.name}: ${c.desc}">${icon}<span class="orb-count">${orbs[c.id]}</span></span>`;
+  }).join('');
 }
 
 // === Chest panel ===
@@ -433,7 +438,7 @@ function renderChest() {
   const next = getNextTier();
   // Render pixel-art chest sprite (replaces emoji)
   const chestEl = document.getElementById('chest-emoji');
-  chestEl.innerHTML = chestSpriteSVG(tier.tier, 96);
+  chestEl.innerHTML = spriteImg(chestSpriteSrc(tier.tier, { hires: true }), chestSpriteSVG(tier.tier, 96), { size: 96, title: tier.name });
   // data-tier drives CSS aura per tier (T6+ get colored halos)
   chestEl.dataset.tier = tier.tier;
   // "ready" pulse when the player has at least one key
@@ -522,13 +527,22 @@ function renderDungeon() {
   card.style.background = biome.bgGradient;
   // Use pixel-art boss sprite when available, fall back to emoji otherwise
   const monsterEl = document.getElementById('monster-emoji');
-  if (monster.isBoss && hasBossSprite(monster.name)) {
-    monsterEl.innerHTML = bossSpriteSVG(monster.name, 96);
+  if (monster.isBoss) {
+    const bossFallback = hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, 96) : monster.emoji;
+    monsterEl.innerHTML = spriteImg(bossSpriteSrcByName(monster.name, { hires: true }), bossFallback, { size: 96, title: monster.name });
     monsterEl.classList.add('monster-sprite');
   } else {
-    monsterEl.textContent = monster.emoji;
-    monsterEl.classList.remove('monster-sprite');
+    const monsterPng = monsterSpriteSrc(monster.name, { hires: true });
+    if (monsterPng) {
+      monsterEl.innerHTML = spriteImg(monsterPng, monster.emoji, { size: 96, title: monster.name });
+      monsterEl.classList.add('monster-sprite');
+    } else {
+      monsterEl.textContent = monster.emoji;
+      monsterEl.classList.remove('monster-sprite');
+    }
   }
+  if (monster.isElite) monsterEl.classList.add('monster-elite');
+  else monsterEl.classList.remove('monster-elite');
   document.getElementById('monster-name').innerHTML = monster.isElite
     ? `${monster.eliteIcon || '⭐'} <span class="monster-name-elite">${monster.name}</span>`
     : monster.name;
@@ -1255,7 +1269,8 @@ function renderForgeActionsPanel(actionsEl, selected) {
         const orbDef = CURRENCY_BY_ID[action.orb];
         const have = state.orbs[action.orb] || 0;
         const haveColor = have >= 1 ? orbDef.color : '#666';
-        costHTML = `<div class="forge-cost" style="color:${haveColor}">${orbDef.emoji} ${have}</div>`;
+        const orbIcon = spriteImg(orbSpriteSrc(action.orb), orbDef.emoji, { size: 18, title: orbDef.name });
+        costHTML = `<div class="forge-cost" style="color:${haveColor}">${orbIcon} ${have}</div>`;
       } else if (action.shards) {
         const have = state.shards[selected.rarity] || 0;
         const haveColor = have >= action.shards ? '#a0e0ff' : '#666';

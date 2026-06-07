@@ -40,6 +40,9 @@ import {
   setInvSortMode, setInvSearchText, setForgeMode,
 } from './ui.js';
 import { lookupGlossary } from './glossary.js';
+import { advanceMimic } from './mimic.js';
+import { MIMIC } from './data.js';
+import { mimicSpriteSrc, spriteImg } from './spriteMap.js';
 
 // === Init ===
 
@@ -199,6 +202,117 @@ function findItem(id) {
 // `(pointer: coarse)` was too aggressive: it matched touchscreen laptops
 // where the user actually wants the desktop click-to-equip behavior.
 const isTouchDevice = () => window.matchMedia('(hover: none)').matches;
+
+// === Mimic encounter popup ===
+let _currentMimic = null;
+
+function showMimicPopup(encounter) {
+  _currentMimic = encounter;
+  const popup = document.getElementById('mimic-popup');
+  popup.classList.remove('hidden');
+  renderMimicState();
+}
+
+function hideMimicPopup() {
+  document.getElementById('mimic-popup').classList.add('hidden');
+  _currentMimic = null;
+}
+
+function renderMimicState() {
+  const enc = _currentMimic;
+  if (!enc) return;
+  const banner = document.getElementById('mimic-banner');
+  const sprite = document.getElementById('mimic-sprite');
+  const flavor = document.getElementById('mimic-flavor');
+  const ladder = document.getElementById('mimic-ladder');
+  const haul = document.getElementById('mimic-haul');
+  const takeBtn = document.getElementById('btn-mimic-take');
+  const riskBtn = document.getElementById('btn-mimic-risk');
+  const closeBtn = document.getElementById('btn-mimic-close');
+
+  banner.classList.toggle('golden', !!enc.golden);
+  banner.textContent = enc.golden ? '✨ MIMIC DORÉ ! ✨' : '⚠ UN MIMIC !';
+
+  const mimicEmoji = enc.golden ? '🟡🦷' : '🟫🦷';
+  sprite.innerHTML = spriteImg(mimicSpriteSrc({ golden: enc.golden, hires: true }), mimicEmoji, { size: 96, title: 'Mimic' });
+
+  // Ladder rendering
+  ladder.innerHTML = MIMIC.ladder.map((rung, i) => {
+    const reached = (i + 1) <= enc.rung;
+    const isCurrent = (i + 1) === enc.rung;
+    return `<div class="mimic-rung${reached ? ' reached' : ''}${isCurrent ? ' current' : ''}">
+      <div class="rung-label">${rung.label}</div>
+      <div class="rung-gold">×${rung.goldMult}</div>
+    </div>`;
+  }).join('');
+
+  if (enc.state === 'reveal' || enc.state === 'choosing') {
+    flavor.textContent = enc.rung === 0
+      ? 'Le coffre... grogne. Tu peux t\'enfuir ou tenter ta chance.'
+      : (MIMIC.ladder[enc.rung - 1]?.flavor || '');
+    const nextRung = MIMIC.ladder[enc.rung]; // the one we'd climb to
+    const biteP = nextRung ? MIMIC.biteCurve[enc.rung] : 1;
+    const biteHint = nextRung ? `${Math.round(biteP * 100)}% morsure` : 'sommet atteint';
+    haul.innerHTML = enc.rung > 0
+      ? `Verrouillé : <b>${MIMIC.ladder[enc.rung - 1].label}</b> (×${MIMIC.ladder[enc.rung - 1].goldMult} or, +${MIMIC.ladder[enc.rung - 1].orbBonus} orbes)<br><span style="opacity:0.7;font-size:11px">Tenter : ${biteHint}</span>`
+      : `Aucun butin pour le moment.<br><span style="opacity:0.7;font-size:11px">Tenter le 1er palier : ${biteHint}</span>`;
+    takeBtn.classList.remove('hidden');
+    riskBtn.classList.remove('hidden');
+    closeBtn.classList.add('hidden');
+    takeBtn.textContent = enc.rung > 0 ? 'Prendre & partir' : 'S\'enfuir';
+    takeBtn.disabled = false;
+    riskBtn.disabled = !nextRung;
+    riskBtn.textContent = nextRung ? `Risquer (${MIMIC.ladder[enc.rung].label})` : 'Au sommet';
+  } else if (enc.state === 'won') {
+    const rung = MIMIC.ladder[enc.rung - 1];
+    flavor.textContent = `🎉 ${rung.label} verrouillé !`;
+    haul.innerHTML = `<div style="color:#ffd060;font-weight:700">+${enc.reward.gold.toLocaleString('fr-FR')} 💰</div>
+      <div style="font-size:11px;color:#ffc888">+${enc.reward.orbs.length} orbes &middot; objet ${enc.reward.item.rarity}</div>`;
+    takeBtn.classList.add('hidden');
+    riskBtn.classList.add('hidden');
+    closeBtn.classList.remove('hidden');
+    // Side effects on win
+    const center = getChestCenter();
+    spawnParticles('#ffd060', center.x, center.y, 40);
+    soundDrop(enc.reward.item.rarity);
+    soundCoin();
+    pushRecentLoot(enc.reward.item, 'fresh');
+    addToInventory(enc.reward.item);
+  } else if (enc.state === 'bitten') {
+    flavor.textContent = '💀 Le mimic claque la mâchoire...';
+    haul.innerHTML = `<div class="mimic-bite">${enc.lastBite.label} — ${enc.lastBite.desc}</div>` +
+      (enc.goldLost ? `<div style="font-size:11px;color:#ff8080">-${enc.goldLost.toLocaleString('fr-FR')} 💰</div>` : '');
+    takeBtn.classList.add('hidden');
+    riskBtn.classList.add('hidden');
+    closeBtn.classList.remove('hidden');
+    const center = getChestCenter();
+    spawnParticles('#ff3030', center.x, center.y, 30);
+    screenShake(8, 300);
+    soundLose();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const takeBtn = document.getElementById('btn-mimic-take');
+  const riskBtn = document.getElementById('btn-mimic-risk');
+  const closeBtn = document.getElementById('btn-mimic-close');
+  if (takeBtn) takeBtn.addEventListener('click', () => {
+    if (!_currentMimic) return;
+    soundClick();
+    advanceMimic(_currentMimic, 'take');
+    renderMimicState();
+  });
+  if (riskBtn) riskBtn.addEventListener('click', () => {
+    if (!_currentMimic) return;
+    soundClick();
+    advanceMimic(_currentMimic, 'risk');
+    renderMimicState();
+  });
+  if (closeBtn) closeBtn.addEventListener('click', () => {
+    soundClick();
+    hideMimicPopup();
+  });
+});
 
 // === Recent loot strip (multi-open recap) ===
 // Ephemeral list of the last N dropped items with their disposition.
@@ -431,6 +545,18 @@ btnOpen.addEventListener('click', () => {
   soundChestOpen();
   const result = openChest();
   if (!result) return;
+  // Mimic encounter — hand off to the dedicated modal flow.
+  if (result.mimic) {
+    startCooldownAnim();
+    setOpenButtonEnabled(false);
+    btnOpen.dataset.cooling = '1';
+    setTimeout(() => {
+      btnOpen.dataset.cooling = '0';
+      setOpenButtonEnabled(true);
+    }, CHEST_OPEN_COOLDOWN_MS);
+    showMimicPopup(result.mimic);
+    return;
+  }
   const { item, orbs } = result;
   flashRarity(item.rarity);
   startCooldownAnim();
