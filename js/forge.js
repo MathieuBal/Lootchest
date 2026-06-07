@@ -1,11 +1,13 @@
 // PoE-style forge: each action consumes a specific orb (currency).
 // Reroll+ keeps using crystals (shards) for guaranteed high-roll affixes.
 import { state, notify } from './state.js';
-import { RARITIES, RARITY_BY_ID, AFFIXES, AFFIXES_BY_ID, AFFIX_LIMITS, maxAllowedChestTier } from './data.js';
+import { RARITIES, RARITY_BY_ID, AFFIXES, AFFIXES_BY_ID, AFFIX_LIMITS, maxAllowedChestTier,
+  CURRENCY_EXCHANGE_LADDER, CURRENCY_EXCHANGE_COST } from './data.js';
 import {
   rebuildItemAffixesOnly, rebuildItemAffixesPlus, rebuildItemAffixesAndStats,
   rescaleItemToTier,
 } from './loot.js';
+import { affinityTier } from './affinities.js';
 import { trackProgress as bountyTrack } from './bounties.js';
 
 export const REROLL_PLUS_SHARD_COST = 3;
@@ -73,10 +75,13 @@ function recomputeGold(item) {
   item.goldValue = Math.round(r.goldMult * (1 + item.chestTier * item.chestTier * 0.6));
 }
 
-function rollSingleAffix(affixDef, chestTier) {
-  const range = affixDef.max - affixDef.min;
-  const value = Math.max(1, Math.round((Math.random() * range + affixDef.min) * chestTier));
-  return { id: affixDef.id, stat: affixDef.stat, label: affixDef.label, value, percent: affixDef.percent, type: affixDef.type };
+function rollSingleAffix(affixDef, chestTier, { highHalf = false } = {}) {
+  const lo = highHalf ? Math.ceil((affixDef.min + affixDef.max) / 2) : affixDef.min;
+  const range = affixDef.max - lo;
+  const raw = Math.random() * range + lo;
+  const roll = affixDef.max === affixDef.min ? 1 : (raw - affixDef.min) / (affixDef.max - affixDef.min);
+  const value = Math.max(1, Math.round(raw * chestTier));
+  return { id: affixDef.id, stat: affixDef.stat, label: affixDef.label, value, percent: affixDef.percent, type: affixDef.type, roll: Math.round(roll * 100) / 100 };
 }
 
 function rarityIndex(rarityId) {
@@ -143,7 +148,7 @@ export function canAlteration(item) {
 export function applyAlteration(item) {
   if (!canAlteration(item)) return false;
   spendOrb('alte');
-  rebuildItemAffixesOnly(item);
+  rebuildItemAffixesOnly(item, { highHalf: affinityTier('cupidite') >= 2 });
   trackForge();
   notify();
   return true;
@@ -175,7 +180,7 @@ export function canChaos(item) {
 export function applyChaos(item) {
   if (!canChaos(item)) return false;
   spendOrb('chaos');
-  rebuildItemAffixesOnly(item);
+  rebuildItemAffixesOnly(item, { highHalf: affinityTier('cupidite') >= 2 });
   trackForge();
   notify();
   return true;
@@ -190,11 +195,15 @@ export function canDivine(item) {
 export function applyDivine(item) {
   if (!canDivine(item)) return false;
   spendOrb('divin');
+  const hi = affinityTier('cupidite') >= 2;
   for (const aff of item.affixes) {
+    if (aff.locked) continue;
     const def = AFFIXES.find(a => a.id === aff.id);
     if (def) {
-      const range = def.max - def.min;
-      aff.value = Math.max(1, Math.round((Math.random() * range + def.min) * item.chestTier));
+      const lo = hi ? Math.ceil((def.min + def.max) / 2) : def.min;
+      const raw = Math.random() * (def.max - lo) + lo;
+      aff.value = Math.max(1, Math.round(raw * item.chestTier));
+      aff.roll = def.max === def.min ? 1 : Math.round(((raw - def.min) / (def.max - def.min)) * 100) / 100;
     }
   }
   trackForge();
@@ -266,6 +275,53 @@ export function applyPierre(item) {
   // Stats scale with the new tier (composed items keep their d20 quality).
   rescaleItemToTier(item, item.chestTier + 1);
   trackForge();
+  notify();
+  return true;
+}
+
+// === Comptoir de change (currency exchange) ===
+
+export function exchangeNext(fromId) {
+  const i = CURRENCY_EXCHANGE_LADDER.indexOf(fromId);
+  if (i < 0 || i >= CURRENCY_EXCHANGE_LADDER.length - 1) return null;
+  return CURRENCY_EXCHANGE_LADDER[i + 1];
+}
+export function exchangeCost(fromId) {
+  const i = CURRENCY_EXCHANGE_LADDER.indexOf(fromId);
+  return (i >= 0 && i < CURRENCY_EXCHANGE_COST.length) ? CURRENCY_EXCHANGE_COST[i] : 0;
+}
+export function canExchange(fromId) {
+  const next = exchangeNext(fromId);
+  if (!next) return false;
+  return (state.orbs[fromId] || 0) >= exchangeCost(fromId);
+}
+export function applyExchange(fromId) {
+  if (!canExchange(fromId)) return false;
+  const next = exchangeNext(fromId);
+  state.orbs[fromId] -= exchangeCost(fromId);
+  state.orbs[next] = (state.orbs[next] || 0) + 1;
+  trackForge();
+  notify();
+  return true;
+}
+
+// === Sceau de Forge (affix locking) ===
+// Lock a single affix so reroll actions preserve it. Free, capped at 1, magic+.
+
+export function canToggleAffixLock(item, index) {
+  if (!item || item.uniqueId) return false;
+  if (rarityIndex(item.rarity) < 1) return false; // magic or higher
+  return !!(item.affixes && item.affixes[index]);
+}
+export function toggleAffixLock(item, index) {
+  if (!canToggleAffixLock(item, index)) return false;
+  const target = item.affixes[index];
+  if (target.locked) {
+    target.locked = false;
+  } else {
+    for (const a of item.affixes) a.locked = false; // enforce max 1
+    target.locked = true;
+  }
   notify();
   return true;
 }

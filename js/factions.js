@@ -12,7 +12,7 @@
 //
 // Common items get no faction (keep them simple). Magic+ may roll one.
 
-import { RARITY_BY_ID } from './data.js';
+import { RARITY_BY_ID, tierScale } from './data.js';
 
 export const FACTIONS = {
   none: {
@@ -100,7 +100,7 @@ export function rollFactionStats(faction, chestTier, statMult) {
   const t = (d20 - 1) / 19;
   const stats = {};
   for (const [stat, [min, max]] of Object.entries(faction.statBias || {})) {
-    stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * chestTier * statMult));
+    stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * tierScale(chestTier) * statMult));
   }
   return { stats, quality: t, d20 };
 }

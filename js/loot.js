@@ -1,9 +1,10 @@
 // Item generation: rolls rarity from chest tier, base type from slot, affixes, and procedural name.
 import {
-  RARITIES, RARITY_BY_ID, SLOTS, BASE_TYPES, AFFIXES,
+  RARITIES, RARITY_BY_ID, SLOTS, BASE_TYPES, AFFIXES, AFFIX_LIMITS,
   NAME_PREFIXES, NAME_SUFFIXES, CHEST_TIERS, PITY_THRESHOLD,
+  PITY_ANCESTRAL_THRESHOLD, PITY_UNIQUE_THRESHOLD,
   UNIQUE_LEGENDARIES, UNIQUE_DROP_CHANCE,
-  SETS, SET_DROP_CHANCE, prestigeRareMult,
+  SETS, SET_DROP_CHANCE, prestigeRareMult, tierScale,
 } from './data.js';
 import { state } from './state.js';
 import { rollWeaponParts, hasCompositionFor, recomputePartStats } from './parts.js';
@@ -12,7 +13,10 @@ import { rollElement, rollElementStats, elementStatSource, mergeElementStats, EL
 import { rollFaction, rollFactionStats, factionStatSource, mergeFactionStats, FACTIONS } from './factions.js';
 import { rollLegendaryEffect } from './legendaryEffects.js';
 import { rareDropMultiplier, pityReduction } from './talents.js';
+import { relicDropMult } from './relics.js';
+import { affinityDropMult } from './affinities.js';
 import { trackProgress as bountyTrack } from './bounties.js';
+import { villageRareMult } from './village.js';
 
 let _id = 0;
 function nextId() { return `it_${Date.now().toString(36)}_${(_id++).toString(36)}`; }
@@ -36,10 +40,18 @@ function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// Base types that have 64×64 procedural HD parts registered. Single source of
+// truth — used by every build path so the renderer dispatch stays consistent.
+const HD_PART_TYPES = new Set([
+  'sword', 'axe', 'wand', 'dagger', 'bow', 'helm', 'cap', 'crown', 'plate',
+  'tunic', 'robe', 'tower', 'buckler', 'band', 'signet', 'pendant', 'talisman',
+]);
+export function hasHDParts(id) { return HD_PART_TYPES.has(id); }
+
 export function rollRarity(chestTier) {
   const tier = CHEST_TIERS.find(t => t.tier === chestTier);
   const prestigeLevel = state.prestige?.level || 0;
-  const rareMult = prestigeRareMult(prestigeLevel) * rareDropMultiplier();
+  const rareMult = prestigeRareMult(prestigeLevel) * rareDropMultiplier() * relicDropMult() * affinityDropMult() * villageRareMult();
   const rarePlusSet = new Set(['rare', 'epic', 'legendary', 'ancestral']);
   const entries = Object.entries(tier.weights)
     .filter(([_, w]) => w > 0)
@@ -54,33 +66,128 @@ export function rollSlot() {
   return pickRandom(SLOTS).id;
 }
 
-function rollAffixes(rarity, chestTier) {
+// Build a rolled affix object. `roll` (0..1) records where the raw value landed
+// in its range so the UI can show quality and selling can reward good rolls.
+// `highHalf` forces the value into the top 50% (used by Reroll+).
+function makeAffix(aff, chestTier, highHalf = false) {
+  const lo = highHalf ? Math.ceil((aff.min + aff.max) / 2) : aff.min;
+  const raw = randInt(lo, aff.max);
+  const roll = aff.max === aff.min ? 1 : (raw - aff.min) / (aff.max - aff.min);
+  return {
+    id: aff.id,
+    stat: aff.stat,
+    label: aff.label,
+    value: Math.round(raw * tierScale(chestTier)),
+    percent: aff.percent,
+    type: aff.type,
+    roll: Math.round(roll * 100) / 100,
+  };
+}
+
+function pickDistinctAffixes(pool, count, out, chestTier, highHalf) {
+  const avail = [...pool];
+  for (let i = 0; i < count && avail.length > 0; i++) {
+    const idx = Math.floor(Math.random() * avail.length);
+    const aff = avail.splice(idx, 1)[0];
+    out.push(makeAffix(aff, chestTier, highHalf));
+  }
+}
+
+// Decide how the N affixes split between prefix/suffix, respecting AFFIX_LIMITS
+// and pool sizes, biased toward a balanced spread (≥1 of each as soon as n≥2).
+// usedPrefix/usedSuffix: slots already occupied (e.g. by locked affixes kept
+// across a reroll). Counts toward the limits but only the NEWLY added counts are
+// returned, so the pick loop semantics stay identical for default (0,0) callers.
+function splitAffixCounts(rarity, n, prefixPoolSize, suffixPoolSize, usedPrefix = 0, usedSuffix = 0) {
+  const limits = AFFIX_LIMITS[rarity] || { prefix: n, suffix: n };
+  let pCount = usedPrefix, sCount = usedSuffix;
+  let addP = 0, addS = 0;
+  for (let i = 0; i < n; i++) {
+    const canP = pCount < limits.prefix && addP < prefixPoolSize;
+    const canS = sCount < limits.suffix && addS < suffixPoolSize;
+    if (!canP && !canS) break;
+    let pickP;
+    if (canP && !canS) pickP = true;
+    else if (canS && !canP) pickP = false;
+    else if (pCount < sCount) pickP = true;       // under-represented → prefix
+    else if (sCount < pCount) pickP = false;      // under-represented → suffix
+    else pickP = Math.random() < 0.5;             // tie → random
+    if (pickP) { pCount++; addP++; } else { sCount++; addS++; }
+  }
+  return { pCount: addP, sCount: addS };
+}
+
+// keep: affixes to preserve verbatim (locked). They occupy slots and exclude
+// their stats from the pools; only the remaining slots are rolled.
+function rollAffixes(rarity, chestTier, { highHalf = false, keep = [] } = {}) {
   const n = RARITY_BY_ID[rarity].affixes;
   if (n === 0) return [];
-  // pick N distinct affixes
-  const pool = [...AFFIXES];
-  const picked = [];
-  for (let i = 0; i < n && pool.length > 0; i++) {
-    const idx = Math.floor(Math.random() * pool.length);
-    const aff = pool.splice(idx, 1)[0];
-    const value = randInt(aff.min, aff.max) * chestTier;
-    picked.push({
-      id: aff.id,
-      stat: aff.stat,
-      label: aff.label,
-      value,
-      percent: aff.percent,
-      type: aff.type,
-    });
-  }
+  const keptPrefix = keep.filter(a => (a.type || 'prefix') === 'prefix').length;
+  const keptSuffix = keep.length - keptPrefix;
+  const keptStats = new Set(keep.map(a => a.stat));
+  const prefixPool = AFFIXES.filter(a => a.type === 'prefix' && !keptStats.has(a.stat));
+  const suffixPool = AFFIXES.filter(a => a.type === 'suffix' && !keptStats.has(a.stat));
+  const remaining = Math.max(0, n - keep.length);
+  const { pCount, sCount } = splitAffixCounts(rarity, remaining, prefixPool.length, suffixPool.length, keptPrefix, keptSuffix);
+  const picked = [...keep];
+  pickDistinctAffixes(prefixPool, pCount, picked, chestTier, highHalf);
+  pickDistinctAffixes(suffixPool, sCount, picked, chestTier, highHalf);
   return picked;
+}
+
+// Overall roll quality (0..1): average of affix rolls and identity-layer d20s.
+// Drives the quality-weighted gold value.
+export function itemQuality(item) {
+  const samples = [];
+  for (const a of item.affixes || []) {
+    if (typeof a.roll === 'number') samples.push(a.roll);
+  }
+  for (const key of ['material', 'element', 'faction']) {
+    const layer = item[key];
+    if (layer && layer.d20) samples.push((layer.d20 - 1) / 19);
+  }
+  if (samples.length === 0) return 0.5;
+  return samples.reduce((s, v) => s + v, 0) / samples.length;
+}
+
+// Scale an item's gold value by its roll quality (≈ 0.8× trash → 1.3× perfect).
+function applyQualityGold(item) {
+  const q = itemQuality(item);
+  item.goldValue = Math.max(1, Math.round(item.goldValue * (0.8 + 0.5 * q)));
+}
+
+// Roll the three identity layers (faction → material → element), merge their
+// stats into baseStats, push stat-sources, and return both the stored layer
+// descriptors and the full defs (for naming). Shared by regular + set builds.
+function rollIdentityLayers(baseStats, statSources, chestTier, rarity, statMult) {
+  const faction = rollFaction(chestTier, rarity);
+  const factionRolled = rollFactionStats(faction, chestTier, statMult);
+  mergeFactionStats(baseStats, factionRolled.stats);
+  if (Object.keys(factionRolled.stats).length > 0) statSources.push(factionStatSource(faction, factionRolled));
+
+  const material = rollMaterial(chestTier, rarity, faction);
+  const matRolled = rollMaterialStats(material, chestTier, statMult);
+  mergeMaterialStats(baseStats, matRolled.stats);
+  if (Object.keys(matRolled.stats).length > 0) statSources.push(materialStatSource(material, matRolled));
+
+  const element = rollElement(chestTier, rarity, faction);
+  const elemRolled = rollElementStats(element, chestTier, statMult);
+  mergeElementStats(baseStats, elemRolled.stats);
+  if (Object.keys(elemRolled.stats).length > 0) statSources.push(elementStatSource(element, elemRolled));
+
+  return {
+    material: { id: material.id, name: material.name, d20: matRolled.d20 },
+    element:  { id: element.id,  name: element.name,  d20: elemRolled.d20 },
+    faction:  { id: faction.id,  name: faction.name,  d20: factionRolled.d20 },
+    materialDef: material, elementDef: element, factionDef: faction,
+  };
 }
 
 function scaleBaseStats(baseStats, chestTier, rarity) {
   const mult = RARITY_BY_ID[rarity].statMult;
   const result = {};
   for (const [k, v] of Object.entries(baseStats)) {
-    result[k] = Math.max(1, Math.round(v * chestTier * mult));
+    result[k] = Math.max(1, Math.round(v * tierScale(chestTier) * mult));
   }
   return result;
 }
@@ -99,7 +206,7 @@ function applyLayerContribution(item, layerKey, table, sourceType, baseStats, st
   const t = (d20 - 1) / 19;
   const stats = {};
   for (const [stat, [min, max]] of Object.entries(def.statBias || {})) {
-    stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * item.chestTier * statMult));
+    stats[stat] = Math.max(1, Math.round((min + t * (max - min)) * tierScale(item.chestTier) * statMult));
   }
   for (const [k, v] of Object.entries(stats)) baseStats[k] = (baseStats[k] || 0) + v;
   if (Object.keys(stats).length > 0) {
@@ -155,18 +262,32 @@ function computeGoldValue(rarity, chestTier) {
 
 // Pity-aware version: used by chest opening to update the counter.
 // Forces a legendary if PITY_THRESHOLD non-legendary+ drops have been seen.
-export function generateItemFromChest(chestTier) {
+export function generateItemFromChest(chestTier, opts = {}) {
   let rarity = rollRarity(chestTier);
   const effectivePity = Math.max(5, PITY_THRESHOLD - pityReduction());
-  if (state.pity.sinceLegendary >= effectivePity - 1 && rarity !== 'legendary' && rarity !== 'ancestral') {
+  // Ancestral pity takes priority (it's the rarest outcome).
+  if ((state.pity.sinceAncestral || 0) >= PITY_ANCESTRAL_THRESHOLD - 1) {
+    rarity = 'ancestral';
+  } else if (state.pity.sinceLegendary >= effectivePity - 1 && rarity !== 'legendary' && rarity !== 'ancestral') {
     rarity = 'legendary';
   }
-  if (rarity === 'legendary' || rarity === 'ancestral') {
+  // Update legendary + ancestral counters.
+  if (rarity === 'ancestral') {
     state.pity.sinceLegendary = 0;
+    state.pity.sinceAncestral = 0;
+  } else if (rarity === 'legendary') {
+    state.pity.sinceLegendary = 0;
+    state.pity.sinceAncestral = (state.pity.sinceAncestral || 0) + 1;
   } else {
     state.pity.sinceLegendary += 1;
+    state.pity.sinceAncestral = (state.pity.sinceAncestral || 0) + 1;
   }
-  const item = buildItem(chestTier, rarity);
+  // Unique pity: force a unique when a legendary is due and the drought is long.
+  const forceUnique = rarity === 'legendary' && (state.pity.sinceUnique || 0) >= PITY_UNIQUE_THRESHOLD - 1;
+  const item = buildItem(chestTier, rarity, { forceSlot: opts.forceSlot, forceUnique });
+  if (rarity === 'legendary') {
+    state.pity.sinceUnique = item.uniqueId ? 0 : (state.pity.sinceUnique || 0) + 1;
+  }
   trackDropStats(item);
   return item;
 }
@@ -174,6 +295,15 @@ export function generateItemFromChest(chestTier) {
 export function generateItem(chestTier) {
   const rarity = rollRarity(chestTier);
   const item = buildItem(chestTier, rarity);
+  trackDropStats(item);
+  return item;
+}
+
+// Village Forge: craft a regular item of a chosen slot, at a given tier &
+// rarity (both decided by the player + forge level). Deterministic slot, no
+// unique/set rolls — you control what you make.
+export function craftItem(slot, chestTier, rarity) {
+  const item = buildRegularItem(chestTier, rarity, slot);
   trackDropStats(item);
   return item;
 }
@@ -213,6 +343,7 @@ export function rebuildItemAffixesAndStats(item) {
         value: Math.max(1, Math.round(a.value * (0.7 + 0.3 * item.chestTier))),
       }));
       item.goldValue = Math.round(computeGoldValue('legendary', item.chestTier) * 1.5);
+      applyQualityGold(item);
       return;
     }
   }
@@ -231,6 +362,7 @@ export function rebuildItemAffixesAndStats(item) {
   }
   item.affixes = rollAffixes(item.rarity, item.chestTier);
   item.goldValue = computeGoldValue(item.rarity, item.chestTier);
+  applyQualityGold(item);
   // Regenerate name for regular items only; set/unique names are preserved.
   if (!item.setId && !item.uniqueId) {
     const mat  = item.material ? MATERIALS[item.material.id] : null;
@@ -240,9 +372,10 @@ export function rebuildItemAffixesAndStats(item) {
   }
 }
 
-export function rebuildItemAffixesOnly(item) {
+export function rebuildItemAffixesOnly(item, { highHalf = false } = {}) {
   if (item.uniqueId) return; // unique fixed affixes cannot be rerolled
-  item.affixes = rollAffixes(item.rarity, item.chestTier);
+  const keep = (item.affixes || []).filter(a => a.locked);
+  item.affixes = rollAffixes(item.rarity, item.chestTier, { highHalf, keep });
 }
 
 // Alias matching the procedural-engine plan terminology.
@@ -321,58 +454,34 @@ export function rescaleItemToTier(item, newTier) {
 // Used by the "Reroll+" forge action that costs crystals.
 export function rebuildItemAffixesPlus(item) {
   if (item.uniqueId) return;
-  const n = RARITY_BY_ID[item.rarity].affixes;
-  if (n === 0) return;
-  const pool = [...AFFIXES];
-  const picked = [];
-  for (let i = 0; i < n && pool.length > 0; i++) {
-    const idx = Math.floor(Math.random() * pool.length);
-    const aff = pool.splice(idx, 1)[0];
-    const minHigh = Math.ceil((aff.min + aff.max) / 2);
-    const value = randInt(minHigh, aff.max) * item.chestTier;
-    picked.push({ id: aff.id, stat: aff.stat, label: aff.label, value, percent: aff.percent, type: aff.type });
-  }
-  item.affixes = picked;
+  const keep = (item.affixes || []).filter(a => a.locked);
+  item.affixes = rollAffixes(item.rarity, item.chestTier, { highHalf: true, keep });
 }
 
-function buildItem(chestTier, rarity) {
-  // Roll for unique legendary first
-  if (rarity === 'legendary' && Math.random() < UNIQUE_DROP_CHANCE) {
+function buildItem(chestTier, rarity, opts = {}) {
+  const { forceSlot = null, forceUnique = false } = opts;
+  // Roll for unique legendary first (or force it via unique pity).
+  if (rarity === 'legendary' && (forceUnique || Math.random() < UNIQUE_DROP_CHANCE)) {
     return buildUniqueLegendary(chestTier);
   }
-  // Roll for set piece (rare+)
+  // Roll for set piece (rare+). Set/unique slots are fixed, so a focused slot
+  // only steers the regular-item path below.
   if (SET_DROP_CHANCE[rarity] && Math.random() < SET_DROP_CHANCE[rarity]) {
     return buildSetPiece(chestTier, rarity);
   }
-  return buildRegularItem(chestTier, rarity);
+  return buildRegularItem(chestTier, rarity, forceSlot);
 }
 
-function buildRegularItem(chestTier, rarity) {
-  const slot = rollSlot();
+function buildRegularItem(chestTier, rarity, forceSlot) {
+  const slot = (forceSlot && BASE_TYPES[forceSlot]) ? forceSlot : rollSlot();
   const baseType = pickRandom(BASE_TYPES[slot]);
 
   // Composed item path: any base type registered in WEAPON_PARTS (weapons + armor).
   if (hasCompositionFor(baseType.id)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
-    // HD parts (64×64 procedural) when the weapon type has them registered.
-    // Currently: swords. Other weapons fall back to legacy 16×16.
-    const useHD = ['sword','axe','wand','dagger','bow','helm','cap','crown','plate','tunic','robe','tower','buckler','band','signet','pendant','talisman'].includes(baseType.id);
+    const useHD = hasHDParts(baseType.id);
     const { parts, baseStats, statSources } = rollWeaponParts(baseType.id, chestTier, statMult, { hd: useHD });
-    // Faction first — drives coherence on material/element via tag bias.
-    const faction = rollFaction(chestTier, rarity);
-    const factionRolled = rollFactionStats(faction, chestTier, statMult);
-    mergeFactionStats(baseStats, factionRolled.stats);
-    if (Object.keys(factionRolled.stats).length > 0) statSources.push(factionStatSource(faction, factionRolled));
-    // Material — biased by faction.materialTags.
-    const material = rollMaterial(chestTier, rarity, faction);
-    const matRolled = rollMaterialStats(material, chestTier, statMult);
-    mergeMaterialStats(baseStats, matRolled.stats);
-    if (Object.keys(matRolled.stats).length > 0) statSources.push(materialStatSource(material, matRolled));
-    // Element — biased by faction.elementTags.
-    const element = rollElement(chestTier, rarity, faction);
-    const elemRolled = rollElementStats(element, chestTier, statMult);
-    mergeElementStats(baseStats, elemRolled.stats);
-    if (Object.keys(elemRolled.stats).length > 0) statSources.push(elementStatSource(element, elemRolled));
+    const layers = rollIdentityLayers(baseStats, statSources, chestTier, rarity, statMult);
     const affixes = rollAffixes(rarity, chestTier);
     const item = {
       id: nextId(),
@@ -380,27 +489,28 @@ function buildRegularItem(chestTier, rarity) {
       baseTypeId: baseType.id,
       emoji: baseType.emoji,
       rarity,
-      name: makeName(baseType, rarity, material, element, faction),
+      name: makeName(baseType, rarity, layers.materialDef, layers.elementDef, layers.factionDef),
       baseStats,
       affixes,
       goldValue: computeGoldValue(rarity, chestTier),
       chestTier,
       parts,
       statSources,
-      material: { id: material.id, name: material.name, d20: matRolled.d20 },
-      element:  { id: element.id,  name: element.name,  d20: elemRolled.d20 },
-      faction:  { id: faction.id,  name: faction.name,  d20: factionRolled.d20 },
+      material: layers.material,
+      element: layers.element,
+      faction: layers.faction,
       hdParts: useHD,  // 64×64 procedural source — drives the renderer dispatch
     };
     // Legendary effect — 30% on legendary, 80% on ancestral, tag-gated.
     const effect = rollLegendaryEffect(item);
     if (effect) item.legendaryEffect = { id: effect.id, name: effect.name };
+    applyQualityGold(item);
     return item;
   }
 
   const baseStats = scaleBaseStats(baseType.baseStats, chestTier, rarity);
   const affixes = rollAffixes(rarity, chestTier);
-  return {
+  const item = {
     id: nextId(),
     slot,
     baseTypeId: baseType.id,
@@ -412,6 +522,8 @@ function buildRegularItem(chestTier, rarity) {
     goldValue: computeGoldValue(rarity, chestTier),
     chestTier,
   };
+  applyQualityGold(item);
+  return item;
 }
 
 function buildUniqueLegendary(chestTier) {
@@ -447,13 +559,14 @@ function buildUniqueLegendary(chestTier) {
   };
   // Visual-only composed sprite for uniques whose base type has parts (weapons + armor).
   if (hasCompositionFor(tpl.baseTypeId)) {
-    const useHD = ['sword','axe','wand','dagger','bow','helm','cap','crown','plate','tunic','robe','tower','buckler','band','signet','pendant','talisman'].includes(tpl.baseTypeId);
+    const useHD = hasHDParts(tpl.baseTypeId);
     const rolled = rollWeaponParts(tpl.baseTypeId, chestTier, 1, { hd: useHD });
     if (rolled) {
       item.parts = rolled.parts;
       if (useHD) item.hdParts = true;
     }
   }
+  applyQualityGold(item);
   return item;
 }
 
@@ -469,30 +582,13 @@ function buildSetPiece(chestTier, rarity) {
   // Composed item path (weapons + armor): parts contribute baseStats AND visual.
   if (hasCompositionFor(piece.baseTypeId)) {
     const statMult = RARITY_BY_ID[rarity].statMult;
-    const useHD = ['sword','axe','wand','dagger','bow','helm','cap','crown','plate','tunic','robe','tower','buckler','band','signet','pendant','talisman'].includes(piece.baseTypeId);
+    const useHD = hasHDParts(piece.baseTypeId);
     const rolled = rollWeaponParts(piece.baseTypeId, chestTier, statMult, { hd: useHD });
     // Set pieces keep their canonical name (the set IS their faction-equivalent
     // identity). They still get all three layers for stats + tooltip lines.
-    const faction = rollFaction(chestTier, rarity);
-    const factionRolled = rollFactionStats(faction, chestTier, statMult);
-    mergeFactionStats(rolled.baseStats, factionRolled.stats);
-    if (Object.keys(factionRolled.stats).length > 0) {
-      rolled.statSources.push(factionStatSource(faction, factionRolled));
-    }
-    const material = rollMaterial(chestTier, rarity, faction);
-    const matRolled = rollMaterialStats(material, chestTier, statMult);
-    mergeMaterialStats(rolled.baseStats, matRolled.stats);
-    if (Object.keys(matRolled.stats).length > 0) {
-      rolled.statSources.push(materialStatSource(material, matRolled));
-    }
-    const element = rollElement(chestTier, rarity, faction);
-    const elemRolled = rollElementStats(element, chestTier, statMult);
-    mergeElementStats(rolled.baseStats, elemRolled.stats);
-    if (Object.keys(elemRolled.stats).length > 0) {
-      rolled.statSources.push(elementStatSource(element, elemRolled));
-    }
+    const layers = rollIdentityLayers(rolled.baseStats, rolled.statSources, chestTier, rarity, statMult);
     const affixes = rollAffixes(rarity, chestTier);
-    return {
+    const item = {
       id: nextId(),
       slot,
       baseTypeId: piece.baseTypeId,
@@ -507,16 +603,18 @@ function buildSetPiece(chestTier, rarity) {
       setName: set.name,
       parts: rolled.parts,
       statSources: rolled.statSources,
-      material: { id: material.id, name: material.name, d20: matRolled.d20 },
-      element:  { id: element.id,  name: element.name,  d20: elemRolled.d20 },
-      faction:  { id: faction.id,  name: faction.name,  d20: factionRolled.d20 },
+      material: layers.material,
+      element: layers.element,
+      faction: layers.faction,
       hdParts: useHD,
     };
+    applyQualityGold(item);
+    return item;
   }
 
   const baseStats = scaleBaseStats(baseType.baseStats, chestTier, rarity);
   const affixes = rollAffixes(rarity, chestTier);
-  return {
+  const item = {
     id: nextId(),
     slot,
     baseTypeId: piece.baseTypeId,
@@ -530,4 +628,6 @@ function buildSetPiece(chestTier, rarity) {
     setId: set.id,
     setName: set.name,
   };
+  applyQualityGold(item);
+  return item;
 }

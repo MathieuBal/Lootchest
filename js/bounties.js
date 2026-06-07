@@ -2,6 +2,10 @@
 // Completing one auto-replaces it with a new randomly-generated contract.
 import { state, notify } from './state.js';
 import { CURRENCY_TYPES } from './data.js';
+import { villageBountySlots, villageRerollMult } from './village.js';
+
+// Active contract slots: base 3, +1 per Guilde (village) level.
+export function maxBountySlots() { return 3 + villageBountySlots(); }
 
 // Templates: each can be instantiated at easy/medium/hard difficulty.
 // `targets` gives [min, max] range per difficulty; the actual target is picked uniformly.
@@ -132,7 +136,7 @@ function generateBounty(excludeTypes = []) {
 
 export function refreshBoardIfEmpty() {
   if (!state.bounties) state.bounties = { active: [], completed: 0 };
-  while (state.bounties.active.length < 3) {
+  while (state.bounties.active.length < maxBountySlots()) {
     const excludeTypes = state.bounties.active.map(b => b.type);
     state.bounties.active.push(generateBounty(excludeTypes));
   }
@@ -197,12 +201,14 @@ export function syncAbsoluteProgress() {
   if (any) notify();
 }
 
+export function rerollCost() { return Math.round(REROLL_COST_GOLD * villageRerollMult()); }
 export function rerollBounty(bountyId) {
-  if ((state.gold || 0) < REROLL_COST_GOLD) return false;
+  const cost = rerollCost();
+  if ((state.gold || 0) < cost) return false;
   if (!state.bounties) return false;
   const idx = state.bounties.active.findIndex(b => b.id === bountyId);
   if (idx < 0) return false;
-  state.gold -= REROLL_COST_GOLD;
+  state.gold -= cost;
   const excludeTypes = state.bounties.active.filter((_, i) => i !== idx).map(b => b.type);
   state.bounties.active[idx] = generateBounty(excludeTypes);
   notify();

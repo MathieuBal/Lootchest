@@ -1,7 +1,8 @@
 // Talent tree: passive bonuses purchased with talent points.
 // Points earned via ascensions (+2) and dungeon milestones every 25 floors (+1).
 import { state, notify } from './state.js';
-import { TALENTS, TALENT_BY_ID, TALENT_MASTERY_THRESHOLD, TALENT_MASTERY_BONUS } from './data.js';
+import { TALENTS, TALENT_BY_ID, TALENT_MASTERY_THRESHOLD, TALENT_MASTERY_BONUS,
+         TALENT_MASTERY_THRESHOLD_2, TALENT_MASTERY_BONUS_2, ABILITY_SLOTS_BASE } from './data.js';
 
 // Total points invested in a given category (combat / wealth / utility)
 export function categoryPoints(category) {
@@ -12,11 +13,12 @@ export function categoryPoints(category) {
   return total;
 }
 
-// 1 + 10% mastery if ≥ 5 points in the category, else 1
+// Two-tier mastery (absolute, not stacked): ≥10 pts → 1.25, ≥5 pts → 1.10, else 1.
 export function categoryMastery(category) {
-  return categoryPoints(category) >= TALENT_MASTERY_THRESHOLD
-    ? 1 + TALENT_MASTERY_BONUS
-    : 1;
+  const pts = categoryPoints(category);
+  if (pts >= TALENT_MASTERY_THRESHOLD_2) return 1 + TALENT_MASTERY_BONUS_2;
+  if (pts >= TALENT_MASTERY_THRESHOLD)   return 1 + TALENT_MASTERY_BONUS;
+  return 1;
 }
 
 export function rankOf(id) {
@@ -63,4 +65,39 @@ export function pityReduction()         { return Math.round(bonus('pityMaster','
 export function grantPoints(n) {
   state.talentPoints = (state.talentPoints || 0) + n;
   notify();
+}
+
+// === Active ability slots (talent-driven, the agency lever) ===
+export function abilitySlots() {
+  return ABILITY_SLOTS_BASE + rankOf('tactician');
+}
+
+// Trim the loadout to the current slot count (e.g. after a respec drops Tacticien).
+export function clampLoadout() {
+  if (!Array.isArray(state.loadout)) return;
+  const max = abilitySlots();
+  if (state.loadout.length > max) state.loadout.length = max;
+}
+
+// === Respec ===
+// Gold cost to refund all spent points. Quadratic so early experimentation is
+// cheap while late, fully-invested respecs are a real (recoverable) sink.
+export function respecCost() {
+  const spent = totalPointsSpent();
+  return spent > 0 ? 500 * spent * spent : 0;
+}
+
+export function canRespecTalents() {
+  return totalPointsSpent() > 0 && (state.gold || 0) >= respecCost();
+}
+
+export function respecTalents() {
+  if (!canRespecTalents()) return false;
+  const refund = totalPointsSpent();
+  state.gold -= respecCost();
+  state.talentPoints = (state.talentPoints || 0) + refund;
+  state.talents = {};
+  clampLoadout();
+  notify();
+  return true;
 }

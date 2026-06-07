@@ -1,1391 +1,750 @@
-// Bootstrap, event wiring, top-level orchestration.
+// Bootstrap + event wiring for the redesigned screen-router UI.
+// All DOM is built by ui.js; this file owns interactions (event delegation on
+// document so handlers survive full re-renders) and the combat sequence.
 import { state, subscribe, resetState, notify } from './state.js';
-import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS } from './data.js';
+import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS, CURRENCY_BY_ID } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
-import { openChest, upgradeChest, canOpen } from './chest.js';
-import { attemptCurrentFloor, setCurrentFloor } from './combat.js';
+import { openChest, openChests, upgradeChest, canOpen } from './chest.js';
+import { attemptCurrentFloor, setCurrentFloor, attemptDiveFight, generateMonster, predictDifficulty } from './combat.js';
+import {
+  startDive, isDiving, getSession, recordWin, openBoonChoice, chooseBoon,
+  finalizeDive, nextStartHp, diveMods, diveDepth,
+} from './dive.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
-import { FORGE_ACTIONS, applyMasterCraft } from './forge.js';
-import { upgradeTalent } from './talents.js';
+import { FORGE_ACTIONS, applyMasterCraft, applyExchange, toggleAffixLock } from './forge.js';
+import { upgradeTalent, respecTalents } from './talents.js';
 import { refreshBoardIfEmpty, rerollBounty, onBountyComplete } from './bounties.js';
-import { CURRENCY_BY_ID } from './data.js';
 import { canAscend, ascend } from './prestige.js';
+import { chooseRelic, rerollRelicChoice } from './relics.js';
+import { toggleAbility } from './abilities.js';
+import {
+  accruePassive, grantDungeonResources, buildOrUpgrade, upgradeTownhall, assignWorker, commitCraft,
+  tickConstruction, isBusy as villageIsBusy, BUILDING_BY_ID as VILLAGE_BUILDING_BY_ID,
+} from './village.js';
+import { craftItem } from './loot.js';
+import { claimChapter, storyReady } from './story.js';
+import { advanceMimic } from './mimic.js';
+import { MIMIC } from './data.js';
+import { mimicSpriteSrc, spriteImg } from './spriteMap.js';
 import {
   unlockAudio, toggleMuted, isMuted, setMuted,
   soundChestOpen, soundDrop, soundCoin, soundHit, soundCrit,
   soundWin, soundLose, soundAchievement, soundUpgrade, soundClick,
   soundForge, soundAscension,
 } from './sound.js';
-import {
-  spawnParticles, explodeFromElement, screenShake,
-  floatingDamage, floatingText,
-} from './fx.js';
-import {
-  equipItem, unequipSlot, autoEquipBest, itemPowerContribution,
-} from './character.js';
+import { spawnParticles, screenShake, floatingDamage, floatingText } from './fx.js';
+import { equipItem, unequipSlot, autoEquipBest } from './character.js';
 import {
   sellItem, sellAllOfRarities, addToInventory, sellDrop,
-  unlockAutoSell, toggleAutoSell, isAutoSellOn,
-  salvageItem, salvageAllOfRarities, toggleLockItem,
-  autoActionFor, setAutoMode, salvageDrop,
+  salvageItem, salvageAllOfRarities, toggleLockItem, autoActionFor, salvageDrop,
+  unlockAutoSell, toggleAutoSell, setAutoMode, isAutoSellOn,
 } from './inventory.js';
-import {
-  renderAll, showDropPopup, hideDropPopup, getCurrentDrop,
-  flashRarity, startCooldownAnim, setOpenButtonEnabled,
-  showTooltip, hideTooltip, itemDetailsHTML,
-  setActiveTab, appendCombatLog,
-  showModal, hideModal, isModalOpen, showToast, setForgeSelected, getForgeSelectedId,
-  showCombatBars, hideCombatBars, updateMonsterHp, updatePlayerHp,
-  getMonsterEmojiCenter, getCharacterAvatarCenter, getChestCenter,
-  setInvSortMode, setInvSearchText, setForgeMode,
-} from './ui.js';
-import { lookupGlossary } from './glossary.js';
-import { advanceMimic } from './mimic.js';
-import { MIMIC } from './data.js';
-import { mimicSpriteSrc, spriteImg } from './spriteMap.js';
+import * as UI from './ui.js';
 
-// === Init ===
-
+// ── Init ─────────────────────────────────────────────────────
 loadFromLocal();
 startAutosave();
-// Order matters: check achievements BEFORE renderAll so rewards show immediately
 subscribe(checkAchievements);
-subscribe(renderAll);
+subscribe(UI.renderAll);
+subscribe(refreshNextStepHint);
 onAchievementUnlocked(ach => {
-  const rewardLine = ach.reward?.gold ? `+${ach.reward.gold.toLocaleString('fr-FR')} 💰` : '';
-  showToast(ach.emoji, `Succès débloqué : ${ach.name}`, rewardLine);
+  UI.showToast(ach.emoji, `Succès : ${ach.name}`, ach.reward?.gold ? `+${ach.reward.gold.toLocaleString('fr-FR')} 💰` : '');
   soundAchievement();
 });
+onBountyComplete(b => {
+  const bits = [`+${b.reward.gold.toLocaleString('fr-FR')} 💰`];
+  for (const [oid, q] of Object.entries(b.reward.orbs || {})) { const o = CURRENCY_BY_ID[oid]; if (o) bits.push(`${q} ${o.emoji}`); }
+  if (b.reward.talents) bits.push(`${b.reward.talents} 🌳`);
+  UI.showToast(b.emoji, `Contrat complété : ${b.name}`, bits.join(' · '));
+  soundAchievement();
+  spawnParticles(b.diffColor, innerWidth / 2, innerHeight / 3, 30);
+});
 setMuted(!!state.ui?.muted);
-updateMuteButton();
-renderAll();
-setActiveTab(state.ui?.leftTab || 'chest');
-// First check on load (in case of imported save with already-met conditions)
+UI.mountApp();
 checkAchievements();
-// Initialise bounty board if empty
 refreshBoardIfEmpty();
 
-// Show welcome modal on very first visit
+// Village passive production: accrue offline gains once, then trickle on a timer.
+accruePassive();
+tickConstruction(); // finish anything that completed while away
+let _vtick = 0;
+let _storyReady = storyReady();
+setInterval(() => {
+  const done = tickConstruction();          // notifies internally on completion
+  const accrued = (++_vtick % 5 === 0);
+  if (accrued) accruePassive();
+  if (done) {
+    const b = VILLAGE_BUILDING_BY_ID[done];
+    soundUpgrade();
+    UI.showToast(b ? b.emoji : '🏛️', 'Chantier terminé', b ? b.name : 'Mairie');
+    spawnParticles('#f0c463', innerWidth / 2, innerHeight / 3, 24);
+    return;
+  }
+  // Surface a story beat the moment its objective is met.
+  const sr = storyReady();
+  if (sr && !_storyReady) { soundAchievement(); UI.showToast('📜', 'Chronique', 'Un chapitre peut être accompli !'); }
+  _storyReady = sr;
+  // Re-render only when it actually matters — avoid rebuilding the whole DOM
+  // (and any open modal) every second. Live updates are only needed while the
+  // player is watching the Village (build countdown, resource trickle).
+  if (UI.getActiveTab() === 'village' && (villageIsBusy() || accrued)) notify();
+}, 1000);
+
+if (!state.ui.hasSeenIntro) UI.startIntro();
+else if (!state.ui.hasSeenWelcome) UI.navOverlay('onboarding');
+else if (state.prestige?.pendingRelicChoice?.length) UI.navOverlay('relicChoice');
+
+document.addEventListener('click', unlockAudio, { once: true });
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const isTouch = () => window.matchMedia('(pointer: coarse)').matches;
+function findItem(id) {
+  return state.inventory.find(i => i.id === id)
+      || Object.values(state.equipment).find(i => i && i.id === id) || null;
+}
+
 function dismissWelcome() {
   if (state.ui.hasSeenWelcome) return;
   state.ui.hasSeenWelcome = true;
-  hideModal('welcome-modal');
+  UI.closeOverlay();
   notify();
-  refreshNextStepHint();
-}
-if (!state.ui.hasSeenWelcome) {
-  showModal('welcome-modal');
-}
-document.getElementById('btn-welcome-start').addEventListener('click', () => {
-  dismissWelcome();
-  soundClick();
-});
-// Backdrop click also dismisses (sets the flag so it doesn't reappear)
-document.getElementById('welcome-modal').addEventListener('click', (e) => {
-  if (e.target.id === 'welcome-modal') dismissWelcome();
-});
-
-// === Next-step hint indicator ===
-// Highlights ONE element the new player should interact with, based on
-// game progression. Removes itself once the user has clearly made progress.
-function refreshNextStepHint() {
-  document.querySelectorAll('.next-step-hint').forEach(el => el.classList.remove('next-step-hint'));
-  // Don't hint while the welcome modal is open
-  if (isModalOpen('welcome-modal')) return;
-  const opened = state.opened || 0;
-  const hasItems = state.inventory.length > 0;
-  const anyEquipped = Object.values(state.equipment).some(Boolean);
-  const kills = state.combat?.kills || 0;
-
-  let target = null;
-  if (opened === 0 && (state.keys || 0) > 0) {
-    target = document.getElementById('btn-open');             // → ouvrir 1er coffre
-  } else if (hasItems && !anyEquipped) {
-    target = document.querySelector('#inventory-grid [data-item-id]'); // → équiper
-  } else if (anyEquipped && kills === 0) {
-    target = document.querySelector('.tab[data-tab="dungeon"]'); // → aller au donjon
-  }
-  if (target) target.classList.add('next-step-hint');
 }
 
-subscribe(refreshNextStepHint);
-refreshNextStepHint();
+// ── Next-step hint (kept simple: drives the hub pulse text in ui.js) ──
+function refreshNextStepHint() { /* hub computes its own hint; nothing imperative needed */ }
 
-// === Glossary inline tooltips ===
-// On hover (desktop) or tap (mobile), show the definition of a .gt term.
-const _gtTip = document.getElementById('glossary-tip');
-let _gtAutoHide = null;
+// ═════════════════════════════════════════════════════════════
+// Global click delegation
+// ═════════════════════════════════════════════════════════════
+document.body.addEventListener('click', async (e) => {
+  const t = e.target;
 
-function showGlossaryTip(el) {
-  const term = el.dataset.term;
-  const def = lookupGlossary(term);
-  if (!def) return;
-  _gtTip.innerHTML = `<div class="glossary-tip-title">${el.textContent}</div><div class="glossary-tip-body">${def}</div>`;
-  _gtTip.classList.remove('hidden');
-  // Position below the term, clamped to viewport
-  const r = el.getBoundingClientRect();
-  const ttR = _gtTip.getBoundingClientRect();
-  let left = r.left;
-  let top = r.bottom + 6;
-  if (left + ttR.width > window.innerWidth - 8) left = window.innerWidth - ttR.width - 8;
-  if (top + ttR.height > window.innerHeight - 8) top = r.top - ttR.height - 6;
-  _gtTip.style.left = Math.max(8, left) + 'px';
-  _gtTip.style.top  = Math.max(8, top)  + 'px';
-}
-
-function hideGlossaryTip() {
-  _gtTip.classList.add('hidden');
-  if (_gtAutoHide) { clearTimeout(_gtAutoHide); _gtAutoHide = null; }
-}
-
-// Hover (desktop only — touch uses click below)
-document.body.addEventListener('mouseover', (e) => {
-  if (isTouchDevice()) return;
-  const el = e.target.closest('.gt');
-  if (el) showGlossaryTip(el);
-});
-document.body.addEventListener('mouseout', (e) => {
-  if (isTouchDevice()) return;
-  if (e.target.closest('.gt')) hideGlossaryTip();
-});
-
-// Tap (mobile): show + auto-hide after 4s, or hide on outside tap
-document.body.addEventListener('click', (e) => {
-  const el = e.target.closest('.gt');
-  if (el) {
-    e.stopPropagation();
-    showGlossaryTip(el);
-    if (_gtAutoHide) clearTimeout(_gtAutoHide);
-    _gtAutoHide = setTimeout(hideGlossaryTip, 4500);
+  // Chronicle (story)
+  if (t.closest('[data-story-claim]')) {
+    const c = claimChapter();
+    if (c) { soundAchievement(); UI.showToast('📜', 'Chapitre accompli', c.title); spawnParticles('#c79bff', innerWidth / 2, innerHeight / 3, 28); }
     return;
   }
-  if (!_gtTip.classList.contains('hidden') && !e.target.closest('#glossary-tip')) {
-    hideGlossaryTip();
+
+  // Intro cinematic
+  const introBtn = t.closest('[data-intro]');
+  if (introBtn) { if (introBtn.dataset.intro === 'skip') UI.endIntro(); else { soundClick(); UI.advanceIntro(); } return; }
+  if (t.closest('[data-intro-replay]')) { UI.startIntro(); soundClick(); return; }
+
+  // Close overlay (backdrop / ✕)
+  if (t.closest('[data-close-overlay]')) { UI.closeOverlay(); return; }
+
+  // Tab / rail navigation
+  const tabBtn = t.closest('[data-tab]');
+  if (tabBtn) { UI.navTab(tabBtn.dataset.tab); soundClick(); return; }
+  const navBtn = t.closest('[data-nav]');
+  if (navBtn) { UI.navTab(navBtn.dataset.nav); soundClick(); return; }
+
+  // Open an overlay
+  const ovBtn = t.closest('[data-overlay]');
+  if (ovBtn) { if (ovBtn.dataset.overlay === 'contracts') refreshBoardIfEmpty(); UI.navOverlay(ovBtn.dataset.overlay); soundClick(); return; }
+  if (t.closest('[data-menu]')) { UI.navOverlay('menu'); soundClick(); return; }
+
+  // ── Mimic encounter buttons ──
+  const mimicBtn = t.closest('[data-mimic-action]');
+  if (mimicBtn) {
+    handleMimicAction(mimicBtn.dataset.mimicAction);
+    soundClick();
+    return;
+  }
+
+  // ── Hub: open chest ──
+  if (t.closest('#btn-open')) { openChestFlow(); return; }
+  if (t.closest('#btn-open10')) { openBulkFlow(10); return; }
+  if (t.closest('#btn-open-max')) { openBulkFlow(state.keys || 0); return; }
+  const focusBtn = t.closest('[data-focus-slot]');
+  if (focusBtn) {
+    const slot = focusBtn.dataset.focusSlot || null;
+    state.focusSlot = (slot && state.focusSlot === slot) ? null : slot; // toggle off if re-clicked
+    notify(); soundClick(); return;
+  }
+  if (t.closest('#btn-upgrade')) {
+    if (upgradeChest()) { soundUpgrade(); const c = UI.getChestCenter(); spawnParticles('#f5c842', c.x, c.y, 30); }
+    return;
+  }
+
+  // ── Dungeon: floor select / fight / loop ──
+  const floorBtn = t.closest('[data-floor]');
+  if (floorBtn && !floorBtn.disabled) {
+    setCurrentFloor(parseInt(floorBtn.dataset.floor, 10));
+    if (state.combat.loopMode) { state.combat.loopMode = false; }
+    notify(); soundClick(); return;
+  }
+  if (t.closest('#btn-fight')) {
+    if (!confirmSuicideFloor()) return;
+    fightFlow();
+    return;
+  }
+  if (t.closest('#btn-loop')) {
+    const floor = state.combat.currentFloor;
+    if (floor >= state.combat.highestUnlocked) return;
+    state.combat.loopMode = !state.combat.loopMode;
+    notify();
+    if (state.combat.loopMode) setTimeout(fightFlow, 150);
+    return;
+  }
+
+  // ── Inventory ──
+  const fchip = t.closest('[data-filter]');
+  if (fchip) { UI.setInvFilter(fchip.dataset.filter); soundClick(); return; }
+  if (t.closest('#btn-auto-equip')) {
+    const n = autoEquipBest();
+    if (n > 0) { soundClick(); floatingText(`Équipé ×${n}`, innerWidth / 2, innerHeight / 2, '#f5c842'); }
+    return;
+  }
+  // ── Auto-vente & gestion en masse ──
+  const asUnlock = t.closest('[data-autosell-unlock]');
+  if (asUnlock && !asUnlock.disabled) { if (unlockAutoSell(asUnlock.dataset.autosellUnlock)) { soundUpgrade(); } return; }
+  const asSeg = t.closest('[data-autosell]');
+  if (asSeg) {
+    const [rar, target] = asSeg.dataset.autosell.split(':');
+    const on = isAutoSellOn(rar);
+    if (target === 'off') { if (on) toggleAutoSell(rar); }
+    else { if (!on) toggleAutoSell(rar); setAutoMode(rar, target); }
+    soundClick(); return;
+  }
+  const bSell = t.closest('[data-bulk-sell]');
+  if (bSell && !bSell.disabled) { if (sellAllOfRarities(new Set([bSell.dataset.bulkSell])) > 0) soundCoin(); return; }
+  const bSalv = t.closest('[data-bulk-salvage]');
+  if (bSalv && !bSalv.disabled) { const { totalShards } = salvageAllOfRarities(new Set([bSalv.dataset.bulkSalvage])); if (totalShards > 0) soundForge(); return; }
+
+  // Forge: pick item (checked before the inventory grid — the forge picker
+  // reuses the .inv-grid class, so this must win).
+  const tile = t.closest('[data-item-id]');
+  if (tile && t.closest('.forge-pick')) { UI.setForgeSelected(tile.dataset.itemId); soundClick(); return; }
+  if (t.closest('#forge-deselect')) { UI.setForgeSelected(null); return; }
+
+  // Item tile → desktop selects the inline detail panel; mobile opens the sheet.
+  if (tile && t.closest('.inv-grid, .doll-slot')) {
+    if (UI.getMode() === 'desktop') UI.selectInvItem(tile.dataset.itemId);
+    else UI.navOverlay('item', { itemId: tile.dataset.itemId });
+    soundClick(); return;
+  }
+
+  // Item detail actions
+  const iAct = t.closest('[data-item-action]');
+  if (iAct) { itemAction(iAct.dataset.itemAction); return; }
+
+  // Loot reveal actions
+  if (t.closest('#btn-equip')) { const d = UI.getCurrentDrop(); if (d) { equipItem(d); soundClick(); UI.hideDropPopup(); resumeLoop(); } return; }
+  if (t.closest('#btn-keep')) { const d = UI.getCurrentDrop(); if (d) { addToInventory(d); soundClick(); UI.hideDropPopup(); resumeLoop(); } return; }
+  if (t.closest('#btn-sell') && UI.getCurrentDrop()) { const d = UI.getCurrentDrop(); sellDrop(d); soundCoin(); UI.hideDropPopup(); resumeLoop(); return; }
+
+  // Forge actions
+  const fAct = t.closest('[data-forge-action]');
+  if (fAct) { forgeAction(fAct.dataset.forgeAction); return; }
+  const fMode = t.closest('[data-forge-mode]');
+  if (fMode) { UI.setForgeMode(fMode.dataset.forgeMode); soundClick(); return; }
+  const exRow = t.closest('.ex-row[data-exchange-from]');
+  if (exRow && !exRow.disabled) { if (applyExchange(exRow.dataset.exchangeFrom)) soundForge(); return; }
+  const lockBtn = t.closest('[data-lock-index]');
+  if (lockBtn && !lockBtn.disabled) {
+    const item = state.inventory.find(i => i.id === UI.getForgeSelectedId());
+    if (item && toggleAffixLock(item, Number(lockBtn.dataset.lockIndex))) soundClick();
+    return;
+  }
+  const mcRow = t.closest('.mc-row[data-affix-id]');
+  if (mcRow) {
+    const item = state.inventory.find(i => i.id === UI.getForgeSelectedId());
+    if (item && applyMasterCraft(item, mcRow.dataset.affixId)) { soundForge(); soundDrop(item.rarity); UI.setForgeMode('actions'); }
+    return;
+  }
+
+  // Codex tabs
+  const cxTab = t.closest('[data-codex-tab]');
+  if (cxTab) { UI.setCodexTab(cxTab.dataset.codexTab); soundClick(); return; }
+
+  // Talents
+  const talBtn = t.closest('[data-talent]');
+  if (talBtn && !talBtn.disabled) { if (upgradeTalent(talBtn.dataset.talent)) { soundClick(); soundUpgrade(); } return; }
+  const respecBtn = t.closest('[data-respec]');
+  if (respecBtn && !respecBtn.disabled) {
+    if (confirm('↺ Réinitialiser tous les talents ? Les points te seront rendus contre de l\'or.')) {
+      if (respecTalents()) { soundClick(); soundUpgrade(); }
+    }
+    return;
+  }
+
+  // Bounty reroll
+  const rrBtn = t.closest('[data-bounty-reroll]');
+  if (rrBtn && !rrBtn.disabled) { if (rerollBounty(rrBtn.dataset.bountyReroll)) soundClick(); return; }
+
+  // Ascension
+  if (t.closest('#btn-ascend')) { ascendFlow(); return; }
+
+  // Relic choice (after ascension)
+  if (t.closest('#btn-reroll-relic')) { if (rerollRelicChoice()) { soundClick(); notify(); } return; }
+  const relicBtn = t.closest('[data-relic]');
+  if (relicBtn) { chooseRelicFlow(relicBtn.dataset.relic); return; }
+
+  // Ability loadout toggle
+  const abBtn = t.closest('[data-ability]');
+  if (abBtn) { if (toggleAbility(abBtn.dataset.ability)) { soundClick(); notify(); } return; }
+
+  // Village
+  const vopen = t.closest('[data-village-open]');
+  if (vopen) { UI.navOverlay('villageBuilding', { id: vopen.dataset.villageOpen }); soundClick(); return; }
+  const vbuild = t.closest('[data-village-build]');
+  if (vbuild && !vbuild.disabled) { if (buildOrUpgrade(vbuild.dataset.villageBuild)) { soundUpgrade(); } return; }
+  if (t.closest('[data-village-townhall]')) { if (upgradeTownhall()) { soundUpgrade(); } return; }
+  const vasg = t.closest('[data-village-assign]');
+  if (vasg && !vasg.disabled) { if (assignWorker(vasg.dataset.villageAssign, parseInt(vasg.dataset.delta, 10))) soundClick(); return; }
+  if (t.closest('[data-village-craft-rarity]')) { UI.setForgeCraftRarity(t.closest('[data-village-craft-rarity]').dataset.villageCraftRarity); soundClick(); return; }
+  const vcraft = t.closest('[data-village-craft]');
+  if (vcraft && !vcraft.disabled) {
+    const slot = vcraft.dataset.villageCraft, rarity = UI.getForgeCraftRarity();
+    const tier = commitCraft(slot, rarity);
+    if (tier) { soundForge(); UI.showDropPopup(craftItem(slot, tier, rarity)); }
+    return;
+  }
+
+  // Deep Dive
+  if (t.closest('[data-dive="start"]')) { beginDive(); return; }
+  if (t.closest('[data-dive="exit"]')) { diveExit(); return; }
+  const boonBtn = t.closest('[data-dive-boon]');
+  if (boonBtn) { diveBoonPick(boonBtn.dataset.diveBoon); return; }
+
+  // Onboarding start
+  if (t.closest('#btn-welcome-start')) { dismissWelcome(); soundClick(); return; }
+
+  // Generic actions (menu / settings)
+  const act = t.closest('[data-action]');
+  if (act) { genericAction(act.dataset.action); return; }
+});
+
+// ── Input changes (search / sort / settings) ────────────────
+document.body.addEventListener('input', (e) => {
+  if (e.target.id === 'inv-search') UI.setInvSearchText(e.target.value);
+});
+document.body.addEventListener('change', (e) => {
+  if (e.target.id === 'inv-sort') { UI.setInvSortMode(e.target.value); return; }
+  const setEl = e.target.closest('[data-setting]');
+  if (setEl) {
+    const key = setEl.dataset.setting;
+    const on = setEl.checked;
+    if (key === 'mute') { setMuted(on); state.ui.muted = on; }
+    else state.settings[key] = on;
+    notify();
+    return;
+  }
+  if (e.target.id === 'file-import') {
+    const file = e.target.files[0];
+    if (file) importSave(file).catch(err => alert('Import échoué : ' + err.message));
+    e.target.value = '';
   }
 });
-onBountyComplete(b => {
-  const rewardSummary = [`+${b.reward.gold.toLocaleString('fr-FR')} 💰`];
-  for (const [orbId, q] of Object.entries(b.reward.orbs)) {
-    const orb = CURRENCY_BY_ID[orbId];
-    if (orb) rewardSummary.push(`${q} ${orb.emoji}`);
-  }
-  if (b.reward.talents) rewardSummary.push(`${b.reward.talents} 🌳`);
-  showToast(b.emoji, `Contrat complété : ${b.name}`, rewardSummary.join(' · '));
-  soundAchievement();
-  spawnParticles(b.diffColor, window.innerWidth / 2, window.innerHeight / 3, 30);
+
+// ── Desktop hover tooltips ───────────────────────────────────
+document.body.addEventListener('mousemove', (e) => {
+  if (isTouch()) return;
+  const tile = e.target.closest('.inv-grid [data-item-id], .doll-slot [data-item-id]');
+  if (tile) { const it = findItem(tile.dataset.itemId); if (it) { UI.showTooltip(it, e.clientX, e.clientY); return; } }
+  UI.hideTooltip();
 });
 
-// Unlock audio on first user interaction (browser autoplay policy)
-document.addEventListener('click', unlockAudio, { once: true });
-
-// Show help modal on very first session (no save existed)
-if (state.opened === 0 && state.combat.kills === 0) {
-  // Defer so the rest of the UI is rendered first
-  setTimeout(() => showModal('help-modal'), 200);
+// ═════════════════════════════════════════════════════════════
+// Flows
+// ═════════════════════════════════════════════════════════════
+function openChestFlow() {
+  if (!canOpen()) { if (!state.keys) UI.showToast('🗝', 'Pas de clé', 'Farme des clés au donjon'); return; }
+  soundChestOpen();
+  const result = openChest();
+  if (!result) return;
+  if (result.mimic) {
+    UI.playChestOpen();
+    UI.showMimicEncounter(result.mimic);
+    return;
+  }
+  const { items, orbs } = result;
+  const item = items[0];                   // primary item drives the reveal
+  const extras = items.slice(1);
+  UI.playChestOpen();
+  flashAndCooldown(item);
+  soundDrop(item.rarity);
+  const center = UI.getChestCenter();
+  const rcolor = RARITY_BY_ID[item.rarity].color;
+  if (['rare', 'epic', 'legendary', 'ancestral'].includes(item.rarity)) {
+    const n = { ancestral: 60, legendary: 40, epic: 24 }[item.rarity] || 16;
+    spawnParticles(rcolor, center.x, center.y, n);
+    if (['legendary', 'ancestral'].includes(item.rarity)) screenShake(item.rarity === 'ancestral' ? 10 : 6, 350);
+  }
+  if (orbs && orbs.length) {
+    let off = 0;
+    for (const oid of orbs) { const d = CURRENCY_BY_ID[oid]; if (!d) continue; floatingText(`+1 ${d.emoji}`, center.x, center.y - 40 - off, d.color); off += 22; spawnParticles(d.color, center.x, center.y, 12); }
+    soundCoin();
+  }
+  // Bonus items (item quantity) are auto-handled and reported via a toast.
+  if (extras.length) {
+    let off = 0;
+    for (const ex of extras) {
+      const act = autoActionFor(ex.rarity);
+      if (act === 'sell') sellDrop(ex);
+      else if (act === 'salvage') salvageDrop(ex);
+      else addToInventory(ex);
+      floatingText('+1 🎁', center.x, center.y - 60 - off, '#46d0c0'); off += 20;
+    }
+    UI.showToast('🎁', `+${extras.length} objet${extras.length > 1 ? 's' : ''} bonus`, 'Quantité de butin');
+  }
+  const action = autoActionFor(item.rarity);
+  if (action === 'sell') { sellDrop(item); soundCoin(); return; }
+  if (action === 'salvage') { salvageDrop(item); soundForge(); return; }
+  // Let the lid-lift + flash read before the reveal slides in.
+  setTimeout(() => UI.showDropPopup(item), 300);
 }
 
-function updateMuteButton() {
-  const btn = document.getElementById('btn-mute');
-  if (btn) btn.textContent = isMuted() ? '🔇' : '🔊';
+function openBulkFlow(n) {
+  n = Math.min(n | 0, state.keys || 0);
+  if (n < 1) { UI.showToast('🗝', 'Pas de clé', 'Farme des clés au donjon'); return; }
+  soundChestOpen();
+  const { items, orbs, opened } = openChests(n);
+  const summary = { opened, total: items.length, byRarity: {}, gold: 0, shards: 0, kept: 0, notable: [], orbs: {} };
+  for (const it of items) {
+    summary.byRarity[it.rarity] = (summary.byRarity[it.rarity] || 0) + 1;
+    if (it.uniqueId || it.setId || it.rarity === 'legendary' || it.rarity === 'ancestral') summary.notable.push(it);
+    const act = autoActionFor(it.rarity);
+    if (act === 'sell') summary.gold += sellDrop(it);
+    else if (act === 'salvage') summary.shards += salvageDrop(it);
+    else { addToInventory(it); summary.kept += 1; }
+  }
+  for (const oid of orbs) summary.orbs[oid] = (summary.orbs[oid] || 0) + 1;
+  soundCoin();
+  UI.showBulkResult(summary);
 }
 
-// === Helpers ===
-
-function findItem(id) {
-  return state.inventory.find(i => i.id === id)
-      || Object.values(state.equipment).find(i => i && i.id === id)
-      || null;
+function flashAndCooldown(item) {
+  UI.flashRarity(item.rarity);
+  UI.startCooldownAnim();
+  UI.setOpenButtonEnabled(false);
+  setTimeout(() => UI.setOpenButtonEnabled(true), CHEST_OPEN_COOLDOWN_MS);
 }
 
-// === Mobile detection ===
-// Use (hover: none) — true ONLY on touch-primary devices (phones/tablets).
-// `(pointer: coarse)` was too aggressive: it matched touchscreen laptops
-// where the user actually wants the desktop click-to-equip behavior.
-const isTouchDevice = () => window.matchMedia('(hover: none)').matches;
-
-// === Mimic encounter popup ===
-let _currentMimic = null;
-
-function showMimicPopup(encounter) {
-  _currentMimic = encounter;
-  const popup = document.getElementById('mimic-popup');
-  popup.classList.remove('hidden');
-  renderMimicState();
+function resumeLoop() {
+  if (state.combat.loopMode && UI.getActiveTab() === 'dungeon') {
+    setTimeout(() => { if (state.combat.loopMode && !UI.getCurrentDrop()) fightFlow(); }, 250);
+  }
 }
 
-function hideMimicPopup() {
-  document.getElementById('mimic-popup').classList.add('hidden');
-  _currentMimic = null;
+let fighting = false;
+
+// Guard against accidental fatal fights: on a "Suicide"-rated floor, the first
+// Combattre click warns and arms a short confirmation window; a second click
+// within it proceeds. Returns true when the fight may start.
+let suicideArmedUntil = 0;
+function confirmSuicideFloor() {
+  // Looping/diving already committed — don't nag.
+  if (state.combat.loopMode || isDiving()) return true;
+  const diff = predictDifficulty(generateMonster(state.combat.currentFloor));
+  if (diff.label !== 'Suicide') { suicideArmedUntil = 0; return true; }
+  if (Date.now() < suicideArmedUntil) { suicideArmedUntil = 0; return true; }
+  suicideArmedUntil = Date.now() + 4000;
+  soundLose();
+  UI.showToast('💀', 'Étage mortel', 'Mort quasi certaine — re-clique pour confirmer');
+  return false;
+}
+async function fightFlow() {
+  if (fighting || isDiving()) return;
+  fighting = true;
+  try {
+    const { result, monster, droppedItem, advanced, milestone } = attemptCurrentFloor();
+    UI.openCombat(monster);
+    await sleep(60);
+    const playerMaxHp = result.playerMaxHp;
+    const monsterMaxHp = monster.hp;
+    UI.showCombatBars(playerMaxHp, monsterMaxHp);
+
+    const events = result.events || [];
+    const fast = !!state.settings?.fastCombat;
+    const perEvent = fast ? 12 : Math.max(45, Math.min(150, 1300 / Math.max(1, events.length)));
+
+    for (const ev of events) {
+      await sleep(perEvent);
+      handleCombatEvent(ev, monsterMaxHp, playerMaxHp);
+    }
+    await sleep(280);
+
+    UI.appendCombatLog(result.log, result.won ? 'win' : 'lose');
+    if (result.won) {
+      soundWin();
+      UI.setCombatCall(monster.isBoss ? 'VICTOIRE !' : 'Vaincu', '#6acc6a');
+      const c = UI.getMonsterEmojiCenter();
+      spawnParticles(monster.isBoss ? '#ff7a1a' : '#ffe14a', c.x, c.y, monster.isBoss ? 40 : 20);
+      floatingText(`+${monster.goldReward} 💰`, c.x, c.y - 30, '#f5c842');
+      if (monster.keyDrop) { floatingText(`+${monster.keyDrop} 🗝`, c.x + 40, c.y - 30, '#ffd060'); soundCoin(); UI.appendCombatLog([`🗝 +${monster.keyDrop} clé${monster.keyDrop > 1 ? 's' : ''}`], 'reward'); }
+      const res = grantDungeonResources(monster.floor, monster.isBoss, monster.isElite);
+      if (res) UI.appendCombatLog([`🪵 +${res.wood} · 🪨 +${res.stone}`], 'reward');
+      if (monster.isBoss) screenShake(8, 350);
+    } else {
+      soundLose(); UI.setCombatCall('DÉFAITE', '#ff5050'); screenShake(10, 400);
+    }
+    if (advanced) UI.appendCombatLog([`🆙 Étage débloqué : ${state.combat.highestUnlocked}`], 'reward');
+    if (milestone) {
+      const orbBits = Object.entries(milestone.reward.orbs).filter(([, q]) => q > 0).map(([id, q]) => `${q} ${CURRENCY_BY_ID[id].emoji}`).join(' · ');
+      UI.appendCombatLog([`🎉 PALIER ÉTAGE ${milestone.floor} (niv ${milestone.level})`, `+${milestone.reward.gold.toLocaleString('fr-FR')} 💰${orbBits ? ' · ' + orbBits : ''}`], 'reward');
+      UI.showToast('🎉', `Palier étage ${milestone.floor} !`, `+${milestone.reward.gold.toLocaleString('fr-FR')} 💰  ${orbBits}`);
+      soundAchievement(); screenShake(14, 600);
+      spawnParticles('#ffe14a', innerWidth / 2, innerHeight / 2, 60, { minSpeed: 150, maxSpeed: 400, size: 10 });
+    }
+
+    let drop = null;
+    if (droppedItem) {
+      UI.appendCombatLog([`🎁 Drop : ${droppedItem.name}`], 'reward');
+      soundDrop(droppedItem.rarity);
+      const action = autoActionFor(droppedItem.rarity);
+      if (action === 'sell') { sellDrop(droppedItem); soundCoin(); }
+      else if (action === 'salvage') { salvageDrop(droppedItem); soundForge(); }
+      else drop = droppedItem;
+    }
+
+    await sleep(700);
+    UI.closeCombat();
+    if (drop) UI.showDropPopup(drop);
+
+    // Loop mode continuation
+    if (state.combat.loopMode) {
+      const beaten = state.combat.currentFloor < state.combat.highestUnlocked;
+      if (!beaten || !result.won) { state.combat.loopMode = false; notify(); }
+      else if (UI.getActiveTab() === 'dungeon' && !drop) setTimeout(fightFlow, 350);
+    }
+  } finally {
+    fighting = false;
+  }
 }
 
-function renderMimicState() {
-  const enc = _currentMimic;
+// ── Deep Dive controller ─────────────────────────────────────
+let diving = false;
+function beginDive() {
+  if (state.combat.loopMode) { state.combat.loopMode = false; }
+  if (!startDive()) return;
+  soundAscension();
+  UI.showToast('🌊', 'Plongée lancée', 'Descends aussi profond que possible !');
+  diveFlow();
+}
+
+async function diveFlow() {
+  if (diving || !isDiving()) return;
+  diving = true;
+  try {
+    const s = getSession();
+    const startHp = nextStartHp();
+    const { monster, result, won, maxHp } = attemptDiveFight(s.baseFloor, s.depth + 1, startHp, diveMods());
+    UI.openCombat(monster);
+    await sleep(60);
+    const monsterMaxHp = monster.hp;
+    UI.showCombatBars(maxHp, monsterMaxHp);
+    if (startHp != null) UI.updatePlayerHp(startHp, maxHp); // begin from carried HP
+
+    const events = result.events || [];
+    const fast = !!state.settings?.fastCombat;
+    const perEvent = fast ? 12 : Math.max(40, Math.min(140, 1200 / Math.max(1, events.length)));
+    for (const ev of events) {
+      await sleep(perEvent);
+      handleCombatEvent(ev, monsterMaxHp, maxHp);
+    }
+    await sleep(260);
+    UI.appendCombatLog(result.log, won ? 'win' : 'lose');
+
+    if (won) {
+      const rec = recordWin(monster, result);
+      soundWin();
+      UI.setCombatCall(`Profondeur ${rec.depth}`, '#5ad8e8');
+      const c = UI.getMonsterEmojiCenter();
+      spawnParticles('#5ad8e8', c.x, c.y, 18);
+      floatingText(`+${rec.gold} 💰`, c.x, c.y - 30, '#f5c842');
+      UI.appendCombatLog([`🌊 Profondeur ${rec.depth} · butin en jeu sécurisé`], 'reward');
+      await sleep(600);
+      UI.closeCombat();
+      if (rec.checkpoint) {
+        openBoonChoice();
+        UI.navOverlay('diveBoon');     // pauses the loop until the player picks/exits
+      } else if (isDiving()) {
+        setTimeout(diveFlow, 320);
+      }
+    } else {
+      soundLose(); UI.setCombatCall('VAINCU', '#ff5050'); screenShake(10, 400);
+      await sleep(600);
+      UI.closeCombat();
+      const summary = finalizeDive(true);
+      UI.navOverlay('diveSummary', { summary });
+    }
+  } finally {
+    diving = false;
+  }
+}
+
+function diveBoonPick(id) {
+  if (chooseBoon(id)) { soundUpgrade(); UI.closeOverlay(); setTimeout(diveFlow, 200); }
+}
+
+function diveExit() {
+  const summary = finalizeDive(false);
+  UI.closeOverlay();
+  if (summary) UI.navOverlay('diveSummary', { summary });
+}
+
+function handleCombatEvent(ev, monsterMaxHp, playerMaxHp) {
+  if (ev.type === 'player_hit') {
+    UI.updateMonsterHp(ev.monsterHp, monsterMaxHp);
+    const c = UI.getMonsterEmojiCenter();
+    if (ev.blocked) { floatingText('🛡 BLOQUÉ', c.x, c.y, '#5a8af0'); soundClick(); }
+    else { floatingDamage(ev.dmg, c.x, c.y, ev.isCrit ? 'crit' : 'normal'); ev.isCrit ? soundCrit() : soundHit(); if (ev.isCrit) { screenShake(3, 120); UI.setCombatCall('Frappe Critique', '#ffe14a'); } }
+    if (ev.mults && ev.mults.length) floatingText(ev.mults.map(m => m.emoji).join(' '), c.x + 30, c.y - 20, '#ffe14a');
+  } else if (ev.type === 'monster_hit') {
+    UI.updatePlayerHp(ev.playerHp, playerMaxHp);
+    const c = UI.getCharacterAvatarCenter();
+    floatingDamage(ev.dmg, c.x, c.y, 'player-took'); soundHit();
+    if (ev.swift) floatingText('⚡', c.x + 28, c.y - 24, '#ffe14a');
+  } else if (ev.type === 'monster_thorns') {
+    UI.updatePlayerHp(ev.playerHp, playerMaxHp);
+    const c = UI.getCharacterAvatarCenter();
+    floatingDamage(ev.amount, c.x, c.y, 'player-took'); floatingText('🌵 Épines', c.x, c.y - 40, '#7adc4a'); soundHit();
+  } else if (ev.type === 'monster_leech') {
+    UI.updateMonsterHp(ev.monsterHp, monsterMaxHp);
+    const c = UI.getMonsterEmojiCenter();
+    floatingText(`🩸 +${ev.amount}`, c.x, c.y - 30, '#ff4a6a');
+  } else if (ev.type === 'skill_heal') {
+    UI.updatePlayerHp(ev.playerHp, playerMaxHp);
+    const c = UI.getCharacterAvatarCenter();
+    floatingDamage(ev.amount, c.x, c.y, 'heal'); floatingText(`${ev.emoji} Soin`, c.x, c.y - 40, '#6acc6a'); soundUpgrade(); spawnParticles('#6acc6a', c.x, c.y, 12);
+  } else if (ev.type === 'skill_dodge') {
+    floatingText('💨 ESQUIVE', UI.getCharacterAvatarCenter().x, UI.getCharacterAvatarCenter().y, '#5a8af0'); soundClick();
+  } else if (ev.type === 'skill_reflect' || ev.type === 'legendary_burn') {
+    UI.updateMonsterHp(ev.monsterHp, monsterMaxHp);
+    const c = UI.getMonsterEmojiCenter();
+    floatingDamage(ev.amount, c.x, c.y, 'normal'); floatingText(`${ev.emoji} ${ev.type === 'legendary_burn' ? 'Brûlure' : 'Épines'}`, c.x, c.y - 40, '#ff6a30'); soundHit();
+  } else if (ev.type === 'set_drain' || ev.type === 'set_heal') {
+    UI.updatePlayerHp(ev.playerHp, playerMaxHp);
+    const c = UI.getCharacterAvatarCenter();
+    floatingText(`${ev.emoji} +${ev.amount}`, c.x, c.y - 30, '#7adc4a');
+  } else if (ev.type === 'set_freeze' || ev.type === 'boss_shield') {
+    floatingText(`${ev.emoji || '🛡'} ${ev.type === 'set_freeze' ? 'GEL' : 'BOUCLIER'}`, UI.getMonsterEmojiCenter().x, UI.getMonsterEmojiCenter().y, '#5ad8e8');
+  } else if (ev.type === 'set_dodge') {
+    floatingText(`${ev.emoji} BLOC`, UI.getCharacterAvatarCenter().x, UI.getCharacterAvatarCenter().y, '#ffaa00'); soundClick();
+  } else if (ev.type === 'set_rebirth') {
+    UI.updatePlayerHp(ev.playerHp, playerMaxHp);
+    const c = UI.getCharacterAvatarCenter();
+    floatingText(`${ev.emoji} RENAISSANCE`, c.x, c.y - 40, '#ff3000'); spawnParticles('#ff3000', c.x, c.y, 25); soundWin();
+  } else if (ev.type === 'boss_regen') {
+    UI.updateMonsterHp(ev.monsterHp, monsterMaxHp);
+    const c = UI.getMonsterEmojiCenter(); floatingText(`🌿 +${ev.amount}`, c.x, c.y - 30, '#6acc6a');
+  } else if (ev.type === 'boss_burn') {
+    UI.updatePlayerHp(ev.playerHp, playerMaxHp);
+    const c = UI.getCharacterAvatarCenter(); floatingDamage(ev.amount, c.x, c.y, 'player-took'); floatingText('🔥 Brûlure', c.x, c.y - 40, '#ff7a1a');
+  }
+}
+
+function itemAction(action) {
+  const id = UI.getOverlayParam('itemId');
+  const item = findItem(id);
+  if (!item) return;
+  const equipped = !!Object.values(state.equipment).find(i => i && i.id === item.id);
+  if (action === 'equip') {
+    if (equipped) unequipSlot(item.slot); else { equipItem(item); soundClick(); }
+    UI.closeOverlay();
+  } else if (action === 'sell') {
+    if (sellItem(item) > 0) soundCoin(); UI.closeOverlay();
+  } else if (action === 'salvage') {
+    if (salvageItem(item) > 0) soundForge(); UI.closeOverlay();
+  } else if (action === 'lock') {
+    toggleLockItem(item.id); soundClick();
+    // Mobile: refresh the open sheet. Desktop: the inline panel re-renders via notify().
+    if (UI.getMode() !== 'desktop') UI.navOverlay('item', { itemId: item.id });
+  }
+}
+
+function forgeAction(actionId) {
+  if (actionId === 'cancel-master' || actionId === 'cancel-exchange') { UI.setForgeMode('actions'); soundClick(); return; }
+  const action = FORGE_ACTIONS.find(a => a.id === actionId);
+  if (!action) return;
+  const item = state.inventory.find(i => i.id === UI.getForgeSelectedId());
+  if (!item) return;
+  if (action.interactive && action.id === 'maitre') { if (action.can(item)) { UI.setForgeMode('master-craft'); soundClick(); } return; }
+  if (action.apply && action.apply(item)) { soundForge(); if (['transmutation', 'regal'].includes(action.id)) soundDrop(item.rarity); }
+}
+
+function ascendFlow() {
+  if (!canAscend()) return;
+  const newLevel = (state.prestige?.level || 0) + 1;
+  let ok = true;
+  if (state.settings?.confirmAscend !== false) {
+    ok = confirm(`🌟 Ascension Niv ${newLevel} ?\n\nTu repars de zéro (or, items, coffre T1, étage 1).\nTu gardes succès, prestige, stats.\nBonus permanent : +${6 * newLevel}% dégâts & PV, +${15 * newLevel}% drops & or.\n\nConfirmer ?`);
+  }
+  if (ok && ascend()) {
+    soundAscension(); screenShake(8, 600);
+    spawnParticles('#f5c842', innerWidth / 2, innerHeight / 2, 80, { minSpeed: 200, maxSpeed: 500, size: 10 });
+    UI.navTab('hub');
+    // Present the relic choice if one is pending; else back to hub.
+    if (state.prestige?.pendingRelicChoice?.length) UI.navOverlay('relicChoice');
+    else UI.closeOverlay();
+  }
+}
+
+function chooseRelicFlow(id) {
+  if (chooseRelic(id)) {
+    soundAscension();
+    spawnParticles('#c9a3ff', innerWidth / 2, innerHeight / 2, 50, { minSpeed: 150, maxSpeed: 400, size: 8 });
+    UI.closeOverlay();
+    notify();
+  }
+}
+
+function genericAction(action) {
+  if (action === 'export') exportSave();
+  else if (action === 'import') { const f = document.getElementById('file-import'); if (f) f.click(); else triggerImport(); }
+  else if (action === 'reset') { if (confirm('Reset complet ? (exporte avant)')) { clearLocal(); resetState(); UI.closeOverlay(); } }
+  else if (action === 'mute') { const m = toggleMuted(); state.ui.muted = m; if (!m) soundClick(); notify(); }
+  else if (action === 'replay-welcome') { state.ui.hasSeenWelcome = false; UI.navOverlay('onboarding'); soundClick(); }
+}
+function triggerImport() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json';
+  inp.onchange = () => { if (inp.files[0]) importSave(inp.files[0]).catch(err => alert('Import échoué : ' + err.message)); };
+  inp.click();
+}
+
+// ── Keyboard ─────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+  if (e.key === 'Escape') {
+    if (UI.getCurrentDrop()) { addToInventory(UI.getCurrentDrop()); UI.hideDropPopup(); return; }
+    // At a dive checkpoint, Escape = cash out (don't strand the run).
+    if (isDiving() && getSession()?.pendingBoon) { diveExit(); return; }
+    UI.closeOverlay(); return;
+  }
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  if (e.key === ' ' || e.code === 'Space') {
+    if (UI.getCurrentDrop()) return;
+    e.preventDefault();
+    if (UI.getActiveTab() === 'dungeon') fightFlow();
+    else if (canOpen()) openChestFlow();
+  }
+});
+
+// ── Mimic encounter resolution ───────────────────────────────
+function handleMimicAction(action) {
+  const enc = UI.getCurrentMimic();
   if (!enc) return;
-  const banner = document.getElementById('mimic-banner');
-  const sprite = document.getElementById('mimic-sprite');
-  const flavor = document.getElementById('mimic-flavor');
-  const ladder = document.getElementById('mimic-ladder');
-  const haul = document.getElementById('mimic-haul');
-  const takeBtn = document.getElementById('btn-mimic-take');
-  const riskBtn = document.getElementById('btn-mimic-risk');
-  const closeBtn = document.getElementById('btn-mimic-close');
-
-  banner.classList.toggle('golden', !!enc.golden);
-  banner.textContent = enc.golden ? '✨ MIMIC DORÉ ! ✨' : '⚠ UN MIMIC !';
-
-  const mimicEmoji = enc.golden ? '🟡🦷' : '🟫🦷';
-  sprite.innerHTML = spriteImg(mimicSpriteSrc({ golden: enc.golden, hires: true }), mimicEmoji, { size: 96, title: 'Mimic' });
-
-  // Ladder rendering
-  ladder.innerHTML = MIMIC.ladder.map((rung, i) => {
-    const reached = (i + 1) <= enc.rung;
-    const isCurrent = (i + 1) === enc.rung;
-    return `<div class="mimic-rung${reached ? ' reached' : ''}${isCurrent ? ' current' : ''}">
-      <div class="rung-label">${rung.label}</div>
-      <div class="rung-gold">×${rung.goldMult}</div>
-    </div>`;
-  }).join('');
-
-  if (enc.state === 'reveal' || enc.state === 'choosing') {
-    flavor.textContent = enc.rung === 0
-      ? 'Le coffre... grogne. Tu peux t\'enfuir ou tenter ta chance.'
-      : (MIMIC.ladder[enc.rung - 1]?.flavor || '');
-    const nextRung = MIMIC.ladder[enc.rung]; // the one we'd climb to
-    const biteP = nextRung ? MIMIC.biteCurve[enc.rung] : 1;
-    const biteHint = nextRung ? `${Math.round(biteP * 100)}% morsure` : 'sommet atteint';
-    haul.innerHTML = enc.rung > 0
-      ? `Verrouillé : <b>${MIMIC.ladder[enc.rung - 1].label}</b> (×${MIMIC.ladder[enc.rung - 1].goldMult} or, +${MIMIC.ladder[enc.rung - 1].orbBonus} orbes)<br><span style="opacity:0.7;font-size:11px">Tenter : ${biteHint}</span>`
-      : `Aucun butin pour le moment.<br><span style="opacity:0.7;font-size:11px">Tenter le 1er palier : ${biteHint}</span>`;
-    takeBtn.classList.remove('hidden');
-    riskBtn.classList.remove('hidden');
-    closeBtn.classList.add('hidden');
-    takeBtn.textContent = enc.rung > 0 ? 'Prendre & partir' : 'S\'enfuir';
-    takeBtn.disabled = false;
-    riskBtn.disabled = !nextRung;
-    riskBtn.textContent = nextRung ? `Risquer (${MIMIC.ladder[enc.rung].label})` : 'Au sommet';
-  } else if (enc.state === 'won') {
-    const rung = MIMIC.ladder[enc.rung - 1];
-    flavor.textContent = `🎉 ${rung.label} verrouillé !`;
-    haul.innerHTML = `<div style="color:#ffd060;font-weight:700">+${enc.reward.gold.toLocaleString('fr-FR')} 💰</div>
-      <div style="font-size:11px;color:#ffc888">+${enc.reward.orbs.length} orbes &middot; objet ${enc.reward.item.rarity}</div>`;
-    takeBtn.classList.add('hidden');
-    riskBtn.classList.add('hidden');
-    closeBtn.classList.remove('hidden');
-    // Side effects on win
-    const center = getChestCenter();
+  if (action === 'close') {
+    UI.hideMimicEncounter();
+    return;
+  }
+  advanceMimic(enc, action);
+  UI.refreshMimic();
+  if (enc.state === 'won') {
+    const center = UI.getChestCenter();
     spawnParticles('#ffd060', center.x, center.y, 40);
     soundDrop(enc.reward.item.rarity);
     soundCoin();
-    pushRecentLoot(enc.reward.item, 'fresh');
     addToInventory(enc.reward.item);
+    UI.showToast(enc.golden ? '✨' : '🎁', enc.golden ? 'Mimic doré battu !' : 'Mimic battu',
+      `+${enc.reward.gold.toLocaleString('fr-FR')} 💰 · +${enc.reward.orbs.length} orbes`);
   } else if (enc.state === 'bitten') {
-    flavor.textContent = '💀 Le mimic claque la mâchoire...';
-    haul.innerHTML = `<div class="mimic-bite">${enc.lastBite.label} — ${enc.lastBite.desc}</div>` +
-      (enc.goldLost ? `<div style="font-size:11px;color:#ff8080">-${enc.goldLost.toLocaleString('fr-FR')} 💰</div>` : '');
-    takeBtn.classList.add('hidden');
-    riskBtn.classList.add('hidden');
-    closeBtn.classList.remove('hidden');
-    const center = getChestCenter();
+    const center = UI.getChestCenter();
     spawnParticles('#ff3030', center.x, center.y, 30);
     screenShake(8, 300);
     soundLose();
   }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  const takeBtn = document.getElementById('btn-mimic-take');
-  const riskBtn = document.getElementById('btn-mimic-risk');
-  const closeBtn = document.getElementById('btn-mimic-close');
-  if (takeBtn) takeBtn.addEventListener('click', () => {
-    if (!_currentMimic) return;
-    soundClick();
-    advanceMimic(_currentMimic, 'take');
-    renderMimicState();
-  });
-  if (riskBtn) riskBtn.addEventListener('click', () => {
-    if (!_currentMimic) return;
-    soundClick();
-    advanceMimic(_currentMimic, 'risk');
-    renderMimicState();
-  });
-  if (closeBtn) closeBtn.addEventListener('click', () => {
-    soundClick();
-    hideMimicPopup();
-  });
-});
-
-// === Recent loot strip (multi-open recap) ===
-// Ephemeral list of the last N dropped items with their disposition.
-// Lets the player compare what they just looted vs what they're wearing
-// without scrolling through inventory — especially useful when opening
-// many chests in sequence.
-const _recentLoot = [];
-const RECENT_LOOT_MAX = 8;
-const DISPO_BADGE = { fresh: '📥', sold: '💰', salvaged: '💎', equipped: '⚔', kept: '✅' };
-
-function pushRecentLoot(item, disposition) {
-  _recentLoot.unshift({ item, disposition, ts: Date.now() });
-  if (_recentLoot.length > RECENT_LOOT_MAX) _recentLoot.pop();
-  renderRecentLoot();
-}
-
-function setRecentLootDisposition(itemId, disposition) {
-  const entry = _recentLoot.find(e => e.item.id === itemId);
-  if (entry) { entry.disposition = disposition; renderRecentLoot(); }
-}
-
-function renderRecentLoot() {
-  const wrap = document.getElementById('recent-loot');
-  const list = document.getElementById('recent-loot-list');
-  if (!wrap || !list) return;
-  if (_recentLoot.length === 0) {
-    wrap.classList.add('hidden');
-    list.innerHTML = '';
-    return;
-  }
-  wrap.classList.remove('hidden');
-  // Import dynamically to avoid circular: we need itemIconHTML + power compute
-  // (already available via the ui.js import at top of file)
-  const cards = _recentLoot.map(entry => {
-    const item = entry.item;
-    const equipped = state.equipment[item.slot];
-    let powerDeltaHTML = '';
-    if (equipped && equipped.id !== item.id) {
-      const pa = Math.round(itemPowerContribution(item));
-      const pb = Math.round(itemPowerContribution(equipped));
-      const pd = pa - pb;
-      const cls = pd > 0 ? 'better' : pd < 0 ? 'worse' : 'same';
-      const arrow = pd > 0 ? '▲' : pd < 0 ? '▼' : '=';
-      const sign = pd > 0 ? '+' : '';
-      powerDeltaHTML = `<div class="recent-loot-delta ${cls}">${arrow} ${sign}${pd}</div>`;
-    } else if (!equipped) {
-      powerDeltaHTML = `<div class="recent-loot-delta better">▲ slot vide</div>`;
-    }
-    const rCls = RARITY_BY_ID[item.rarity].cssClass;
-    const badge = DISPO_BADGE[entry.disposition] || '';
-    return `<div class="recent-loot-card rt-${rCls}" data-item-id="${item.id}" data-disposition="${entry.disposition}">
-      <div class="recent-loot-thumb">${itemIconHTML(item)}</div>
-      <div class="recent-loot-name rt-${rCls}">${item.name}</div>
-      ${powerDeltaHTML}
-      <div class="recent-loot-badge" title="${entry.disposition}">${badge}</div>
-    </div>`;
-  });
-  list.innerHTML = cards.join('');
-}
-
-// Click on a recent-loot card → equip it if it's still in inventory.
-document.addEventListener('DOMContentLoaded', () => {
-  const list = document.getElementById('recent-loot-list');
-  if (list) {
-    list.addEventListener('click', (e) => {
-      const card = e.target.closest('.recent-loot-card');
-      if (!card) return;
-      const item = findItem(card.dataset.itemId);
-      if (!item) return;  // already gone (sold/salvaged)
-      equipItem(item);
-      setRecentLootDisposition(item.id, 'equipped');
-      soundClick();
-    });
-  }
-  const clearBtn = document.getElementById('btn-clear-recent');
-  if (clearBtn) clearBtn.addEventListener('click', () => {
-    _recentLoot.length = 0;
-    renderRecentLoot();
-  });
-});
-
-// Re-render the recent-loot strip whenever state changes (power deltas
-// depend on what's equipped, which can change).
-subscribe(renderRecentLoot);
-
-// === Combat animation helpers ===
-// Add a CSS animation class for a brief duration, then remove it so the
-// animation can re-trigger on the next hit. CSS handles the actual motion;
-// JS just toggles the class.
-function triggerCombatAnim(elementId, className, durationMs) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  el.classList.remove(className);
-  // Force reflow so the animation restarts even if it's already in progress.
-  void el.offsetWidth;
-  el.classList.add(className);
-  setTimeout(() => el.classList.remove(className), durationMs);
-}
-
-function triggerMonsterCardPulse() {
-  const card = document.getElementById('monster-card');
-  if (!card || !card.classList.contains('combat')) return;
-  card.classList.remove('dmg-pulse');
-  void card.offsetWidth;
-  card.classList.add('dmg-pulse');
-  setTimeout(() => card.classList.remove('dmg-pulse'), 350);
-}
-
-function triggerPlayerCardPulse() {
-  const el = document.getElementsByClassName('character-avatar')[0];
-  if (!el) return;
-  el.classList.remove('dmg-pulse');
-  void el.offsetWidth;
-  el.classList.add('dmg-pulse');
-  setTimeout(() => el.classList.remove('dmg-pulse'), 350);
-}
-
-// Spawn a glowing slash streak between the player avatar and the monster.
-function spawnSlashFromPlayerToMonster() {
-  const playerEl  = document.getElementsByClassName('character-avatar')[0];
-  const monsterEl = document.getElementById('monster-emoji');
-  if (!playerEl || !monsterEl) return;
-  const p = playerEl.getBoundingClientRect();
-  const m = monsterEl.getBoundingClientRect();
-  const x1 = p.left + p.width / 2;
-  const y1 = p.top  + p.height / 2;
-  const x2 = m.left + m.width / 2;
-  const y2 = m.top  + m.height / 2;
-  const dx = x2 - x1, dy = y2 - y1;
-  const len = Math.hypot(dx, dy);
-  const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-  const slash = document.createElement('div');
-  slash.className = 'combat-slash';
-  slash.style.left  = x1 + 'px';
-  slash.style.top   = (y1 - 3) + 'px';
-  slash.style.width = len + 'px';
-  slash.style.setProperty('--slash-rot', angle + 'deg');
-  document.body.appendChild(slash);
-  setTimeout(() => slash.remove(), 350);
-}
-
-// === Mobile Action Sheet ===
-// On touch, replaces modifier-key interactions (Shift/Ctrl/Alt+click) with a
-// bottom sheet that surfaces all item actions in large, tappable buttons.
-
-let _sheetItem = null;
-let _sheetSlot = null; // non-null when opened from an equipped slot
-
-function showItemActionSheet(item, fromSlot = null) {
-  _sheetItem = item;
-  _sheetSlot = fromSlot;
-
-  const sheet = document.getElementById('action-sheet');
-  sheet.querySelector('.action-sheet-item-info').innerHTML = itemDetailsHTML(item);
-
-  const equipBtn = document.getElementById('action-equip');
-  equipBtn.textContent = fromSlot ? 'Déséquiper' : 'Équiper';
-
-  const lockBtn = document.getElementById('action-lock');
-  lockBtn.textContent = item.locked ? '🔓 Déverrouiller' : '🔒 Verrouiller';
-
-  const sellBtn    = document.getElementById('action-sell');
-  const salvageBtn = document.getElementById('action-salvage');
-  sellBtn.disabled    = !!item.locked;
-  salvageBtn.disabled = !!item.locked;
-
-  // Hide equip button for accessories that aren't directly equippable via the sheet
-  // (all item types are equippable, so show it always)
-  equipBtn.style.display = '';
-
-  sheet.classList.remove('hidden');
-}
-
-function hideActionSheet() {
-  document.getElementById('action-sheet').classList.add('hidden');
-  _sheetItem = null;
-  _sheetSlot = null;
-}
-
-document.getElementById('action-sheet').querySelector('.action-sheet-backdrop')
-  .addEventListener('click', hideActionSheet);
-
-document.getElementById('action-cancel').addEventListener('click', hideActionSheet);
-
-document.getElementById('action-equip').addEventListener('click', () => {
-  if (!_sheetItem) return;
-  if (_sheetSlot) {
-    unequipSlot(_sheetSlot);
-  } else {
-    equipItem(_sheetItem);
-    soundClick();
-  }
-  hideActionSheet();
-});
-
-document.getElementById('action-sell').addEventListener('click', () => {
-  if (!_sheetItem) return;
-  const earned = sellItem(_sheetItem);
-  if (earned > 0) soundCoin();
-  hideActionSheet();
-});
-
-document.getElementById('action-salvage').addEventListener('click', () => {
-  if (!_sheetItem) return;
-  const qty = salvageItem(_sheetItem);
-  if (qty > 0) soundForge();
-  hideActionSheet();
-});
-
-document.getElementById('action-lock').addEventListener('click', () => {
-  if (!_sheetItem) return;
-  const locked = toggleLockItem(_sheetItem.id);
-  soundClick();
-  document.getElementById('action-lock').textContent = locked ? '🔓 Déverrouiller' : '🔒 Verrouiller';
-  document.getElementById('action-sell').disabled    = locked;
-  document.getElementById('action-salvage').disabled = locked;
-  // Refresh item info display
-  const fresh = findItem(_sheetItem.id);
-  if (fresh) {
-    _sheetItem = fresh;
-    document.querySelector('#action-sheet .action-sheet-item-info').innerHTML = itemDetailsHTML(fresh);
-  }
-});
-
-// === Open chest ===
-
-const btnOpen = document.getElementById('btn-open');
-btnOpen.addEventListener('click', () => {
-  if (!canOpen()) return;
-  soundChestOpen();
-  const result = openChest();
-  if (!result) return;
-  // Mimic encounter — hand off to the dedicated modal flow.
-  if (result.mimic) {
-    startCooldownAnim();
-    setOpenButtonEnabled(false);
-    btnOpen.dataset.cooling = '1';
-    setTimeout(() => {
-      btnOpen.dataset.cooling = '0';
-      setOpenButtonEnabled(true);
-    }, CHEST_OPEN_COOLDOWN_MS);
-    showMimicPopup(result.mimic);
-    return;
-  }
-  const { item, orbs } = result;
-  flashRarity(item.rarity);
-  startCooldownAnim();
-  setOpenButtonEnabled(false);
-  btnOpen.dataset.cooling = '1';
-  setTimeout(() => {
-    btnOpen.dataset.cooling = '0';
-    setOpenButtonEnabled(true);
-  }, CHEST_OPEN_COOLDOWN_MS);
-
-  // Drop sound + particle effects per rarity
-  soundDrop(item.rarity);
-  const rcolor = RARITY_BY_ID[item.rarity].color;
-  const center = getChestCenter();
-  const isRarePlus = ['rare', 'epic', 'legendary', 'ancestral'].includes(item.rarity);
-  if (isRarePlus) {
-    const particleCount = item.rarity === 'ancestral' ? 60
-                       : item.rarity === 'legendary' ? 40
-                       : item.rarity === 'epic' ? 24
-                       : 16;
-    spawnParticles(rcolor, center.x, center.y, particleCount);
-    if (item.rarity === 'legendary' || item.rarity === 'ancestral') {
-      screenShake(item.rarity === 'ancestral' ? 10 : 6, 350);
-    }
-  }
-
-  // Orb drops: floating text + small toast for each
-  if (orbs && orbs.length > 0) {
-    let offset = 0;
-    for (const orbId of orbs) {
-      const def = CURRENCY_BY_ID[orbId];
-      if (!def) continue;
-      floatingText(`+1 ${def.emoji}`, center.x, center.y - 40 - offset, def.color);
-      offset += 22;
-      spawnParticles(def.color, center.x, center.y, 12);
-    }
-    soundCoin();
-  }
-
-  // Auto-action?
-  const action = autoActionFor(item.rarity);
-  if (action === 'sell') {
-    sellDrop(item);
-    soundCoin();
-    pushRecentLoot(item, 'sold');
-    return;
-  }
-  if (action === 'salvage') {
-    salvageDrop(item);
-    soundForge();
-    pushRecentLoot(item, 'salvaged');
-    return;
-  }
-  pushRecentLoot(item, 'fresh');
-  showDropPopup(item);
-  // Phase 4B — celebratory particles bursting from the popup item frame.
-  // Scale intensity by rarity so the "wow" matches the loot.
-  requestAnimationFrame(() => {
-    const frame = document.querySelector('.drop-item-frame');
-    if (!frame) return;
-    const r = frame.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const cy = r.top  + r.height / 2;
-    const count = item.rarity === 'ancestral' ? 50
-                : item.rarity === 'legendary' ? 32
-                : item.rarity === 'epic' ? 18
-                : item.rarity === 'rare' ? 10
-                : item.rarity === 'magic' ? 5
-                : 0;
-    if (count > 0) {
-      spawnParticles(RARITY_BY_ID[item.rarity].color, cx, cy, count);
-      // Element overlay particles (a few sparks in the element's color)
-      if (item.element && item.element.id !== 'none') {
-        const elemColor = {
-          fire: '#ff7a30', frost: '#7adcff', poison: '#5ad858',
-          lightning: '#ffe14a', void: '#a058ff',
-        }[item.element.id];
-        if (elemColor) spawnParticles(elemColor, cx, cy, Math.max(6, count / 3));
-      }
-    }
-  });
-});
-
-// === Drop popup actions ===
-
-function resumeLoopIfActive() {
-  if (state.combat.loopMode && state.ui.leftTab === 'dungeon') {
-    setTimeout(() => {
-      if (state.combat.loopMode && !getCurrentDrop()) {
-        document.getElementById('btn-fight').click();
-      }
-    }, 250);
-  }
-}
-
-document.getElementById('btn-equip').addEventListener('click', () => {
-  const drop = getCurrentDrop();
-  if (!drop) return;
-  equipItem(drop);
-  setRecentLootDisposition(drop.id, 'equipped');
-  soundClick();
-  hideDropPopup();
-  resumeLoopIfActive();
-});
-
-document.getElementById('btn-keep').addEventListener('click', () => {
-  const drop = getCurrentDrop();
-  if (!drop) return;
-  addToInventory(drop);
-  setRecentLootDisposition(drop.id, 'kept');
-  soundClick();
-  hideDropPopup();
-  resumeLoopIfActive();
-});
-
-document.getElementById('btn-sell').addEventListener('click', () => {
-  const drop = getCurrentDrop();
-  if (!drop) return;
-  sellDrop(drop);
-  setRecentLootDisposition(drop.id, 'sold');
-  soundCoin();
-  hideDropPopup();
-  resumeLoopIfActive();
-});
-
-// === Upgrade chest ===
-
-document.getElementById('btn-upgrade').addEventListener('click', () => {
-  if (upgradeChest()) {
-    soundUpgrade();
-    const c = getChestCenter();
-    spawnParticles('#f5c842', c.x, c.y, 30);
-  }
-});
-
-// === Tabs ===
-
-document.querySelectorAll('.tab').forEach(t => {
-  t.addEventListener('click', () => setActiveTab(t.dataset.tab));
-});
-
-// === Dungeon: floor selection ===
-
-document.getElementById('btn-floor-prev').addEventListener('click', () => {
-  setCurrentFloor(state.combat.currentFloor - 1);
-});
-document.getElementById('btn-floor-next').addEventListener('click', () => {
-  setCurrentFloor(state.combat.currentFloor + 1);
-});
-
-// === Dungeon: fight ===
-
-document.getElementById('btn-loop').addEventListener('click', () => {
-  const floor = state.combat.currentFloor;
-  const beaten = floor < state.combat.highestUnlocked;
-  if (!beaten) return;
-  state.combat.loopMode = !state.combat.loopMode;
-  notify();
-  // Auto-trigger first fight if turning ON
-  if (state.combat.loopMode) {
-    setActiveTab('dungeon');
-    setTimeout(() => document.getElementById('btn-fight').click(), 200);
-  }
-});
-
-// Stop the loop when changing floor manually
-document.getElementById('btn-floor-prev').addEventListener('click', () => {
-  if (state.combat.loopMode) { state.combat.loopMode = false; notify(); }
-});
-document.getElementById('btn-floor-next').addEventListener('click', () => {
-  if (state.combat.loopMode) { state.combat.loopMode = false; notify(); }
-});
-
-document.getElementById('btn-fight').addEventListener('click', async () => {
-  const fightBtn = document.getElementById('btn-fight');
-  if (fightBtn.disabled) return;
-  fightBtn.disabled = true;
-
-  const { result, monster, droppedItem, advanced, milestone } = attemptCurrentFloor();
-
-  // Animate combat HP bars + damage numbers, then apply consequences.
-  const playerMaxHp = result.playerMaxHp;
-  const monsterMaxHp = monster.hp;
-  showCombatBars(playerMaxHp, monsterMaxHp);
-
-  // Tween events at variable speed; cap total animation around 1.5s.
-  // Fast combat setting: short delay, no slow-down.
-  const events = result.events || [];
-  const fast = !!state.settings?.fastCombat;
-  const perEvent = fast ? 12 : Math.max(50, Math.min(160, 1400 / Math.max(1, events.length)));
-
-  for (const ev of events) {
-    await sleep(perEvent);
-    if (ev.type === 'player_hit') {
-      updateMonsterHp(ev.monsterHp, monsterMaxHp);
-      const c = getMonsterEmojiCenter();
-      // Player swings: lunge animation on the avatar
-      triggerCombatAnim('character-avatar', 'attacking', 240);
-      if (ev.blocked) {
-        floatingText('🛡 BLOQUÉ', c.x, c.y, '#5a8af0');
-        soundClick();
-      } else {
-        // Monster recoils + flashes red; crit punches harder + screen shake
-        triggerCombatAnim('monster-emoji', ev.isCrit ? 'hit-crit' : 'hit', ev.isCrit ? 450 : 320);
-        triggerMonsterCardPulse();
-        if (ev.dmg > 0) spawnSlashFromPlayerToMonster();
-        floatingDamage(ev.dmg, c.x, c.y, ev.isCrit ? 'crit' : 'normal');
-        ev.isCrit ? soundCrit() : soundHit();
-        if (ev.isCrit) screenShake(3, 120);
-      }
-      // Show skill multiplier icons next to the damage number
-      if (ev.mults && ev.mults.length > 0) {
-        const txt = ev.mults.map(m => m.emoji).join(' ');
-        floatingText(txt, c.x + 30, c.y - 20, '#ffe14a');
-      }
-    } else if (ev.type === 'monster_hit') {
-      updatePlayerHp(ev.playerHp, playerMaxHp);
-      const c = getCharacterAvatarCenter();
-      // Player flinches + red flash on avatar
-      triggerCombatAnim('character-avatar', 'took-hit', 280);
-      triggerPlayerCardPulse();
-      floatingDamage(ev.dmg, c.x, c.y, 'player-took');
-      soundHit();
-    } else if (ev.type === 'skill_heal') {
-      updatePlayerHp(ev.playerHp, playerMaxHp);
-      const c = getCharacterAvatarCenter();
-      floatingDamage(ev.amount, c.x, c.y, 'heal');
-      floatingText(`${ev.emoji} Soin`, c.x, c.y - 40, '#6acc6a');
-      soundUpgrade();
-      spawnParticles('#6acc6a', c.x, c.y, 12);
-    } else if (ev.type === 'skill_dodge') {
-      const c = getCharacterAvatarCenter();
-      floatingText('💨 ESQUIVE', c.x, c.y, '#5a8af0');
-      soundClick();
-    } else if (ev.type === 'skill_reflect') {
-      updateMonsterHp(ev.monsterHp, monsterMaxHp);
-      const c = getMonsterEmojiCenter();
-      floatingDamage(ev.amount, c.x, c.y, 'normal');
-      floatingText(`${ev.emoji} Épines`, c.x, c.y - 40, '#5acc6a');
-      soundHit();
-    } else if (ev.type === 'set_drain') {
-      updatePlayerHp(ev.playerHp, playerMaxHp);
-      const c = getCharacterAvatarCenter();
-      floatingText(`${ev.emoji} +${ev.amount}`, c.x, c.y - 30, '#5acc6a');
-    } else if (ev.type === 'set_heal') {
-      updatePlayerHp(ev.playerHp, playerMaxHp);
-      const c = getCharacterAvatarCenter();
-      floatingText(`${ev.emoji} +${ev.amount}`, c.x, c.y - 30, '#7adc4a');
-    } else if (ev.type === 'legendary_burn') {
-      updateMonsterHp(ev.monsterHp, monsterMaxHp);
-      const c = getMonsterEmojiCenter();
-      floatingDamage(ev.amount, c.x, c.y, 'normal');
-      floatingText(`${ev.emoji} Brûlure`, c.x, c.y - 40, '#ff6a30');
-    } else if (ev.type === 'set_freeze') {
-      const c = getMonsterEmojiCenter();
-      floatingText(`${ev.emoji} GEL`, c.x, c.y, '#5ad8e8');
-      soundClick();
-    } else if (ev.type === 'set_dodge') {
-      const c = getCharacterAvatarCenter();
-      floatingText(`${ev.emoji} BLOC`, c.x, c.y, '#ffaa00');
-      soundClick();
-    } else if (ev.type === 'set_rebirth') {
-      updatePlayerHp(ev.playerHp, playerMaxHp);
-      const c = getCharacterAvatarCenter();
-      floatingText(`${ev.emoji} RENAISSANCE`, c.x, c.y - 40, '#ff3000');
-      spawnParticles('#ff3000', c.x, c.y, 25);
-      soundWin();
-    } else if (ev.type === 'boss_regen') {
-      updateMonsterHp(ev.monsterHp, monsterMaxHp);
-      const c = getMonsterEmojiCenter();
-      floatingText(`🌿 +${ev.amount}`, c.x, c.y - 30, '#6acc6a');
-    } else if (ev.type === 'boss_burn') {
-      updatePlayerHp(ev.playerHp, playerMaxHp);
-      const c = getCharacterAvatarCenter();
-      floatingDamage(ev.amount, c.x, c.y, 'player-took');
-      floatingText('🔥 Brûlure', c.x, c.y - 40, '#ff7a1a');
-    } else if (ev.type === 'boss_shield') {
-      const c = getMonsterEmojiCenter();
-      floatingText('🛡 BOUCLIER', c.x, c.y, '#5a8af0');
-    }
-  }
-
-  await sleep(300);
-
-  appendCombatLog(result.log, result.won ? 'win' : 'lose');
-  if (result.won) {
-    soundWin();
-    flashRarity(monster.isBoss ? 'legendary' : 'magic');
-    const c = getMonsterEmojiCenter();
-    spawnParticles(monster.isBoss ? '#ff7a1a' : '#ffe14a', c.x, c.y, monster.isBoss ? 40 : 20);
-    floatingText(`+${monster.goldReward} 💰`, c.x, c.y - 30, '#f5c842');
-    if (monster.keyDrop) {
-      floatingText(`+${monster.keyDrop} 🗝`, c.x + 40, c.y - 30, '#ffd060');
-      spawnParticles('#ffd060', c.x + 40, c.y, 10);
-      soundCoin();
-    }
-    if (monster.isBoss) screenShake(8, 350);
-  } else {
-    soundLose();
-    screenShake(10, 400);
-  }
-
-  if (result.won && monster.keyDrop) {
-    appendCombatLog([`🗝 +${monster.keyDrop} clé${monster.keyDrop > 1 ? 's' : ''}`], 'reward');
-  }
-  if (advanced) appendCombatLog([`🆙 Nouvel étage débloqué : ${state.combat.highestUnlocked}`], 'reward');
-
-  if (milestone) {
-    const orbBits = Object.entries(milestone.reward.orbs)
-      .filter(([_, q]) => q > 0)
-      .map(([id, q]) => `${q} ${CURRENCY_BY_ID[id].emoji}`)
-      .join(' · ');
-    appendCombatLog([
-      `🎉 PALIER ÉTAGE ${milestone.floor} ATTEINT (niv ${milestone.level})`,
-      `+${milestone.reward.gold.toLocaleString('fr-FR')} 💰${orbBits ? ' · ' + orbBits : ''}`,
-    ], 'reward');
-    showToast('🎉', `Palier étage ${milestone.floor} !`, `+${milestone.reward.gold.toLocaleString('fr-FR')} 💰  ${orbBits}`);
-    soundAchievement();
-    soundUpgrade();
-    screenShake(14, 600);
-    spawnParticles('#ffe14a', window.innerWidth / 2, window.innerHeight / 2, 60, { minSpeed: 150, maxSpeed: 400, size: 10 });
-    floatingText(`PALIER ${milestone.level}`, window.innerWidth / 2, window.innerHeight / 3, '#f5c842');
-  }
-
-  if (droppedItem) {
-    appendCombatLog([`🎁 Drop : ${droppedItem.name}`], 'reward');
-    soundDrop(droppedItem.rarity);
-    const action = autoActionFor(droppedItem.rarity);
-    if (action === 'sell') {
-      sellDrop(droppedItem);
-      soundCoin();
-    } else if (action === 'salvage') {
-      salvageDrop(droppedItem);
-      soundForge();
-    } else {
-      showDropPopup(droppedItem);
-    }
-  }
-
-  await sleep(400);
-  hideCombatBars();
-  fightBtn.disabled = false;
-
-  // Loop mode : re-trigger fight if still in beaten-floor mode and player survived
-  if (state.combat.loopMode) {
-    const floor = state.combat.currentFloor;
-    const beaten = floor < state.combat.highestUnlocked;
-    if (!beaten || !result.won) {
-      // Lost the fight, or progressed onto a new highest floor → stop the loop
-      state.combat.loopMode = false;
-      notify();
-    } else if (state.ui.leftTab === 'dungeon') {
-      // Schedule next fight (let drop popup, if any, block us)
-      setTimeout(() => {
-        if (state.combat.loopMode && !getCurrentDrop()) {
-          document.getElementById('btn-fight').click();
-        }
-      }, 350);
-    }
-  }
-});
-
-function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
-}
-
-// === Auto-sell toggle/unlock (event delegation) ===
-
-document.getElementById('autosell-grid').addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-rarity]');
-  if (!btn) return;
-  const rarity = btn.dataset.rarity;
-  if (btn.dataset.action === 'unlock') {
-    unlockAutoSell(rarity);
-  } else if (btn.dataset.action === 'toggle') {
-    toggleAutoSell(rarity);
-  } else if (btn.dataset.action === 'mode') {
-    const cur = state.autoSell[rarity]?.mode || 'sell';
-    setAutoMode(rarity, cur === 'sell' ? 'salvage' : 'sell');
-  }
-});
-
-// === Inventory: click on item ===
-// Desktop: click=equip, Shift+click=sell, Ctrl+click=salvage, Alt+click=lock
-// Mobile (touch): click opens action sheet with all options
-
-document.getElementById('inventory-grid').addEventListener('click', (e) => {
-  const icon = e.target.closest('[data-item-id]');
-  if (!icon) return;
-  const item = findItem(icon.dataset.itemId);
-  if (!item) return;
-
-  // On touch devices, open action sheet for all interactions
-  if (isTouchDevice() && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    showItemActionSheet(item);
-    return;
-  }
-
-  // Desktop modifier-key interactions
-  if (e.altKey) {
-    const locked = toggleLockItem(item.id);
-    soundClick();
-    const r = icon.getBoundingClientRect();
-    floatingText(locked ? '🔒 Verrouillé' : '🔓 Déverrouillé', r.left + r.width / 2, r.top, '#ffe14a');
-    return;
-  }
-  if (e.ctrlKey || e.metaKey) {
-    const qty = salvageItem(item);
-    if (qty > 0) {
-      soundForge();
-      const r = icon.getBoundingClientRect();
-      floatingText(`+${qty} 💎`, r.left + r.width / 2, r.top, '#a0e0ff');
-    } else if (item.locked) {
-      const r = icon.getBoundingClientRect();
-      floatingText('🔒 Verrouillé', r.left + r.width / 2, r.top, '#ff7a1a');
-    }
-  } else if (e.shiftKey) {
-    const earned = sellItem(item);
-    if (earned > 0) soundCoin();
-    else if (item.locked) {
-      const r = icon.getBoundingClientRect();
-      floatingText('🔒 Verrouillé', r.left + r.width / 2, r.top, '#ff7a1a');
-    }
-  } else {
-    equipItem(item);
-    soundClick();
-  }
-});
-
-// === Equipment: click on equipped slot ===
-// Desktop: click = unequip
-// Mobile: click = action sheet (shows item details + unequip/sell/salvage buttons)
-
-document.getElementById('equipment-grid').addEventListener('click', (e) => {
-  const slotEl = e.target.closest('.equipment-slot');
-  if (!slotEl) return;
-  const slotId = slotEl.dataset.slotId;
-  if (!slotId) return;
-  const equipped = state.equipment[slotId];
-  if (!equipped) return;
-  if (isTouchDevice()) {
-    showItemActionSheet(equipped, slotId);
-  } else {
-    unequipSlot(slotId);
-  }
-});
-
-// === Inventory filter + bulk sell ===
-
-document.getElementById('btn-sell-filter').addEventListener('click', () => {
-  const filterValue = document.getElementById('inv-filter').value;
-  let raritySet;
-  if (filterValue === 'all') {
-    raritySet = new Set(RARITIES.map(r => r.id));
-  } else {
-    // sell <= selected rarity (inclusive)
-    const maxIdx = RARITIES.findIndex(r => r.id === filterValue);
-    raritySet = new Set(RARITIES.slice(0, maxIdx + 1).map(r => r.id));
-  }
-  // Don't bulk-sell ancestrals by accident
-  if (filterValue !== 'ancestral' && filterValue !== 'all') {
-    raritySet.delete('ancestral');
-  }
-  // Confirm before selling epic+
-  if (state.settings?.confirmDestructiveSell && (raritySet.has('epic') || raritySet.has('legendary') || raritySet.has('ancestral'))) {
-    const ok = confirm('Vendre en masse des objets épiques+ ? (verrouille les pépites précieuses avec Alt+clic d\'abord)');
-    if (!ok) return;
-  }
-  const earned = sellAllOfRarities(raritySet);
-  if (earned > 0) {
-    soundCoin();
-    const btn = document.getElementById('btn-sell-filter');
-    const old = btn.textContent;
-    btn.textContent = `+${earned} 💰`;
-    setTimeout(() => { btn.textContent = old; }, 900);
-  }
-});
-
-document.getElementById('btn-salvage-filter').addEventListener('click', () => {
-  const filterValue = document.getElementById('inv-filter').value;
-  let raritySet;
-  if (filterValue === 'all') {
-    raritySet = new Set(RARITIES.map(r => r.id));
-  } else {
-    const maxIdx = RARITIES.findIndex(r => r.id === filterValue);
-    raritySet = new Set(RARITIES.slice(0, maxIdx + 1).map(r => r.id));
-  }
-  // Never bulk-salvage ancestrals by accident
-  if (filterValue !== 'ancestral' && filterValue !== 'all') {
-    raritySet.delete('ancestral');
-  }
-  const { totalShards } = salvageAllOfRarities(raritySet);
-  if (totalShards > 0) {
-    soundForge();
-    const btn = document.getElementById('btn-salvage-filter');
-    const old = btn.textContent;
-    btn.textContent = `+${totalShards} 💎`;
-    setTimeout(() => { btn.textContent = old; }, 900);
-  }
-});
-
-// === Tooltip on hover (desktop only — mobile uses action sheet) ===
-
-document.body.addEventListener('mousemove', (e) => {
-  // Skip on touch/coarse-pointer devices; action sheet handles item info there
-  if (isTouchDevice()) return;
-  const icon = e.target.closest('[data-item-id]');
-  if (icon) {
-    const item = findItem(icon.dataset.itemId);
-    if (item) {
-      showTooltip(item, e.clientX, e.clientY);
-      return;
-    }
-  }
-  // Equipment slot?
-  const slotEl = e.target.closest('.equipment-slot');
-  if (slotEl && slotEl.dataset.slotId && state.equipment[slotEl.dataset.slotId]) {
-    showTooltip(state.equipment[slotEl.dataset.slotId], e.clientX, e.clientY);
-    return;
-  }
-  hideTooltip();
-});
-
-document.body.addEventListener('mouseleave', hideTooltip);
-
-// === Modals: achievements + forge ===
-
-document.getElementById('btn-achievements').addEventListener('click', () => {
-  showModal('achievements-modal');
-});
-
-document.getElementById('btn-stats-breakdown').addEventListener('click', () => {
-  showModal('stats-breakdown-modal');
-});
-
-document.getElementById('btn-talents').addEventListener('click', () => {
-  showModal('talents-modal');
-});
-
-document.getElementById('btn-codex').addEventListener('click', () => {
-  showModal('codex-modal');
-});
-
-document.getElementById('btn-skills').addEventListener('click', () => {
-  showModal('skills-modal');
-});
-
-document.getElementById('btn-bounties').addEventListener('click', () => {
-  refreshBoardIfEmpty();
-  showModal('bounties-modal');
-});
-
-document.getElementById('bounties-list').addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-bounty-reroll]');
-  if (!btn || btn.disabled) return;
-  if (rerollBounty(btn.dataset.bountyReroll)) {
-    soundClick();
-  }
-});
-
-document.getElementById('talents-grid').addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-talent]');
-  if (!btn || btn.disabled) return;
-  if (upgradeTalent(btn.dataset.talent)) {
-    soundClick();
-    soundUpgrade();
-  }
-});
-
-document.getElementById('btn-forge').addEventListener('click', () => {
-  showModal('forge-modal');
-});
-
-document.querySelectorAll('[data-close]').forEach(btn => {
-  btn.addEventListener('click', () => hideModal(btn.dataset.close));
-});
-
-// Close modal by clicking the dark backdrop
-document.querySelectorAll('.modal').forEach(m => {
-  m.addEventListener('click', (e) => {
-    if (e.target === m) hideModal(m.id);
-  });
-});
-
-// Forge: select item from forge inventory
-document.getElementById('forge-inventory').addEventListener('click', (e) => {
-  const icon = e.target.closest('[data-item-id]');
-  if (!icon) return;
-  setForgeSelected(icon.dataset.itemId);
-});
-
-// Forge: action button delegation
-document.getElementById('forge-actions').addEventListener('click', (e) => {
-  // Cancel button from master-craft mode
-  if (e.target.closest('[data-forge-action="cancel-master"]')) {
-    setForgeMode('actions');
-    soundClick();
-    return;
-  }
-  // Master-craft affix selection
-  const mcRow = e.target.closest('.mc-row[data-affix-id]');
-  if (mcRow) {
-    if (mcRow.classList.contains('disabled')) return;
-    const id = getForgeSelectedId();
-    const item = state.inventory.find(i => i.id === id);
-    if (!item) return;
-    if (applyMasterCraft(item, mcRow.dataset.affixId)) {
-      soundForge();
-      soundDrop(item.rarity);
-      setForgeMode('actions');
-    }
-    return;
-  }
-  // Normal forge action button
-  const btn = e.target.closest('button[data-forge-action]');
-  if (!btn) return;
-  const actionId = btn.dataset.forgeAction;
-  const action = FORGE_ACTIONS.find(a => a.id === actionId);
-  if (!action) return;
-  // Master craft button opens the sub-mode instead of applying directly
-  if (action.interactive && action.id === 'maitre') {
-    if (action.can(state.inventory.find(i => i.id === getForgeSelectedId()))) {
-      setForgeMode('master-craft');
-      soundClick();
-    }
-    return;
-  }
-  const id = getForgeSelectedId();
-  const item = state.inventory.find(i => i.id === id);
-  if (!item) return;
-  if (action.apply && action.apply(item)) {
-    soundForge();
-    if (action.id === 'transmutation' || action.id === 'regal') soundDrop(item.rarity);
-  }
-});
-
-// Mute toggle
-document.getElementById('btn-mute').addEventListener('click', () => {
-  const m = toggleMuted();
-  state.ui.muted = m;
-  updateMuteButton();
-  if (!m) soundClick(); // confirm unmute
-});
-
-// === HUD dropdown menu (Aide / Son / Paramètres / Export / Import / Reset) ===
-const _hudMenu     = document.getElementById('hud-menu-list');
-const _hudMenuBtn  = document.getElementById('btn-menu');
-
-function toggleHudMenu(open) {
-  const shouldOpen = open ?? _hudMenu.classList.contains('hidden');
-  _hudMenu.classList.toggle('hidden', !shouldOpen);
-  _hudMenuBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
-}
-
-_hudMenuBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  toggleHudMenu();
-  soundClick();
-});
-
-// Click any menu item → close menu (each button keeps its own behavior)
-_hudMenu.addEventListener('click', () => toggleHudMenu(false));
-
-// Click outside → close menu
-document.addEventListener('click', (e) => {
-  if (_hudMenu.classList.contains('hidden')) return;
-  if (e.target.closest('.hud-menu')) return;
-  toggleHudMenu(false);
-});
-
-// Help modal
-document.getElementById('btn-help').addEventListener('click', () => {
-  showModal('help-modal');
-});
-// "Revoir l'intro" inside the help modal → re-show the welcome flow
-document.getElementById('btn-replay-welcome').addEventListener('click', () => {
-  hideModal('help-modal');
-  state.ui.hasSeenWelcome = false;
-  showModal('welcome-modal');
-  soundClick();
-});
-
-// Settings modal
-document.getElementById('btn-settings').addEventListener('click', () => {
-  showModal('settings-modal');
-});
-document.getElementById('setting-mute').addEventListener('change', (e) => {
-  setMuted(e.target.checked);
-  state.ui.muted = e.target.checked;
-  updateMuteButton();
-  notify();
-});
-document.getElementById('setting-fast-combat').addEventListener('change', (e) => {
-  state.settings.fastCombat = e.target.checked;
-  notify();
-});
-document.getElementById('setting-reduced-particles').addEventListener('change', (e) => {
-  state.settings.reducedParticles = e.target.checked;
-  notify();
-});
-document.getElementById('setting-confirm-ascend').addEventListener('change', (e) => {
-  state.settings.confirmAscend = e.target.checked;
-  notify();
-});
-document.getElementById('setting-confirm-sell').addEventListener('change', (e) => {
-  state.settings.confirmDestructiveSell = e.target.checked;
-  notify();
-});
-document.getElementById('setting-hard-mode').addEventListener('change', (e) => {
-  state.settings.hardMode = e.target.checked;
-  notify();
-});
-
-// Inventory sort + search + auto-equip
-document.getElementById('inv-sort').addEventListener('change', (e) => {
-  setInvSortMode(e.target.value);
-});
-document.getElementById('inv-search').addEventListener('input', (e) => {
-  setInvSearchText(e.target.value);
-});
-document.getElementById('btn-auto-equip').addEventListener('click', () => {
-  const n = autoEquipBest();
-  if (n > 0) {
-    soundClick();
-    const c = getCharacterAvatarCenter();
-    spawnParticles('#f5c842', c.x, c.y, 20);
-    floatingText(`Équipé ×${n}`, c.x, c.y - 30, '#f5c842');
-  }
-});
-
-// === Ascension ===
-
-document.getElementById('btn-ascend').addEventListener('click', () => {
-  if (!canAscend()) return;
-  const newLevel = (state.prestige?.level || 0) + 1;
-  const bonusPct = 15 * newLevel;
-  let confirmed = true;
-  if (state.settings?.confirmAscend !== false) {
-    const msg = `🌟 Ascension Niv ${newLevel} ?\n\n`
-      + `Tu repars de zéro (or, items, coffre T1, étage 1).\n`
-      + `Tu gardes : succès, prestige, statistiques.\n\n`
-      + `Bonus permanent : +${bonusPct}% drops raretés et or de vente.\n\n`
-      + `Confirmer ?`;
-    confirmed = confirm(msg);
-  }
-  if (confirmed) {
-    if (ascend()) {
-      soundAscension();
-      screenShake(8, 600);
-      spawnParticles('#f5c842', window.innerWidth / 2, window.innerHeight / 2, 80, { minSpeed: 200, maxSpeed: 500, size: 10 });
-    }
-  }
-});
-
-// === Save controls ===
-
-document.getElementById('btn-export').addEventListener('click', () => {
-  exportSave();
-});
-
-document.getElementById('btn-import').addEventListener('click', () => {
-  document.getElementById('file-import').click();
-});
-
-document.getElementById('file-import').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  try {
-    await importSave(file);
-  } catch (err) {
-    alert('Import échoué : ' + err.message);
-  }
-  e.target.value = '';
-});
-
-document.getElementById('btn-reset').addEventListener('click', () => {
-  if (confirm('Reset complet de la partie ? Cette action est irréversible (pense à exporter avant).')) {
-    clearLocal();
-    resetState();
-  }
-});
-
-// === Close popup with ESC ===
-
-document.addEventListener('keydown', (e) => {
-  // Ignore when typing in an input
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
-
-  if (e.key === 'Escape') {
-    const drop = getCurrentDrop();
-    if (drop) {
-      addToInventory(drop);
-      hideDropPopup();
-      return;
-    }
-    if (isModalOpen('welcome-modal')) { dismissWelcome(); return; }
-    const modals = ['forge-modal','achievements-modal','help-modal','talents-modal','codex-modal','skills-modal','bounties-modal','settings-modal','stats-breakdown-modal'];
-    for (const id of modals) {
-      if (isModalOpen(id)) { hideModal(id); return; }
-    }
-    return;
-  }
-
-  // Block all other shortcuts when a modal is open
-  const anyModal = ['forge-modal','achievements-modal','help-modal','talents-modal','codex-modal','skills-modal','bounties-modal','settings-modal','stats-breakdown-modal','welcome-modal']
-    .some(id => isModalOpen(id));
-  if (anyModal) return;
-
-  if (e.key === ' ' || e.code === 'Space') {
-    if (getCurrentDrop()) return;
-    e.preventDefault();
-    if (state.ui.leftTab === 'dungeon') {
-      document.getElementById('btn-fight').click();
-    } else if (canOpen()) {
-      btnOpen.click();
-    }
-    return;
-  }
-  // Tab switch
-  if (e.key === '1') { setActiveTab('chest'); return; }
-  if (e.key === '2') { setActiveTab('dungeon'); return; }
-  // Modal shortcuts (no Ctrl/Alt to avoid clashing with browser)
-  if (e.ctrlKey || e.altKey || e.metaKey) return;
-  const lower = e.key.toLowerCase();
-  if (lower === 'i') { showModal('forge-modal'); return; }   // (I)nventaire de forge
-  if (lower === 't') { showModal('talents-modal'); return; } // (T)alents
-  if (lower === 'a') { showModal('achievements-modal'); return; } // (A)chievements
-  if (lower === 'b') { showModal('bounties-modal'); return; } // (B)ounties
-  if (lower === 'c') { showModal('codex-modal'); return; }   // (C)odex
-  if (lower === 'k') { showModal('skills-modal'); return; }  // s(K)ills
-  if (lower === 's') { showModal('stats-breakdown-modal'); return; } // (S)tats
-});

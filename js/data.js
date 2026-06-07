@@ -98,11 +98,11 @@ export const CHEST_TIERS = [
   { tier: 2,  name: 'Fer',        emoji: '🗃', weights: { common: 45, magic: 38, rare: 14, epic:  3, legendary:  0, ancestral:  0 }, upgradeCost: 1500 },
   { tier: 3,  name: 'Or',         emoji: '🏆', weights: { common: 20, magic: 35, rare: 30, epic: 12, legendary:  3, ancestral:  0 }, upgradeCost: 8000 },
   { tier: 4,  name: 'Mythique',   emoji: '🎁', weights: { common:  5, magic: 25, rare: 35, epic: 25, legendary:  9, ancestral:  1 }, upgradeCost: 40000 },
-  { tier: 5,  name: 'Ancestral',  emoji: '⚱',  weights: { common:  0, magic: 10, rare: 25, epic: 35, legendary: 20, ancestral: 10 }, upgradeCost: 250000 },
-  { tier: 6,  name: 'Stellaire',  emoji: '✨', weights: { common:  0, magic:  5, rare: 18, epic: 32, legendary: 28, ancestral: 17 }, upgradeCost: 1500000,   prestigeReq: 1 },
-  { tier: 7,  name: 'Cosmique',   emoji: '🌠', weights: { common:  0, magic:  0, rare: 12, epic: 28, legendary: 35, ancestral: 25 }, upgradeCost: 8000000,   prestigeReq: 2 },
-  { tier: 8,  name: 'Vide',       emoji: '🕳', weights: { common:  0, magic:  0, rare:  6, epic: 22, legendary: 38, ancestral: 34 }, upgradeCost: 40000000,  prestigeReq: 3 },
-  { tier: 9,  name: 'Primordial', emoji: '🌌', weights: { common:  0, magic:  0, rare:  2, epic: 15, legendary: 38, ancestral: 45 }, upgradeCost: 200000000, prestigeReq: 4 },
+  { tier: 5,  name: 'Ancestral',  emoji: '⚱',  weights: { common:  0, magic: 10, rare: 25, epic: 35, legendary: 20, ancestral: 10 }, upgradeCost: 200000 },
+  { tier: 6,  name: 'Stellaire',  emoji: '✨', weights: { common:  0, magic:  5, rare: 18, epic: 32, legendary: 28, ancestral: 17 }, upgradeCost: 900000,    prestigeReq: 1 },
+  { tier: 7,  name: 'Cosmique',   emoji: '🌠', weights: { common:  0, magic:  0, rare: 12, epic: 28, legendary: 35, ancestral: 25 }, upgradeCost: 4000000,   prestigeReq: 2 },
+  { tier: 8,  name: 'Vide',       emoji: '🕳', weights: { common:  0, magic:  0, rare:  6, epic: 22, legendary: 38, ancestral: 34 }, upgradeCost: 16000000,  prestigeReq: 3 },
+  { tier: 9,  name: 'Primordial', emoji: '🌌', weights: { common:  0, magic:  0, rare:  2, epic: 15, legendary: 38, ancestral: 45 }, upgradeCost: 64000000,  prestigeReq: 4 },
   { tier: 10, name: 'Divin',      emoji: '☀',  weights: { common:  0, magic:  0, rare:  0, epic:  8, legendary: 32, ancestral: 60 }, upgradeCost: null,      prestigeReq: 5 },
 ];
 
@@ -121,23 +121,35 @@ export const TALENTS = [
   { id: 'orbFinder',      emoji: '🟪', name: 'Trouveur d\'orbes',   desc: '+15% drop d\'orbes par rang',           maxRank: 4, perRank: { orbDropMult: 0.15 },     category: 'utility' },
   { id: 'recycler',       emoji: '♻',  name: 'Recycleur',           desc: '+1 cristal par recyclage par rang',     maxRank: 3, perRank: { shardBonus: 1 },         category: 'utility' },
   { id: 'pityMaster',     emoji: '✨', name: 'Maître pity',         desc: '-10 au pity timer par rang',            maxRank: 3, perRank: { pityReduction: 10 },     category: 'utility' },
+  { id: 'tactician',      emoji: '🎯', name: 'Tacticien',           desc: '+1 slot de capacité active par rang',   maxRank: 2, perRank: { abilitySlot: 1 },        category: 'utility' },
 ];
 
-// Talent categories — investing 5+ points in one grants a 10% mastery bonus to that category.
+// Talent categories — investing 5+ points in one grants a 10% mastery bonus to
+// that category, then 25% (total, not stacked) at 10+ points: specialist payoff.
 export const TALENT_CATEGORIES = {
-  combat:  { emoji: '⚔', name: 'Combat',     color: '#ff7a1a', desc: '+10% effets combat (dégâts, PV) si ≥ 5 points' },
-  wealth:  { emoji: '💰', name: 'Richesse',   color: '#ffe14a', desc: '+10% effets richesse (or, drops) si ≥ 5 points' },
-  utility: { emoji: '🔮', name: 'Utilitaire', color: '#5a8af0', desc: '+10% effets utilitaires (orbes, cristaux, pity) si ≥ 5 points' },
+  combat:  { emoji: '⚔', name: 'Combat',     color: '#ff7a1a', desc: '+10% effets combat si ≥ 5 pts, +25% si ≥ 10 pts' },
+  wealth:  { emoji: '💰', name: 'Richesse',   color: '#ffe14a', desc: '+10% effets richesse si ≥ 5 pts, +25% si ≥ 10 pts' },
+  utility: { emoji: '🔮', name: 'Utilitaire', color: '#5a8af0', desc: '+10% effets utilitaires si ≥ 5 pts, +25% si ≥ 10 pts' },
 };
 export const TALENT_MASTERY_THRESHOLD = 5;
 export const TALENT_MASTERY_BONUS = 0.10;
+export const TALENT_MASTERY_THRESHOLD_2 = 10;  // second mastery tier
+export const TALENT_MASTERY_BONUS_2 = 0.25;    // total bonus at tier 2 (absolute, not stacked on tier 1)
+
+export const ABILITY_SLOTS_BASE = 3;           // base active-ability loadout size
+export const ABILITY_RANK2_PRESTIGE = 3;       // tier-2 abilities unlock at this prestige (mirrors relics)
 
 export const TALENT_BY_ID = Object.fromEntries(TALENTS.map(t => [t.id, t]));
 
-export const CHEST_OPEN_COOLDOWN_MS = 800;
+export const CHEST_OPEN_COOLDOWN_MS = 300;
 
 // Pity timer: every N non-legendary+ drops, force a legendary on the next chest open.
 export const PITY_THRESHOLD = 50;
+// Extended pity: guarantees rarer outcomes so long droughts can't happen.
+// Ancestral is forced after this many opens without one; unique after this many
+// legendaries without a unique.
+export const PITY_ANCESTRAL_THRESHOLD = 120;
+export const PITY_UNIQUE_THRESHOLD = 15;
 
 // Biomes for the dungeon. Each biome covers a floor range and has its own monsters + boss.
 export const BIOMES = [
@@ -194,7 +206,7 @@ export const BIOMES = [
             mechanic: { type: 'burn', dmgPerTurn: 8, desc: 'Brûlure : 8 dmg/tour passifs' } },
   },
   {
-    id: 'void', name: 'Néant', emoji: '🌌', floors: [41, 9999],
+    id: 'void', name: 'Néant', emoji: '🌌', floors: [41, 50],
     bgGradient: 'linear-gradient(135deg, #1a0838, #2a1448)',
     monsters: [
       { name: 'Ombre',          emoji: '🌑', hpBase: 50, dmgBase: 14, armorBase: 3, goldBase: 24 },
@@ -208,12 +220,85 @@ export const BIOMES = [
   },
 ];
 
-export function biomeForFloor(floor) {
-  for (const b of BIOMES) {
-    if (floor >= b.floors[0] && floor <= b.floors[1]) return b;
-  }
-  return BIOMES[BIOMES.length - 1];
+// Last floor covered by a fixed biome. Beyond it, the dungeon loops through all
+// biomes as escalating "echoes" so the endgame keeps visual + mechanical variety.
+export const FIXED_MAX_FLOOR = BIOMES[BIOMES.length - 1].floors[1];
+const ECHO_SPAN = 10; // floors per echo biome before cycling to the next
+
+// Echo level for deep floors (0 = within fixed biomes). Each full pass through
+// the biome list bumps the echo level, which raises monster danger/affixes.
+export function echoLevelForFloor(floor) {
+  if (floor <= FIXED_MAX_FLOOR) return 0;
+  return Math.floor((floor - FIXED_MAX_FLOOR - 1) / (ECHO_SPAN * BIOMES.length)) + 1;
 }
+
+export function biomeForFloor(floor) {
+  if (floor <= FIXED_MAX_FLOOR) {
+    for (const b of BIOMES) {
+      if (floor >= b.floors[0] && floor <= b.floors[1]) return b;
+    }
+    return BIOMES[BIOMES.length - 1];
+  }
+  // Deep floors: cycle through biomes as echoes.
+  const idx = Math.floor((floor - FIXED_MAX_FLOOR - 1) / ECHO_SPAN) % BIOMES.length;
+  const echo = echoLevelForFloor(floor);
+  const base = BIOMES[idx];
+  return { ...base, name: `${base.name} · Écho ${echo}`, echoLevel: echo, baseId: base.id };
+}
+
+// === Monster affixes ===
+// Combat modifiers rolled on elites (always) and on deeper normal monsters
+// (chance scales with floor). They reuse the boss `mechanic` engine in combat.js
+// plus three monster-only behaviours (thorns / lifesteal / swift).
+// `build(ctx)` receives { dmg } (the monster's scaled damage) and returns a
+// mechanic object consumed by resolveFight. Each carries icon/name/desc for UI.
+export const MONSTER_AFFIXES = [
+  { id: 'regenerant', icon: '🔄', name: 'Régénérant',
+    build: () => ({ type: 'regen', percentPerTurn: 0.04, icon: '🔄', name: 'Régénérant', desc: 'Régénère 4% PV/tour' }) },
+  { id: 'enrage', icon: '💢', name: 'Enragé',
+    build: () => ({ type: 'enrage', triggerHpPct: 0.35, dmgMult: 1.6, icon: '💢', name: 'Enragé', desc: '×1.6 dégâts sous 35% PV' }) },
+  { id: 'blinde', icon: '🛡', name: 'Blindé',
+    build: () => ({ type: 'shieldCycle', everyTurns: 4, icon: '🛡', name: 'Blindé', desc: 'Immunise 1 tour sur 4' }) },
+  { id: 'brulant', icon: '🔥', name: 'Brûlant',
+    build: ({ dmg }) => ({ type: 'burn', dmgPerTurn: Math.max(2, Math.round(dmg * 0.25)), icon: '🔥', name: 'Brûlant', desc: `Brûlure ${Math.max(2, Math.round(dmg * 0.25))} dmg/tour` }) },
+  { id: 'instable', icon: '🌀', name: 'Instable',
+    build: () => ({ type: 'phaseShift', everyTurns: 4, dmgMult: 1.4, icon: '🌀', name: 'Instable', desc: '×1.4 dégâts tous les 4 tours' }) },
+  { id: 'epineux', icon: '🌵', name: 'Épineux',
+    build: () => ({ type: 'thorns', reflectPct: 0.25, icon: '🌵', name: 'Épineux', desc: 'Renvoie 25% de tes coups' }) },
+  { id: 'vampirique', icon: '🩸', name: 'Vampirique',
+    build: () => ({ type: 'lifesteal', pct: 0.4, icon: '🩸', name: 'Vampirique', desc: 'Se soigne de 40% de ses dégâts' }) },
+  { id: 'veloce', icon: '⚡', name: 'Véloce',
+    build: () => ({ type: 'swift', chance: 0.30, icon: '⚡', name: 'Véloce', desc: '30% de frapper deux fois' }) },
+  { id: 'maudit', icon: '🚫', name: 'Maudit',
+    build: () => ({ type: 'healBlock', pct: 0.5, icon: '🚫', name: 'Maudit', desc: 'Réduit tes soins de 50%' }) },
+  { id: 'carapace', icon: '🐢', name: 'Carapacé',
+    build: () => ({ type: 'damageCap', pctMaxHp: 0.18, icon: '🐢', name: 'Carapacé', desc: 'Plafonne tes coups à 18% de ses PV' }) },
+  { id: 'bourreau', icon: '🪓', name: 'Bourreau',
+    build: ({ dmg }) => ({ type: 'executioner', everyTurns: 4, dmgMult: 2.5, lowHpBonus: 1.5, icon: '🪓', name: 'Bourreau', desc: 'Coup brutal tous les 4 tours (pire à bas PV)' }) },
+];
+
+// Short counterplay hint per affix/mechanic type, shown in the combat preview.
+export const AFFIX_TIP = {
+  regen:       'Tue-le vite : DPS > régénération',
+  enrage:      'Burst sous 35% PV ou meurs',
+  shieldCycle: 'Garde ton burst hors des tours d\'immunité',
+  burn:        'Soins/vol de vie pour tenir la brûlure',
+  phaseShift:  'Plus de PV pour encaisser les pics',
+  thorns:      'PV/armure : tes coups te blessent',
+  lifesteal:   'Frappe fort, ne traîne pas',
+  swift:       'Armure & PV contre les doubles coups',
+  healBlock:   'Mise sur les PV bruts, pas les soins',
+  damageCap:   'Crit/élémentaire : multiplie sous le plafond',
+  executioner: 'Reste haut en PV avant le coup',
+};
+
+// Elite monster prefixes: each adds a name marker + stat skew. Not used for bosses.
+export const ELITE_VARIANTS = [
+  { id: 'savage',     prefix: 'Sauvage',     icon: '⚡', dmgMult: 1.6, hpMult: 1.2 },
+  { id: 'armored',    prefix: 'Cuirassé',    icon: '🛡', armorBonus: 8, hpMult: 1.4 },
+  { id: 'frenzied',   prefix: 'Frénétique',  icon: '💢', dmgMult: 1.3, hpMult: 1.1, goldMult: 1.5 },
+  { id: 'colossal',   prefix: 'Colossal',    icon: '💀', hpMult: 2.0, dmgMult: 1.1 },
+];
 
 // Player base stats (without equipment)
 export const PLAYER_BASE = {
@@ -347,35 +432,38 @@ export const CURRENCY_TYPES = [
   { id: 'exil',    name: 'Orbe d\'Exil',          emoji: '🔴', color: '#ff3050', desc: 'Ajoute un affixe à un rare+ (max +1)',                baseDropChance: 0.004 },
   { id: 'pierre',  name: 'Pierre de Forge',       emoji: '🪨', color: '#a07840', desc: 'Augmente le tier de l\'objet de +1 (max T5)',         baseDropChance: 0.01 },
   { id: 'maitre',  name: 'Orbe Maître',           emoji: '🟪', color: '#ff5fd0', desc: 'Ajoute un affixe AU CHOIX (respecte les limites prefix/suffix)', baseDropChance: 0.004 },
+  { id: 'focus',   name: 'Orbe de Focalisation',  emoji: '🎯', color: '#46d0c0', desc: 'Cible le slot du prochain coffre ouvert (consommée à l\'ouverture)', baseDropChance: 0.02 },
 ];
 
 export const CURRENCY_BY_ID = Object.fromEntries(CURRENCY_TYPES.map(c => [c.id, c]));
 
+// Comptoir de change : échelle de conversion vers le haut (exclut pierre/focus,
+// orbes utilitaires). Coût croissant = puits + décision « thésauriser les petits
+// orbes pour fabriquer les rares ». maître = destination finale uniquement.
+export const CURRENCY_EXCHANGE_LADDER = ['transmu', 'augm', 'alte', 'regal', 'chaos', 'divin', 'exil', 'maitre'];
+export const CURRENCY_EXCHANGE_COST = [3, 3, 3, 4, 4, 5, 6]; // N de tier i → 1 de tier i+1
+
 // === Mimic — push-your-luck encounter on chest open ===
-// Replaces the normal drop ~0.5% of the time. Player ladders 6 rungs;
-// each rung is keep-or-gamble: stake the haul on a coin flip, win = next
-// tier, lose = "bite" (small punishment + lose the rung's haul).
-// Golden mimic (~0.2%) doubles all loot and adds a guaranteed unique on top.
+// Replaces the normal drop ~0.5% of the time. Player ladders 6 rungs; each
+// rung is keep-or-gamble: stake the haul on a coin flip, win = next tier,
+// lose = "bite" (lose the haul, possibly extra punishment). Golden mimic
+// (~0.2%) doubles all loot.
 export const MIMIC = {
   triggerChance: 0.005,
   goldenChance:  0.002,
-  // Bite probability per ladder step (index 0 = first decision after reveal)
   biteCurve: [0, 0.15, 0.30, 0.48, 0.68, 0.80],
-  // 6 ladder rungs — each is what you LOCK IN if you stop now.
-  // Multipliers apply on top of the chest's normal drop.
   ladder: [
-    { rung: 1, label: 'Bouchée',     goldMult: 1.5,  orbBonus: 1, rarityFloor: null,      flavor: 'Un goûter avant le festin.' },
-    { rung: 2, label: 'Repas',       goldMult: 2.5,  orbBonus: 2, rarityFloor: 'magic',   flavor: 'Ça commence à compter.' },
-    { rung: 3, label: 'Banquet',     goldMult: 4,    orbBonus: 3, rarityFloor: 'rare',    flavor: 'Tu sens que tu joues avec le feu.' },
-    { rung: 4, label: 'Festin',      goldMult: 7,    orbBonus: 5, rarityFloor: 'epic',    flavor: 'Le mimic salive autant que toi.' },
-    { rung: 5, label: 'Jackpot',     goldMult: 12,   orbBonus: 8, rarityFloor: 'legendary', flavor: 'C\'est presque indécent.' },
-    { rung: 6, label: 'Apothéose',   goldMult: 25,   orbBonus: 14, rarityFloor: 'ancestral', flavor: 'Personne ne va te croire.' },
+    { rung: 1, label: 'Bouchée',   goldMult: 1.5, orbBonus: 1, rarityFloor: null,        flavor: 'Un goûter avant le festin.' },
+    { rung: 2, label: 'Repas',     goldMult: 2.5, orbBonus: 2, rarityFloor: 'magic',     flavor: 'Ça commence à compter.' },
+    { rung: 3, label: 'Banquet',   goldMult: 4,   orbBonus: 3, rarityFloor: 'rare',      flavor: 'Tu sens que tu joues avec le feu.' },
+    { rung: 4, label: 'Festin',    goldMult: 7,   orbBonus: 5, rarityFloor: 'epic',      flavor: 'Le mimic salive autant que toi.' },
+    { rung: 5, label: 'Jackpot',   goldMult: 12,  orbBonus: 8, rarityFloor: 'legendary', flavor: 'C\'est presque indécent.' },
+    { rung: 6, label: 'Apothéose', goldMult: 25,  orbBonus: 14,rarityFloor: 'ancestral', flavor: 'Personne ne va te croire.' },
   ],
-  // What happens when you LOSE a coin flip — you forfeit everything on the table.
   bite: [
-    { id: 'starve', label: 'Affamé',   desc: 'Tu repars les mains vides.',                      effect: { goldPct: 0 } },
-    { id: 'nip',    label: 'Morsure',  desc: 'Le mimic te croque un peu d\'or au passage.',     effect: { goldPct: 0, goldLossPct: 0.05 } },
-    { id: 'curse',  label: 'Maudit',   desc: '-1 clé au prochain coffre, et plus rien.',        effect: { goldPct: 0, keyLoss: 1 } },
+    { id: 'starve', label: 'Affamé',  desc: 'Tu repars les mains vides.',                  effect: { goldPct: 0 } },
+    { id: 'nip',    label: 'Morsure', desc: 'Le mimic te croque un peu d\'or au passage.', effect: { goldPct: 0, goldLossPct: 0.05 } },
+    { id: 'curse',  label: 'Maudit',  desc: '-1 clé au prochain coffre.',                  effect: { goldPct: 0, keyLoss: 1 } },
   ],
 };
 
@@ -777,10 +865,115 @@ export const PRESTIGE_REQUIREMENTS = {
 export const PRESTIGE_BONUS_PER_LEVEL = {
   rareDropWeightMult: 0.15, // additive per level
   goldMult: 0.15,           // additive per level
+  damageMult: 0.06,         // additive per level — direct combat power
+  hpMult: 0.06,             // additive per level — direct combat power
 };
 
 export function prestigeGoldMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.goldMult * (level || 0); }
 export function prestigeRareMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.rareDropWeightMult * (level || 0); }
+export function prestigeDamageMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.damageMult * (level || 0); }
+export function prestigeHpMult(level) { return 1 + PRESTIGE_BONUS_PER_LEVEL.hpMult * (level || 0); }
+
+// Item stat scaling per chest tier. Previously stats scaled linearly (× tier),
+// which — compounded with rarity statMult and 8 equipment slots — made player
+// damage explode (~×20 over T1→T5) and one-shot all content. This sublinear
+// curve flattens the power growth so matched-tier combat stays tense.
+// Tunable: lower TIER_SCALE_K = flatter curve = harder/slower fights.
+export const TIER_SCALE_K = 0.5;
+export function tierScale(chestTier) {
+  return 1 + ((chestTier || 1) - 1) * TIER_SCALE_K;
+}
+
+// Crit chance is capped at 75% in combat, but 8 gear slots (each rolling crit on
+// affixes/parts/materials/elements) blow past the cap by tier 2, wasting the
+// stat. Scale gear-derived crit down so it becomes a real progression stat that
+// approaches the cap in the mid-late game. Tunable (lower = crit caps later).
+export const CRIT_GEAR_SCALE = 0.28;
+
+// === Reliques d'Ascension ===
+// À chaque ascension, le joueur choisit 1 relique parmi 3. Permanentes et
+// cumulables (un même id peut être pris plusieurs fois → effets additifs),
+// elles survivent au reset d'ascension : c'est le levier de build long terme.
+// `mods` : damagePct / hpPct / dmgTakenPct / goldPct / dropPct (fractions),
+//          critFlat / armorFlat (valeurs plates), elemPct, lifesteal (fraction).
+// `effect` (optionnel) : comportement de combat lu par resolveFight, dont la
+//          magnitude cumule avec le nombre de copies possédées (comme les
+//          effets légendaires). `rank` : 1 = base, 2 = avancé (débloqué au
+//          prestige ≥ RELIC_RANK2_PRESTIGE).
+export const RELIC_RANK2_PRESTIGE = 3;
+
+export const RELICS = [
+  // — Rang 1 : stats —
+  { id: 'berserker',    emoji: '⚔️', name: 'Pacte du Berserker', desc: '+40% dégâts · −15% PV max',          rank: 1, mods: { damagePct: 0.40, hpPct: -0.15 } },
+  { id: 'midas',        emoji: '💰', name: 'Main de Midas',       desc: '+50% or',                            rank: 1, mods: { goldPct: 0.50 } },
+  { id: 'deadeye',      emoji: '🎯', name: 'Œil de Lynx',         desc: '+12% chance de critique',            rank: 1, mods: { critFlat: 12 } },
+  { id: 'elementalist', emoji: '✨',  name: 'Élémentaliste',       desc: '+30% dégâts élémentaires',           rank: 1, mods: { elemPct: 0.30 } },
+  { id: 'bulwark',      emoji: '🛡', name: 'Rempart',             desc: '+25% PV max · +20 armure',           rank: 1, mods: { hpPct: 0.25, armorFlat: 20 } },
+  { id: 'fortune',      emoji: '🍀', name: 'Fortune',             desc: '+30% drops rares',                   rank: 1, mods: { dropPct: 0.30 } },
+  { id: 'vampire',      emoji: '🩸', name: 'Soif de Sang',        desc: 'Vol de vie 5% des dégâts',           rank: 1, mods: { lifesteal: 0.05 } },
+  { id: 'glasscannon',  emoji: '💥', name: 'Canon de Verre',      desc: '+80% dégâts · +40% dégâts subis',     rank: 1, mods: { damagePct: 0.80, dmgTakenPct: 0.40 } },
+  // — Rang 1 : effets de combat (cumulables) —
+  { id: 'momentum',     emoji: '🌀', name: 'Élan',                desc: '+6% dégâts cumulés par tour (×copies)', rank: 1, mods: {}, effect: 'relicMomentum' },
+  { id: 'reaper',       emoji: '🪓', name: 'Faucheur',            desc: '+50% dégâts sous 30% PV ennemi (×copies)', rank: 1, mods: {}, effect: 'relicExecute' },
+  { id: 'thornmail',    emoji: '🌵', name: 'Carapace d\'Épines',  desc: 'Renvoie 20% des dégâts subis (×copies)', rank: 1, mods: { armorFlat: 8 }, effect: 'relicThorns' },
+  // — Rang 2 : avancé (prestige ≥ 3) —
+  { id: 'phoenix',      emoji: '🔥', name: 'Cœur de Phénix',      desc: 'Revit à 30% PV (1 fois par copie)',  rank: 2, mods: {}, effect: 'relicPhoenix' },
+  { id: 'avarice',      emoji: '💎', name: 'Avarice',             desc: '+100% or · +50% drops rares',        rank: 2, mods: { goldPct: 1.0, dropPct: 0.50 } },
+  { id: 'titan',        emoji: '🗿', name: 'Titan',               desc: '+60% PV max · +40 armure',           rank: 2, mods: { hpPct: 0.60, armorFlat: 40 } },
+  { id: 'cataclysm',    emoji: '☄️', name: 'Cataclysme',          desc: '+120% dégâts · −30% PV max',         rank: 2, mods: { damagePct: 1.20, hpPct: -0.30 } },
+];
+
+export const RELIC_BY_ID = Object.fromEntries(RELICS.map(r => [r.id, r]));
+
+// === Affinités d'archétype (synergies transversales) ===
+// Couche méta qui récompense l'alignement d'un build à travers PLUSIEURS systèmes
+// (talents + reliques + set + éléments d'équipement). Le score d'un axe ne peut
+// pas être maximisé via un seul système : c'est le levier de synergie. Paliers à
+// 4/8/12 pts → tier 1/2/3. Bonus additifs (philosophie linéaire) consommés par
+// le combat et le loot. `sources` décrit comment scorer ; `tiers` les bonus.
+export const AFFINITY_THRESHOLDS = [4, 8, 12];
+export const AFFINITIES = [
+  {
+    id: 'force', emoji: '⚔', name: 'Force', color: '#ff7a1a',
+    desc: 'Dégâts accrus. Aligne talents combat, reliques offensives et sets offensifs.',
+    sources: {
+      talents: ['berserker'],
+      relics: { ids: ['berserker', 'glasscannon', 'cataclysm', 'momentum', 'reaper'], cap: 6 },
+      setEffects: { ids: ['dragon_breath', 'demon_pact', 'shadow_strike'], points: 3 },
+    },
+    tiers: [{ damage: 0.05 }, { damage: 0.12 }, { damage: 0.20 }],
+  },
+  {
+    id: 'garde', emoji: '🛡', name: 'Garde', color: '#5a8af0',
+    desc: 'PV max accrus. Aligne talents défensifs, reliques de protection et sets défensifs.',
+    sources: {
+      talents: ['tanky'],
+      relics: { ids: ['bulwark', 'titan', 'thornmail'], cap: 6 },
+      setEffects: { ids: ['titan_wall', 'frost_freeze', 'druid_growth', 'phoenix_rebirth'], points: 3 },
+    },
+    tiers: [{ hp: 0.06 }, { hp: 0.14 }, { hp: 0.24 }],
+  },
+  {
+    id: 'arcane', emoji: '✨', name: 'Arcane', color: '#c9a3ff',
+    desc: 'Dégâts élémentaires accrus. Aligne éléments d\'équipement, relique Élémentaliste et sets élémentaires.',
+    sources: {
+      elementPieces: 1,                                   // +1 par pièce équipée portant un élément
+      relics: { ids: ['elementalist'], cap: 8, points: 2 },
+      setEffects: { ids: ['dragon_breath', 'frost_freeze', 'lich_drain', 'phoenix_rebirth'], points: 3 },
+    },
+    tiers: [{ elem: 0.08 }, { elem: 0.18 }, { elem: 0.30 }],
+  },
+  {
+    id: 'cupidite', emoji: '💰', name: 'Cupidité', color: '#ffe14a',
+    desc: 'Or et drops rares accrus. Aligne talents richesse et reliques de fortune.',
+    sources: {
+      wealthCategory: 1,                                  // +1 par point de catégorie wealth
+      relics: { ids: ['midas', 'fortune', 'avarice'], cap: 6 },
+    },
+    tiers: [{ gold: 0.15, drop: 0.10 }, { gold: 0.35, drop: 0.20 }, { gold: 0.60, drop: 0.30 }],
+  },
+];
+export const AFFINITY_BY_ID = Object.fromEntries(AFFINITIES.map(a => [a.id, a]));
 
 
 // Auto-sell unlock costs (per rarity). Common is free from start.

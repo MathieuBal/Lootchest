@@ -140,7 +140,78 @@ items des sauvegardes pré-HD.
 - Navigation libre entre étages débloqués.
 - **⭐ Elites** (8% sur étages ≥3, hors boss) : monstre violet, stats ×2.5,
   récompenses ×2.5, 1 clé garantie.
+- **✦ Affixes de monstres** : mécaniques de combat (et non plus de simples
+  stats) portées par les élites (toujours 1) et par les monstres normaux à
+  partir de l'étage 8 (chance croissante). Le **Néant (41+)** peut en empiler
+  **2** pour varier l'endgame. Chaque affixe augmente l'or, le drop et la
+  chance de clé (~+30 %/affixe). L'encounter est **stable** : l'aperçu
+  correspond au combat, puis se re-roll après chaque combat.
+
+  | Affixe         | Effet                                         |
+  |----------------|-----------------------------------------------|
+  | 🔄 Régénérant  | Régénère 4 % PV/tour                          |
+  | 💢 Enragé      | ×1.6 dégâts sous 35 % PV                       |
+  | 🛡 Blindé      | Immunise 1 tour sur 4                          |
+  | 🔥 Brûlant     | Brûlure passive (∝ ses dégâts)                |
+  | 🌀 Instable    | ×1.4 dégâts tous les 4 tours                   |
+  | 🌵 Épineux     | Renvoie 25 % de tes coups                      |
+  | 🩸 Vampirique  | Se soigne de 40 % de ses dégâts                |
+  | ⚡ Véloce      | 30 % de frapper deux fois                      |
+
 - **🔁 Boucle** : auto-combat sur tout étage déjà battu, s'arrête à la défaite.
+
+### 🌊 Plongée des Profondeurs (roguelite)
+Débloquée à l'**étage 10**, la Plongée transforme la progression plate en
+un **run à attrition** : tes **PV se reportent** d'un combat à l'autre (avec
+un petit soin de 8% PV/victoire), les monstres s'enfoncent toujours plus
+profond avec une « taxe de plongée » croissante, et tu descends aussi loin
+que ta survie le permet.
+
+- **Points de contrôle** tous les 3 paliers : choisis **1 boon parmi 3**
+  (💚 Repos · ⚔️ Furie +15% dégâts · 🛡 Égide −12% dégâts subis ·
+  ❤️ Vigueur +20% PV max · 💰 Cupidité +50% or) puis décide de **continuer
+  ou de remonter** avec ton butin.
+- **Butin sécurisé vs en jeu** : l'or gagné depuis le dernier point de
+  contrôle est « en jeu ». Atteindre un point de contrôle le **sécurise**.
+  Remonter volontairement = **100%** du butin ; **mourir = tu perds la moitié
+  de l'or non sécurisé** → vraie tension pousser/encaisser.
+- **Record de profondeur** persistant. La plongée est un *run* : recharger
+  la page l'abandonne (seul le record est gardé).
+
+### 🏰 Village (gestion / idle)
+**Onglet principal** (pas un sous-menu) : une **scène visuelle** où l'on voit
+le village grandir — chaque bâtiment est une parcelle qu'on touche pour la
+gérer (construire/améliorer, affecter les ouvriers, forger). Donne un **puits
+durable** à l'or accumulé et **temporise** la progression. Production
+**hybride** : un filet passif continu (hors-ligne plafonné à 8h) + le **donjon
+comme robinet principal** (kills/boss lâchent 🪵 bois et 🪨 pierre).
+
+- **🏛️ Mairie** : son niveau plafonne le niveau des bâtiments et le nombre
+  d'emplacements. **Gated par le donjon** (améliorer la Mairie exige d'avoir
+  atteint l'étage `niveau × 5`) → le perso et le village montent ensemble.
+**Production** : **🏠 Maisons** → ouvriers (+3/niv) · **🪓 Scierie** → bois ·
+**⛏️ Carrière** → pierre · **🗝️ Serrurerie** → clés · **🏭 Fonderie** → ⚙️ métal ·
+**🔮 Atelier d'orbes** → orbes de forge.
+
+**Confort & bonus** (le village renforce le reste du jeu) : **⚔️ Caserne**
++4% dégâts & PV/niv · **🏪 Marché** +6% prix de vente/niv + vente auto
+gratuite · **🔭 Observatoire** +3% objets rares+/niv · **📜 Guilde** +1 contrat
+& −15% relance/niv · **🏦 Trésorerie** +5% d'or de donjon/niv · **⚒️ Forge**
+craft d'objets au choix.
+
+La scène est **visuelle** (ciel/soleil/nuages, collines, sol herbeux, lucioles,
+bâtiments illustrés sur tuiles iso) — un onglet central, pas un menu.
+- **👷 Ouvriers limités** à affecter : chaque bâtiment en emploie au plus son
+  niveau → on **spécialise** (le goulot d'allocation).
+- Coûts géométriques (bois/pierre/⚙️ métal/or) → l'or et les ressources
+  restent pertinents en profondeur.
+- **🏺 Âges** (Bois → Pierre → Fer → Acier) dérivés du niveau de Mairie :
+  débloquent les paliers de bâtiments (la Forge à la Mairie 3, la Fonderie
+  → ⚙️ métal à la Mairie 5).
+- **⚒️ Forge de craft** : forge **tes propres armes & armures** — choisis le
+  slot et la rareté (plafonnée par le niveau de Forge), tier = niveau de
+  Forge, payé en ressources. Sink majeur + alternative déterministe au RNG
+  des coffres.
 
 ### 🎒 Inventaire & Items
 
@@ -251,6 +322,26 @@ S'activent automatiquement en combat selon stats/talents :
 | 11| Adrénaline       | Tous les 3 tours : +75% dégâts                  |
 | 12| Ultime Résistance| 60% esquive sous 25% PV                         |
 
+Les compétences sont **automatiques** (débloquées par seuils de stats). Les
+**capacités**, elles, se **choisissent**.
+
+### ✦ Capacités actives (loadout de 3)
+Contrairement aux compétences passives, les capacités sont **équipées par le
+joueur** (3 slots) — c'est une **décision de build** : tu en débloques 8 au fil
+de la progression mais n'en emportes que 3. Elles se déclenchent en combat via
+le même moteur de hooks que les compétences.
+
+| Capacité          | Effet                                   | Déblocage        |
+|-------------------|-----------------------------------------|------------------|
+| 🗡 Frappe Puissante | Tous les 3 tours : ×2.5 dégâts        | dès le départ    |
+| ⚡ Frénésie        | Tous les 3 tours : crit garanti         | dès le départ    |
+| 💚 Second Souffle  | 1×/combat sous 40% PV : soigne 45%      | dès le départ    |
+| 💢 Cri de Guerre   | +10% dégâts/tour (max +50%)             | 100 monstres tués|
+| 🌀 Hâte            | Tous les 4 tours : +100% dégâts         | étage 15         |
+| ☠ Exécution        | Sous 35% PV ennemi : +150% dégâts       | étage 25         |
+| 🛡 Garde           | Bloque une attaque tous les 4 tours     | 75 coffres       |
+| 🌵 Riposte         | Renvoie 50% des dégâts subis            | 200 monstres tués|
+
 ### 🌳 Talents (8 améliorations passives, 3 catégories)
 Points gagnés aux paliers d'étage (25/50/75…) et à chaque ascension (+2).
 
@@ -267,6 +358,27 @@ tous les talents de cette catégorie.
   cumulatif et permanent.
 - Chaque ascension débloque un tier de coffre supérieur (T6 Stellaire →
   T10 Divin) et octroie +2 points de talent.
+
+#### 🏺 Reliques d'Ascension
+À chaque ascension, choisis **1 relique parmi 3** (tirage aléatoire). Les
+reliques sont **permanentes, cumulables** (un même effet pris plusieurs
+fois s'additionne) et **survivent au reset** : c'est le levier de build
+long terme qui rend chaque lignée de prestige différente.
+
+| Relique               | Effet                                  |
+|-----------------------|----------------------------------------|
+| ⚔️ Pacte du Berserker | +40 % dégâts · −15 % PV max            |
+| 💥 Canon de Verre     | +80 % dégâts · +40 % dégâts subis      |
+| 🎯 Œil de Lynx        | +12 % chance de critique               |
+| ✨ Élémentaliste      | +30 % dégâts élémentaires              |
+| 🛡 Rempart            | +25 % PV max · +20 armure              |
+| 🩸 Soif de Sang       | Vol de vie 5 % des dégâts              |
+| 💰 Main de Midas      | +50 % or                               |
+| 🍀 Fortune            | +30 % drops rares                      |
+
+Les reliques offensives/défensives/économiques s'excluent par le coût
+d'opportunité du choix — empiler 🛡 Rempart donne un tank, enchaîner
+💥 Canon de Verre un glass-cannon, etc.
 
 ### 📋 Contrats
 3 contrats actifs en permanence (tuer X monstres, looter Y légendaires,
@@ -351,8 +463,16 @@ js/
   achievements.js checkAchievements, onAchievementUnlocked
   forge.js        10 actions (Pierre préserve identité visuelle
                   via rescaleItemToTier)
-  prestige.js     canAscend, ascend (reset + keys = 10)
-  skills.js       12 compétences passives avec hooks de combat
+  prestige.js     canAscend, ascend (reset + keys = 10 + choix relique)
+  relics.js       reliques d'ascension : relicTotals + multiplicateurs
+                  (dégâts/PV/or/drop/crit/élément/vol de vie), choix 1/3
+  skills.js       12 compétences passives + merge des capacités slottées
+  abilities.js    8 capacités actives (loadout de 3, déblocages par
+                  progression) partageant les hooks de combat
+  dive.js         Plongée des Profondeurs : run à attrition (report de
+                  PV, boons aux points de contrôle, butin sécurisé/en jeu)
+  village.js      Village (gestion/idle) : Mairie gated par donjon,
+                  bâtiments, ouvriers, production hybride passive+donjon
   talents.js      multiplicateurs + categoryPoints + categoryMastery
   bounties.js     generateBounty, trackProgress, rerollBounty
   builder.js      primitives pixel partagées (makeCanvas, rect,

@@ -1,0 +1,278 @@
+/* === Lootchest redesign — design tokens === */
+:root {
+  /* Surfaces */
+  --bg-0: #0a0610;
+  --bg-1: #120a1c;
+  --bg-2: #1a1228;
+  --surface: #1d162c;
+  --surface-raised: #261c3a;
+  --surface-sunken: #150e22;
+  --border: #3a2c52;
+  --border-soft: #2a2040;
+  --vignette: radial-gradient(120% 80% at 50% 0%, rgba(120, 70, 200, 0.10), transparent 60%),
+              radial-gradient(120% 100% at 50% 100%, rgba(255, 120, 30, 0.05), transparent 50%),
+              linear-gradient(180deg, #120a1c 0%, #0a0610 100%);
+
+  /* Gold accents — restrained */
+  --gold-100: #fbe9b0;
+  --gold-200: #f0c463;
+  --gold-300: #d4a13a;
+  --gold-400: #a07424;
+  --gold-500: #5e4318;
+
+  /* Text */
+  --ink-100: #faf2dd;
+  --ink-200: #d6c9b3;
+  --ink-300: #a99eb8;
+  --ink-400: #756d8a;
+  --ink-500: #4a4360;
+
+  /* Rarity */
+  --r-common: #9aa0a6;
+  --r-magic: #4a9ef5;
+  --r-rare: #ffe14a;
+  --r-epic: #b35bd6;
+  --r-legendary: #ff7a1a;
+  --r-ancestral: #ff3050;
+
+  /* Elements */
+  --el-fire: #ff7a1a;
+  --el-frost: #5ad8e8;
+  --el-poison: #6acc6a;
+  --el-light: #f5c842;
+  --el-void: #b35bd6;
+
+  /* Currencies */
+  --cur-gold: #f0c463;
+  --cur-key: #e8d490;
+  --cur-shard: #b8e8ff;
+  --cur-orb: #ff5fd0;
+
+  /* Fonts */
+  --f-display: "Cinzel", "Trajan Pro", serif;
+  --f-ui: "Inter", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", "SF Mono", monospace;
+  --f-pixel: "Silkscreen", "Press Start 2P", monospace;
+
+  /* Radii */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  /* Shadows */
+  --sh-panel: inset 0 1px 0 rgba(255, 220, 160, 0.06),
+              inset 0 0 0 1px rgba(255, 220, 160, 0.04),
+              0 8px 20px rgba(0, 0, 0, 0.5);
+  --sh-raised: inset 0 1px 0 rgba(255, 220, 160, 0.10),
+               0 4px 12px rgba(0, 0, 0, 0.6);
+  --sh-gold: 0 0 0 1px rgba(240, 196, 99, 0.4),
+             inset 0 1px 0 rgba(255, 230, 170, 0.4);
+}
+
+/* Reset within phone */
+.phone *, .phone *::before, .phone *::after {
+  box-sizing: border-box;
+}
+
+.phone {
+  background: var(--vignette);
+  color: var(--ink-100);
+  font-family: var(--f-ui);
+  font-size: 14px;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: 0.01em;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Pixel-art renders crisp */
+.pixel, .pixel svg, .pixel img {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  shape-rendering: crispEdges;
+}
+
+/* Common utility classes */
+.cap { text-transform: uppercase; letter-spacing: 0.16em; }
+.smallcap { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-400); }
+.display { font-family: var(--f-display); font-weight: 600; letter-spacing: 0.04em; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.gold-text { color: var(--gold-200); }
+.ink-2 { color: var(--ink-300); }
+
+/* Gold divider with center diamond */
+.gold-rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gold-300);
+}
+.gold-rule::before, .gold-rule::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212, 161, 58, 0.5), transparent);
+}
+.gold-rule .diamond {
+  width: 6px; height: 6px;
+  background: var(--gold-300);
+  transform: rotate(45deg);
+  box-shadow: 0 0 8px rgba(240, 196, 99, 0.4);
+}
+
+/* Panel */
+.panel {
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-sunken) 100%);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-panel);
+  position: relative;
+}
+
+/* Pulse glow for ready/next-step */
+@keyframes pulseGold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(240, 196, 99, 0.6), 0 0 16px rgba(240, 196, 99, 0.2); }
+  50% { box-shadow: 0 0 0 4px rgba(240, 196, 99, 0), 0 0 32px rgba(240, 196, 99, 0.5); }
+}
+
+/* Action button — primary gold */
+.btn-gold {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: linear-gradient(180deg, #f5c970 0%, #d4a13a 50%, #a07424 100%);
+  color: #2a1a08;
+  font-family: var(--f-display);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: var(--r-md);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 240, 200, 0.6),
+    inset 0 -1px 0 rgba(80, 50, 10, 0.5),
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    0 0 0 1px #5e4318;
+  cursor: pointer;
+  font-size: 12px;
+}
+.btn-gold::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: calc(var(--r-md) - 1px);
+  background: linear-gradient(180deg, rgba(255, 240, 200, 0.2) 0%, transparent 40%);
+  pointer-events: none;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: var(--surface-raised);
+  color: var(--ink-200);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: var(--f-ui);
+  font-weight: 500;
+  font-size: 12px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+
+/* Rarity glow utility (apply to item tile) */
+.rar-glow-common    { box-shadow: 0 0 0 1px var(--r-common), inset 0 0 16px rgba(154, 160, 166, 0.1); }
+.rar-glow-magic     { box-shadow: 0 0 0 1px var(--r-magic), inset 0 0 18px rgba(74, 158, 245, 0.20), 0 0 12px rgba(74, 158, 245, 0.25); }
+.rar-glow-rare      { box-shadow: 0 0 0 1px var(--r-rare), inset 0 0 18px rgba(255, 225, 74, 0.18), 0 0 12px rgba(255, 225, 74, 0.25); }
+.rar-glow-epic      { box-shadow: 0 0 0 1px var(--r-epic), inset 0 0 20px rgba(179, 91, 214, 0.25), 0 0 16px rgba(179, 91, 214, 0.30); }
+.rar-glow-legendary { box-shadow: 0 0 0 1px var(--r-legendary), inset 0 0 22px rgba(255, 122, 26, 0.30), 0 0 20px rgba(255, 122, 26, 0.40); }
+.rar-glow-ancestral { box-shadow: 0 0 0 1px var(--r-ancestral), inset 0 0 22px rgba(255, 48, 80, 0.30), 0 0 24px rgba(255, 48, 80, 0.45); }
+
+/* Stat bar */
+.statbar {
+  position: relative;
+  height: 6px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.statbar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(180deg, var(--gold-100) 0%, var(--gold-300) 100%);
+  display: block;
+}
+
+/* Scroll containers inside phone — hide scrollbar */
+.scroll {
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.scroll::-webkit-scrollbar { display: none; }
+
+/* Stripe placeholder for art-not-yet */
+.stripe-placeholder {
+  background: repeating-linear-gradient(45deg,
+    rgba(240, 196, 99, 0.05) 0 6px,
+    rgba(240, 196, 99, 0.02) 6px 12px);
+  border: 1px dashed rgba(240, 196, 99, 0.15);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--ink-400);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Tab bar */
+.tabbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 8px 12px calc(env(safe-area-inset-bottom, 8px) + 8px) 12px;
+  background: linear-gradient(180deg, rgba(20, 12, 32, 0.6), rgba(10, 6, 16, 0.95));
+  border-top: 1px solid var(--border-soft);
+  backdrop-filter: blur(8px);
+}
+.tabbar .tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-400);
+  padding: 4px 8px;
+  flex: 1;
+}
+.tabbar .tab.active { color: var(--gold-200); }
+.tabbar .tab .ico { font-size: 18px; line-height: 1; }
+
+/* Phone wrap (artboard frame) */
+.phone-wrap {
+  width: 390px;
+  height: 844px;
+  border-radius: 36px;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg-0);
+}
+
+/* Subtle filigree corners */
+.filigree-corner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+  opacity: 0.6;
+}
