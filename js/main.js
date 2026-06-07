@@ -25,7 +25,7 @@ import { craftItem } from './loot.js';
 import { claimChapter, storyReady } from './story.js';
 import { advanceMimic } from './mimic.js';
 import { MIMIC } from './data.js';
-import { mimicSpriteSrc, spriteImg } from './spriteMap.js';
+import { mimicSpriteSrc, spriteImg, onAssetProbed } from './spriteMap.js';
 import {
   unlockAudio, toggleMuted, isMuted, setMuted,
   soundChestOpen, soundDrop, soundCoin, soundHit, soundCrit,
@@ -61,6 +61,19 @@ onBountyComplete(b => {
 });
 setMuted(!!state.ui?.muted);
 UI.mountApp();
+
+// When a sprite finishes probing as "ok", schedule a single coalesced
+// re-render so the PNG swaps in cleanly without flicker. Multiple probes
+// in the same frame collapse to one paint.
+let _spriteRerenderPending = false;
+onAssetProbed(() => {
+  if (_spriteRerenderPending) return;
+  _spriteRerenderPending = true;
+  requestAnimationFrame(() => {
+    _spriteRerenderPending = false;
+    UI.renderAll();
+  });
+});
 checkAchievements();
 refreshBoardIfEmpty();
 
