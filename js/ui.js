@@ -11,7 +11,7 @@ import {
   CURRENCY_TYPES, CURRENCY_BY_ID, CURRENCY_EXCHANGE_LADDER, AFFIXES_BY_ID,
   SETS_BY_ID, SETS, TALENTS, TALENT_BY_ID, TALENT_CATEGORIES,
   TALENT_MASTERY_THRESHOLD, UNIQUE_LEGENDARIES,
-  RELIC_BY_ID, AFFIX_TIP, maxAllowedChestTier, FIXED_MAX_FLOOR,
+  RELIC_BY_ID, AFFIX_TIP, maxAllowedChestTier, FIXED_MAX_FLOOR, MIMIC,
 } from './data.js';
 import { computeStats, computePower, computeSetSummary, itemPowerContribution, computeStatsBreakdown } from './character.js';
 import { getCurrentTier, getNextTier, canUpgrade, canOpen, hasKey, cooldownRemaining, nextTierLockedBy } from './chest.js';
@@ -31,6 +31,7 @@ import { introSlides } from './cinematic.js';
 import * as Story from './story.js';
 import { rerollCost as bountyRerollCost } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
+import { monsterSpriteSrc, bossSpriteSrcByName, chestSpriteSrc, orbSpriteSrc, treasureSpriteSrc, mimicSpriteSrc, spriteImg } from './spriteMap.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
 import { MATERIALS } from './materials.js';
 import { ELEMENTS } from './elements.js';
@@ -363,7 +364,7 @@ function screenHub() {
       <div class="stage-tier smallcap gold-text">Tier ${tier.tier} · ${tier.name}</div>
       <div class="stage-title display">Coffre ${tier.name}</div>
       <div class="chest-hero${enoughKeys ? ' has-key' : ''}" id="chest-hero">
-        <div class="chest-sprite pixel" id="chest-sprite">${chestSpriteSVG(tier.tier, 168)}</div>
+        <div class="chest-sprite pixel" id="chest-sprite">${spriteImg(chestSpriteSrc(tier.tier, { hires: true }), chestSpriteSVG(tier.tier, 168), { size: 168, title: tier.name })}</div>
       </div>
 
       <div class="drop-card panel">
@@ -512,7 +513,7 @@ function screenDungeon() {
     <div class="biome-path">${biomes}</div>
     <div class="fight-dock">
       <div class="fight-target">
-        <span class="mob-emoji pixel">${hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, 44) : monster.emoji}</span>
+        <span class="mob-emoji pixel">${monsterSpriteHTML(monster, 44)}</span>
         <div class="ft-info">
           <div class="ft-name">${monster.name}${monster.isBoss ? ' 👑' : ''}${monster.isElite ? ' ⭐' : ''}${monsterAffixIcons(monster)}</div>
           <div class="ft-diff" style="color:${diff.color}">${diff.label}${diff.hpLeftPct != null ? ` <span class="smallcap">· ~${diff.hpLeftPct}% PV restants · ${diff.turnsToKill}t</span>` : ''}</div>
@@ -608,8 +609,10 @@ export function setForgeMode(m) { forgeMode = m; renderAll(); }
 
 function screenForge() {
   const item = state.inventory.find(i => i.id === forgeSelectedId);
-  const orbStrip = CURRENCY_TYPES.map(o =>
-    `<span class="orb-chip" style="--c:${o.color}" title="${o.name}">${o.emoji}<span class="mono">${state.orbs[o.id] || 0}</span></span>`).join('');
+  const orbStrip = CURRENCY_TYPES.map(o => {
+    const icon = spriteImg(orbSpriteSrc(o.id), o.emoji, { size: 22, title: o.name });
+    return `<span class="orb-chip" style="--c:${o.color}" title="${o.name}">${icon}<span class="mono">${state.orbs[o.id] || 0}</span></span>`;
+  }).join('');
 
   let body;
   if (forgeMode === 'exchange') {
@@ -754,7 +757,7 @@ function dtHub() {
     <div class="dt-stage">
       <div class="stage-tier smallcap gold-text">Tier ${tier.tier} · ${tier.name}</div>
       <div class="stage-title display">Coffre ${tier.name}</div>
-      <div class="chest-hero${enoughKeys ? ' has-key' : ''}"><div class="chest-sprite pixel" id="chest-sprite">${chestSpriteSVG(tier.tier, 220)}</div></div>
+      <div class="chest-hero${enoughKeys ? ' has-key' : ''}"><div class="chest-sprite pixel" id="chest-sprite">${spriteImg(chestSpriteSrc(tier.tier, { hires: true }), chestSpriteSVG(tier.tier, 220), { size: 220, title: tier.name })}</div></div>
       <div class="open-bar">
         <button class="btn-key" data-nav="dungeon"><span class="cur-glyph">🗝</span><span class="mono">${fmt(state.keys)}</span></button>
         <button class="btn-gold btn-open ${enoughKeys ? '' : 'is-disabled'}" id="btn-open"><span class="open-ico">⬢</span> Ouvrir <span class="open-cost">· 1 clé</span></button>
@@ -825,7 +828,7 @@ function dtDungeon() {
     </div>
     <aside class="dt-panel">
       <div class="dt-card panel mob-preview">
-        <div class="mob-sprite-lg pixel">${hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, 96) : `<span style="font-size:72px">${monster.emoji}</span>`}</div>
+        <div class="mob-sprite-lg pixel">${monsterSpriteHTML(monster, 96)}</div>
         <div class="ft-name">${monster.name}${monster.isBoss ? ' 👑' : ''}${monster.isElite ? ' ⭐' : ''}${monsterAffixIcons(monster)}</div>
         <div class="ft-diff" style="color:${diff.color}">${diff.label}${diff.hpLeftPct != null ? ` <span class="smallcap">· ~${diff.hpLeftPct}% PV · ${diff.turnsToKill}t</span>` : ''}</div>
         <div class="mob-stats smallcap">❤ ${fmt(monster.hp)} · ⚔ ${fmt(monster.damage)} · 🛡 ${fmt(monster.armor)}</div>
@@ -896,6 +899,7 @@ function renderOverlay() {
 const OVERLAYS = {
   combat: ovCombat,
   loot: ovLoot,
+  mimic: ovMimic,
   item: ovItemDetail,
   stats: ovStats,
   talents: ovTalents,
@@ -941,7 +945,7 @@ function ovCombat() {
         <div class="cf-name">${monster.name}${monster.isBoss ? ' 👑' : ''}</div>
         ${hpBar(monster.hp, monster.hp, { color: 'var(--r-ancestral)', id: 'combat-mob-hp' })}
       </div>
-      <div class="mob-sprite pixel" id="combat-mob-sprite">${hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, 120) : `<span style="font-size:96px">${monster.emoji}</span>`}</div>
+      <div class="mob-sprite pixel" id="combat-mob-sprite">${monsterSpriteHTML(monster, 120)}</div>
     </div>
     <div class="combat-center">
       <div class="combat-floor smallcap">${biome.emoji} ${biome.name} · Étage ${cur}</div>
@@ -963,6 +967,81 @@ let currentDrop = null;
 export function getCurrentDrop() { return currentDrop; }
 export function showDropPopup(item) { currentDrop = item; navOverlay('loot', {}); }
 export function hideDropPopup() { currentDrop = null; if (nav.overlay === 'loot') closeOverlay(); }
+
+// ── Sprite helper: picks PNG when present, falls back to boss SVG / emoji ──
+function monsterSpriteHTML(monster, size) {
+  if (monster.isBoss) {
+    const fallback = hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, size) : `<span style="font-size:${Math.round(size * 0.8)}px">${monster.emoji}</span>`;
+    return spriteImg(bossSpriteSrcByName(monster.name, { hires: true }), fallback, { size, title: monster.name });
+  }
+  const png = monsterSpriteSrc(monster.name, { hires: true });
+  const fallback = `<span style="font-size:${Math.round(size * 0.8)}px">${monster.emoji}</span>`;
+  if (png) return spriteImg(png, fallback, { size, title: monster.name });
+  return fallback;
+}
+
+// ── Mimic encounter ──────────────────────────────────────────
+let currentMimic = null;
+export function getCurrentMimic() { return currentMimic; }
+export function showMimicEncounter(enc) { currentMimic = enc; navOverlay('mimic', {}); }
+export function refreshMimic() { if (nav.overlay === 'mimic') renderOverlay(); }
+export function hideMimicEncounter() { currentMimic = null; if (nav.overlay === 'mimic') closeOverlay(); }
+
+function ovMimic() {
+  const enc = currentMimic;
+  if (!enc) return overlayShell('Mimic', '');
+  const rungs = MIMIC.ladder.map((r, i) => {
+    const reached = (i + 1) <= enc.rung;
+    const cur = (i + 1) === enc.rung;
+    return `<div class="mimic-rung${reached ? ' reached' : ''}${cur ? ' current' : ''}">
+      <div class="rung-label">${r.label}</div>
+      <div class="rung-gold">×${r.goldMult}</div>
+    </div>`;
+  }).join('');
+  let flavor = '', haul = '', actions = '';
+  if (enc.state === 'choosing') {
+    flavor = enc.rung === 0
+      ? 'Le coffre… grogne. Tu peux fuir ou tenter ta chance.'
+      : (MIMIC.ladder[enc.rung - 1]?.flavor || '');
+    const nextRung = MIMIC.ladder[enc.rung];
+    const biteP = nextRung ? MIMIC.biteCurve[enc.rung] : 1;
+    const biteHint = nextRung ? `${Math.round(biteP * 100)}% morsure` : 'sommet atteint';
+    haul = enc.rung > 0
+      ? `<div>Verrouillé : <b>${MIMIC.ladder[enc.rung - 1].label}</b> (×${MIMIC.ladder[enc.rung - 1].goldMult} or, +${MIMIC.ladder[enc.rung - 1].orbBonus} orbes)</div>
+         <div class="mimic-hint">Tenter le palier suivant : ${biteHint}</div>`
+      : `<div>Aucun butin pour le moment.</div>
+         <div class="mimic-hint">Tenter le 1er palier : ${biteHint}</div>`;
+    const riskDisabled = nextRung ? '' : 'disabled';
+    const takeLabel = enc.rung > 0 ? 'Prendre & partir' : 'S\'enfuir';
+    actions = `<button class="btn btn-gold" data-mimic-action="take">${takeLabel}</button>
+               <button class="btn btn-primary" data-mimic-action="risk" ${riskDisabled}>${nextRung ? `Risquer (${nextRung.label})` : 'Au sommet'}</button>`;
+  } else if (enc.state === 'won') {
+    const rung = MIMIC.ladder[enc.rung - 1];
+    flavor = `🎉 ${rung.label} verrouillé !`;
+    haul = `<div class="mimic-win-gold">+${enc.reward.gold.toLocaleString('fr-FR')} 💰</div>
+            <div class="mimic-win-meta">+${enc.reward.orbs.length} orbe${enc.reward.orbs.length > 1 ? 's' : ''} · objet ${enc.reward.item.rarity}</div>`;
+    actions = `<button class="btn btn-primary" data-mimic-action="close">Continuer</button>`;
+  } else if (enc.state === 'bitten') {
+    flavor = '💀 Le mimic claque la mâchoire…';
+    haul = `<div class="mimic-bite">${enc.lastBite.label} — ${enc.lastBite.desc}</div>` +
+      (enc.goldLost ? `<div class="mimic-loss">-${enc.goldLost.toLocaleString('fr-FR')} 💰</div>` : '');
+    actions = `<button class="btn btn-primary" data-mimic-action="close">Continuer</button>`;
+  }
+  const goldenCls = enc.golden ? ' golden' : '';
+  const banner = enc.golden ? '✨ MIMIC DORÉ ! ✨' : '⚠ UN MIMIC !';
+  const sprite = spriteImg(mimicSpriteSrc({ golden: enc.golden, hires: true }), enc.golden ? '🟡🦷' : '🟫🦷', { size: 128, title: 'Mimic' });
+  return `<div class="overlay-backdrop"></div>
+    <div class="sheet mimic-sheet${goldenCls}">
+      <div class="mimic-banner${goldenCls}">${banner}</div>
+      <div class="mimic-stage">
+        <div class="mimic-sprite pixel">${sprite}</div>
+        <div class="mimic-flavor">${flavor}</div>
+      </div>
+      <div class="mimic-ladder">${rungs}</div>
+      <div class="mimic-haul">${haul}</div>
+      <div class="mimic-actions">${actions}</div>
+    </div>`;
+}
 
 // ── Bulk open recap ──────────────────────────────────────────
 let bulkSummary = null;

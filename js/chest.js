@@ -4,6 +4,7 @@ import { CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, CURRENCY_TYPES } from './data.js';
 import { generateItemFromChest } from './loot.js';
 import { orbDropMultiplier } from './talents.js';
 import { trackProgress as bountyTrack } from './bounties.js';
+import { shouldTriggerMimic, startMimicEncounter } from './mimic.js';
 
 // Roll each currency type independently. Higher chest tier slightly boosts rates.
 // Returns array of currency IDs that dropped this open.
@@ -63,6 +64,12 @@ export function openChest() {
   lastOpenAt = Date.now();
   state.keys = (state.keys || 0) - 1;
   state.opened += 1;
+  // Push-your-luck: 0.5% chance the chest is a Mimic. We hand off to the
+  // encounter modal; the player's choices decide what they walk away with.
+  if (shouldTriggerMimic()) {
+    notify();
+    return { mimic: startMimicEncounter({ chestTier: state.chestTier }) };
+  }
   const forceSlot = consumeFocusSlot();
   const qty = rollItemQuantity(state.chestTier);
   const items = [];
@@ -71,7 +78,6 @@ export function openChest() {
     items.push(generateItemFromChest(state.chestTier, { forceSlot: i === 0 ? forceSlot : null }));
   }
   const orbs = rollOrbDrops(state.chestTier);
-  bountyTrack('open_chests', 1);
   notify();
   return { items, orbs, focusUsed: !!forceSlot };
 }

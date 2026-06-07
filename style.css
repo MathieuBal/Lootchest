@@ -944,3 +944,78 @@ input, select { font-family: inherit; }
 @keyframes pop { from { opacity: 0; transform: scale(.9) translate(-50%,-50%); } to { opacity: 1; transform: scale(1) translate(-50%,-50%); } }
 @media (max-width: 900px) { @keyframes pop { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } } }
 @keyframes flashFade { 0% { opacity: .9; } 100% { opacity: 0; } }
+
+/* === Pixel sprite (PNG with crisp upscale) === */
+.pixel-sprite, .pixel img {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  display: inline-block;
+  vertical-align: middle;
+}
+/* Elite monster tint */
+.mob-sprite.elite, .monster-elite {
+  filter: drop-shadow(0 0 10px rgba(180,80,255,.55)) hue-rotate(270deg) saturate(1.4) brightness(1.1);
+  transform: scale(1.12);
+}
+/* Crystal rarity tints */
+.crystal { image-rendering: pixelated; vertical-align: middle; }
+.crystal.r-common    { filter: grayscale(.4) brightness(.95); }
+.crystal.r-magic     { filter: hue-rotate(200deg) saturate(1.2); }
+.crystal.r-rare      { filter: hue-rotate(40deg)  saturate(1.4) brightness(1.1); }
+.crystal.r-epic      { filter: hue-rotate(280deg) saturate(1.3); }
+.crystal.r-legendary { filter: hue-rotate(330deg) saturate(1.5) brightness(1.1); }
+.crystal.r-ancestral { filter: saturate(1.6) brightness(1.15) drop-shadow(0 0 6px #ff3050); }
+
+/* === Mimic encounter overlay === */
+.mimic-sheet {
+  background: radial-gradient(ellipse at 50% 30%, #3a0a0a 0%, #100404 90%);
+  border: 3px solid #c92020;
+  box-shadow: 0 0 60px rgba(255,60,60,.4), inset 0 0 40px rgba(255,80,80,.15);
+  padding: 20px;
+  max-width: 560px;
+  margin: 0 auto;
+  left: 0; right: 0;
+}
+.mimic-sheet.golden {
+  border-color: #ffc848;
+  background: radial-gradient(ellipse at 50% 30%, #3a2808 0%, #100c04 90%);
+  box-shadow: 0 0 60px rgba(255,200,80,.5), inset 0 0 40px rgba(255,210,80,.18);
+}
+.mimic-banner {
+  font-family: var(--f-display, inherit);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #ff5050;
+  text-shadow: 0 0 8px rgba(255,60,60,.6);
+  text-align: center;
+  margin-bottom: 12px;
+  animation: mimic-pulse 1.2s ease-in-out infinite;
+}
+.mimic-banner.golden { color: #ffd84a; text-shadow: 0 0 12px rgba(255,200,80,.7); }
+@keyframes mimic-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+.mimic-stage { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 14px; }
+.mimic-sprite { filter: drop-shadow(0 4px 8px rgba(0,0,0,.8)) drop-shadow(0 0 12px rgba(255,80,80,.5)); animation: mimic-wiggle 2s ease-in-out infinite; font-size: 64px; }
+.mimic-sprite img { width: 128px; height: 128px; }
+@keyframes mimic-wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+.mimic-flavor { font-style: italic; color: #ffb0b0; font-size: 12px; text-align: center; min-height: 16px; }
+.mimic-ladder { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 12px; }
+.mimic-rung { padding: 6px 4px; border: 1px solid #553030; border-radius: 4px; background: #1a0808; text-align: center; font-size: 10px; opacity: .5; transition: all .2s ease; }
+.mimic-rung.reached { opacity: 1; border-color: #d8a040; background: #2a1808; box-shadow: 0 0 6px rgba(255,180,80,.4); }
+.mimic-rung.current { border-color: #ff5050; box-shadow: 0 0 10px rgba(255,80,80,.6); transform: translateY(-2px); }
+.mimic-rung .rung-label { font-weight: 700; color: #ffc888; }
+.mimic-rung .rung-gold { color: #ffd060; font-size: 9px; }
+.mimic-haul { background: rgba(0,0,0,.4); border: 1px solid #4a2828; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; text-align: center; font-size: 13px; color: #ffc888; min-height: 20px; }
+.mimic-hint { opacity: .7; font-size: 11px; margin-top: 4px; }
+.mimic-win-gold { color: #ffd060; font-weight: 700; font-size: 15px; }
+.mimic-win-meta { font-size: 11px; color: #ffc888; }
+.mimic-bite { color: #ff7070; font-weight: 700; font-size: 14px; }
+.mimic-loss { font-size: 11px; color: #ff8080; }
+.mimic-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }

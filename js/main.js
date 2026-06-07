@@ -23,6 +23,9 @@ import {
 } from './village.js';
 import { craftItem } from './loot.js';
 import { claimChapter, storyReady } from './story.js';
+import { advanceMimic } from './mimic.js';
+import { MIMIC } from './data.js';
+import { mimicSpriteSrc, spriteImg } from './spriteMap.js';
 import {
   unlockAudio, toggleMuted, isMuted, setMuted,
   soundChestOpen, soundDrop, soundCoin, soundHit, soundCrit,
@@ -141,6 +144,14 @@ document.body.addEventListener('click', async (e) => {
   const ovBtn = t.closest('[data-overlay]');
   if (ovBtn) { if (ovBtn.dataset.overlay === 'contracts') refreshBoardIfEmpty(); UI.navOverlay(ovBtn.dataset.overlay); soundClick(); return; }
   if (t.closest('[data-menu]')) { UI.navOverlay('menu'); soundClick(); return; }
+
+  // ── Mimic encounter buttons ──
+  const mimicBtn = t.closest('[data-mimic-action]');
+  if (mimicBtn) {
+    handleMimicAction(mimicBtn.dataset.mimicAction);
+    soundClick();
+    return;
+  }
 
   // ── Hub: open chest ──
   if (t.closest('#btn-open')) { openChestFlow(); return; }
@@ -344,6 +355,11 @@ function openChestFlow() {
   soundChestOpen();
   const result = openChest();
   if (!result) return;
+  if (result.mimic) {
+    UI.playChestOpen();
+    UI.showMimicEncounter(result.mimic);
+    return;
+  }
   const { items, orbs } = result;
   const item = items[0];                   // primary item drives the reveal
   const extras = items.slice(1);
@@ -706,3 +722,29 @@ document.addEventListener('keydown', (e) => {
     else if (canOpen()) openChestFlow();
   }
 });
+
+// ── Mimic encounter resolution ───────────────────────────────
+function handleMimicAction(action) {
+  const enc = UI.getCurrentMimic();
+  if (!enc) return;
+  if (action === 'close') {
+    UI.hideMimicEncounter();
+    return;
+  }
+  advanceMimic(enc, action);
+  UI.refreshMimic();
+  if (enc.state === 'won') {
+    const center = UI.getChestCenter();
+    spawnParticles('#ffd060', center.x, center.y, 40);
+    soundDrop(enc.reward.item.rarity);
+    soundCoin();
+    addToInventory(enc.reward.item);
+    UI.showToast(enc.golden ? '✨' : '🎁', enc.golden ? 'Mimic doré battu !' : 'Mimic battu',
+      `+${enc.reward.gold.toLocaleString('fr-FR')} 💰 · +${enc.reward.orbs.length} orbes`);
+  } else if (enc.state === 'bitten') {
+    const center = UI.getChestCenter();
+    spawnParticles('#ff3030', center.x, center.y, 30);
+    screenShake(8, 300);
+    soundLose();
+  }
+}

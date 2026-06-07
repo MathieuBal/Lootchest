@@ -443,6 +443,30 @@ export const CURRENCY_BY_ID = Object.fromEntries(CURRENCY_TYPES.map(c => [c.id, 
 export const CURRENCY_EXCHANGE_LADDER = ['transmu', 'augm', 'alte', 'regal', 'chaos', 'divin', 'exil', 'maitre'];
 export const CURRENCY_EXCHANGE_COST = [3, 3, 3, 4, 4, 5, 6]; // N de tier i → 1 de tier i+1
 
+// === Mimic — push-your-luck encounter on chest open ===
+// Replaces the normal drop ~0.5% of the time. Player ladders 6 rungs; each
+// rung is keep-or-gamble: stake the haul on a coin flip, win = next tier,
+// lose = "bite" (lose the haul, possibly extra punishment). Golden mimic
+// (~0.2%) doubles all loot.
+export const MIMIC = {
+  triggerChance: 0.005,
+  goldenChance:  0.002,
+  biteCurve: [0, 0.15, 0.30, 0.48, 0.68, 0.80],
+  ladder: [
+    { rung: 1, label: 'Bouchée',   goldMult: 1.5, orbBonus: 1, rarityFloor: null,        flavor: 'Un goûter avant le festin.' },
+    { rung: 2, label: 'Repas',     goldMult: 2.5, orbBonus: 2, rarityFloor: 'magic',     flavor: 'Ça commence à compter.' },
+    { rung: 3, label: 'Banquet',   goldMult: 4,   orbBonus: 3, rarityFloor: 'rare',      flavor: 'Tu sens que tu joues avec le feu.' },
+    { rung: 4, label: 'Festin',    goldMult: 7,   orbBonus: 5, rarityFloor: 'epic',      flavor: 'Le mimic salive autant que toi.' },
+    { rung: 5, label: 'Jackpot',   goldMult: 12,  orbBonus: 8, rarityFloor: 'legendary', flavor: 'C\'est presque indécent.' },
+    { rung: 6, label: 'Apothéose', goldMult: 25,  orbBonus: 14,rarityFloor: 'ancestral', flavor: 'Personne ne va te croire.' },
+  ],
+  bite: [
+    { id: 'starve', label: 'Affamé',  desc: 'Tu repars les mains vides.',                  effect: { goldPct: 0 } },
+    { id: 'nip',    label: 'Morsure', desc: 'Le mimic te croque un peu d\'or au passage.', effect: { goldPct: 0, goldLossPct: 0.05 } },
+    { id: 'curse',  label: 'Maudit',  desc: '-1 clé au prochain coffre.',                  effect: { goldPct: 0, keyLoss: 1 } },
+  ],
+};
+
 // Number of additional affixes craftable beyond the rarity's default count.
 export const MAX_BONUS_AFFIXES = 1;
 
