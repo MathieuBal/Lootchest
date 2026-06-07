@@ -1019,3 +1019,25 @@ input, select { font-family: inherit; }
 .mimic-bite { color: #ff7070; font-weight: 700; font-size: 14px; }
 .mimic-loss { font-size: 11px; color: #ff8080; }
 .mimic-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+/* === Forge guide overlay === */
+.guide-lead { font-size: 14px; color: var(--ink-200); margin-bottom: 16px; }
+.guide-list { margin: 4px 0 12px; padding-left: 20px; line-height: 1.7; }
+.guide-list li { margin-bottom: 4px; }
+.guide-row { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; }
+.guide-orb {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 14px;
+  border: 1px solid var(--c, var(--border));
+  background: color-mix(in srgb, var(--c, var(--border)) 12%, transparent);
+  font-size: 13px; color: var(--c, var(--ink-100));
+}
+.guide-orb img { width: 22px; height: 22px; }
+.guide-rar { font-weight: 700; padding: 1px 6px; border-radius: 4px; }
+.guide-tip {
+  margin-top: 16px; padding: 10px 12px;
+  background: rgba(255, 200, 80, 0.08);
+  border-left: 3px solid #ffc848;
+  border-radius: 4px;
+  font-size: 13px;
+}

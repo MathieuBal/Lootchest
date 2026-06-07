@@ -678,8 +678,9 @@ function screenForge() {
     </div>`;
   }
   const exchangeBtn = forgeMode === 'exchange' ? '' : '<button class="btn-ghost ex-open" data-forge-mode="exchange">🔄 Comptoir</button>';
+  const guideBtn = '<button class="btn-ghost ex-open" data-overlay="forgeGuide" title="Guide complet de la forge">📖 Guide</button>';
   return `<div class="forge">
-    <div class="orb-strip panel">${orbStrip}${exchangeBtn}</div>
+    <div class="orb-strip panel">${orbStrip}${exchangeBtn}${guideBtn}</div>
     ${body}
   </div>`;
 }
@@ -919,6 +920,7 @@ const OVERLAYS = {
   onboarding: ovOnboarding,
   settings: ovSettings,
   help: ovHelp,
+  forgeGuide: ovForgeGuide,
   menu: ovMenu,
   autosell: ovAutosell,
   bulkResult: ovBulkResult,
@@ -1836,11 +1838,95 @@ function ovHelp() {
   return overlayShell('Comment jouer', `
     <h3>📦 Coffre</h3><p>Ouvre des coffres (1 clé) pour looter des objets. Améliore le tier pour de meilleurs drops. Légendaire garanti tous les ${PITY_THRESHOLD} coffres (jauge pity).</p>
     <h3>⚔ Donjon</h3><p>Affronte des monstres pour or, items et clés. Tous les 5 étages : boss. Mode 🔁 Boucle sur un étage déjà battu.</p>
-    <h3>⚒ Forge</h3><p>Chaque action consomme un orbe spécifique. Transmute, augmente, reroll… pour améliorer tes objets.</p>
+    <h3>⚒ Forge</h3><p>Chaque action consomme un orbe spécifique. Transmute, augmente, reroll… pour améliorer tes objets. <button class="btn-ghost" data-overlay="forgeGuide">📖 Guide forge & orbes</button></p>
     <h3>🌟 Ascension & 🌳 Talents</h3><p>À T5 + étage 50, ascensionne pour repartir plus puissant (+prestige permanent). Gagne des points de talent par paliers d'étage.</p>
     <h3>💡 Raccourcis</h3><p>Espace : ouvrir/combattre · Échap : fermer.</p>
     <button class="btn-ghost" data-intro-replay="1">🎬 Revoir la cinématique</button>
     <button class="btn-ghost" data-action="replay-welcome">🎓 Revoir le tutoriel</button>`, { wide: true });
+}
+
+function ovForgeGuide() {
+  const orb = (id) => {
+    const c = CURRENCY_BY_ID[id];
+    if (!c) return id;
+    const icon = spriteImg(orbSpriteSrc(id), c.emoji, { size: 22, title: c.name });
+    return `<span class="guide-orb" style="--c:${c.color}">${icon} <b>${c.name}</b></span>`;
+  };
+  const rarityChip = (id) => {
+    const r = RARITY_BY_ID[id];
+    return `<span class="guide-rar rt-${r.cssClass}" style="color:${r.color}">${r.name}</span>`;
+  };
+  return overlayShell('📖 Guide de la Forge', `
+    <p class="guide-lead">Tu loot des objets, la forge te permet de les <b>améliorer</b> en consommant des <b>orbes</b> (drop des coffres) ou des <b>cristaux 💎</b> (recyclage d'objets).</p>
+
+    <h3>1 · La rareté, c'est le plafond</h3>
+    <p>Chaque objet a une rareté qui dicte combien d'<b>affixes</b> (stats bonus) il peut avoir :</p>
+    <ul class="guide-list">
+      <li>${rarityChip('common')} — 0 affixe (juste les stats de base)</li>
+      <li>${rarityChip('magic')} — 1-2 affixes</li>
+      <li>${rarityChip('rare')} — 3-4 affixes</li>
+      <li>${rarityChip('epic')} — 4-5 affixes</li>
+      <li>${rarityChip('legendary')} — 5-6 affixes</li>
+      <li>${rarityChip('ancestral')} — le top, valeurs ×1.5</li>
+    </ul>
+    <p>👉 Premier objectif quand tu craft : <b>monter la rareté</b>, ensuite tu remplis les affixes, ensuite tu optimises leurs valeurs.</p>
+
+    <h3>2 · Les orbes de rareté (montent le plafond)</h3>
+    <div class="guide-row">${orb('transmu')}</div>
+    <p>Transforme un objet <b>commun → magique</b>. C'est par là que tu commences.</p>
+    <div class="guide-row">${orb('regal')}</div>
+    <p>Transforme un objet <b>magique → rare</b>. Garde les affixes existants et en ajoute 1.</p>
+
+    <h3>3 · Les orbes d'affixes (modifient les stats)</h3>
+    <div class="guide-row">${orb('augm')}</div>
+    <p>Ajoute un affixe à un objet <b>magique</b> (max 2). Pas cher, à spammer dès qu'un magique te plaît.</p>
+    <div class="guide-row">${orb('alte')}</div>
+    <p><b>Reroll complet</b> d'un objet magique. Tu jettes tout et tu repioches. À utiliser quand tu cherches un affixe précis sur du magique cheap.</p>
+    <div class="guide-row">${orb('chaos')}</div>
+    <p><b>Reroll complet</b> d'un rare ou plus. L'orbe casino par excellence — tu peux tout perdre comme tout gagner.</p>
+    <div class="guide-row">${orb('exil')}</div>
+    <p>Ajoute un affixe à un objet rare+. Permet de dépasser le nombre standard (1 affixe bonus).</p>
+    <div class="guide-row">${orb('divin')}</div>
+    <p>Reroll <b>les valeurs</b> des affixes (les stats restent les mêmes, mais leurs nombres bougent). Pour optimiser un objet déjà parfait sur le papier.</p>
+
+    <h3>4 · Les orbes spéciaux</h3>
+    <div class="guide-row">${orb('maitre')}</div>
+    <p>Mode <b>Maître Forgeron</b> : tu <b>choisis</b> l'affixe que tu veux ajouter (au lieu d'en piocher un au hasard). L'orbe le plus rare et le plus puissant — garde-le pour des items légendaires.</p>
+    <div class="guide-row">${orb('pierre')}</div>
+    <p><b>Pierre de Forge</b> : monte le tier de l'objet de +1. Un objet T3 devient T5 → toutes ses valeurs scalent. À utiliser sur tes meilleures pièces uniquement.</p>
+    <div class="guide-row">${orb('focus')}</div>
+    <p>Cible le <b>slot</b> du prochain coffre ouvert. Tu sais qu'il te manque une amulette ? Active focus + slot Amulette → le prochain drop sera forcément une amulette.</p>
+
+    <h3>5 · Le verrou d'affixe 🔒</h3>
+    <p>Sur un objet rare+, tu peux <b>verrouiller 1 affixe</b> avant un Chaos ou un Divin. L'affixe ne bougera pas pendant le reroll — les autres oui. Idéal quand tu as <i>un</i> affixe parfait et que tu veux retenter les autres sans le perdre.</p>
+
+    <h3>6 · Les cristaux 💎 et Reroll+</h3>
+    <p>Quand tu <b>recycles</b> un objet (bouton 💎 dans l'inventaire), tu reçois des cristaux de la <b>même rareté</b> que l'objet recyclé. Tu en gagnes aussi en farmant.</p>
+    <p>👉 Avec <b>${REROLL_PLUS_SHARD_COST} cristaux</b> de la rareté de ton objet, tu peux faire un <b>Reroll+</b> : un reroll qui privilégie les <b>hauts rolls</b>. C'est l'outil de min-maxing du late game.</p>
+
+    <h3>7 · Le comptoir de change</h3>
+    <p>Trop de petits orbes ? Le comptoir convertit <b>vers le haut</b> :</p>
+    <ul class="guide-list">
+      <li>3 ${orb('transmu')} → 1 ${orb('augm')}</li>
+      <li>3 ${orb('augm')} → 1 ${orb('alte')}</li>
+      <li>3 ${orb('alte')} → 1 ${orb('regal')}</li>
+      <li>… et ainsi de suite jusqu'à ${orb('maitre')}</li>
+    </ul>
+    <p>Conversion à sens unique — pas de retour en arrière. Pense-y avant de tout convertir.</p>
+
+    <h3>🎯 Parcours type : commun → légendaire</h3>
+    <ol class="guide-list">
+      <li>Loot un objet <b>commun</b> avec un base type qui te plaît.</li>
+      <li>${orb('transmu')} → <b>magique</b> (1 affixe).</li>
+      <li>${orb('augm')} → 2 affixes. Si pas terrible, ${orb('alte')} pour reroll.</li>
+      <li>${orb('regal')} → <b>rare</b> (+1 affixe automatique).</li>
+      <li>${orb('exil')} pour ajouter un affixe bonus si l'objet est prometteur.</li>
+      <li>${orb('chaos')} pour reroll les affixes restants (verrouille ton meilleur avant 🔒).</li>
+      <li>${orb('divin')} ou Reroll+ 💎 pour maximiser les valeurs.</li>
+      <li>${orb('pierre')} si tu veux pousser le tier de l'objet.</li>
+    </ol>
+    <p class="guide-tip">💡 <b>Erreur classique :</b> spammer Chaos sur un objet sans rien verrouiller. Tu reroll tout à chaque fois — tu vas tourner en rond. Verrouille toujours ton meilleur affixe avant.</p>
+  `, { wide: true });
 }
 
 // ── ⋯ Menu ───────────────────────────────────────────────────
