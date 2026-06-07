@@ -651,7 +651,9 @@ function handleCombatEvent(ev, monsterMaxHp, playerMaxHp) {
 }
 
 function itemAction(action) {
-  const id = UI.getOverlayParam('itemId');
+  // Mobile : id passé via les params d'overlay. Desktop : panneau inline,
+  // pas d'overlay ouvert → fallback sur la sélection inventaire courante.
+  const id = UI.getOverlayParam('itemId') || UI.getInvSelectedId();
   const item = findItem(id);
   if (!item) return;
   const equipped = !!Object.values(state.equipment).find(i => i && i.id === item.id);

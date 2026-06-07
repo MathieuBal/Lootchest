@@ -731,6 +731,7 @@ function screenMeta() {
 // ═════════════════════════════════════════════════════════════
 let invSelectedId = null;
 export function selectInvItem(id) { invSelectedId = id; renderAll(); }
+export function getInvSelectedId() { return invSelectedId; }
 
 const DESKTOP_SCREENS = {
   hub: dtHub,
@@ -1694,7 +1695,8 @@ function ovAscension() {
   const reqs = ascensionRequirements();
   const lvl = state.prestige?.level || 0;
   const next = lvl + 1;
-  const bonus = 15 * next;
+  const bonus = 15 * next;   // drops + or
+  const cbonus = 6 * next;   // dégâts + PV (combat)
   return `<div class="overlay-backdrop" data-close-overlay="1"></div>
     <div class="ascension dark">
       <button class="sheet-close" data-close-overlay="1">✕</button>
