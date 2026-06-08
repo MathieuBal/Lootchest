@@ -5,7 +5,8 @@ import { state, subscribe, resetState, notify } from './state.js';
 import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS, CURRENCY_BY_ID } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
 import { openChest, openChests, upgradeChest, canOpen } from './chest.js';
-import { attemptCurrentFloor, setCurrentFloor, attemptDiveFight, generateMonster, predictDifficulty } from './combat.js';
+import { attemptCurrentFloor, prepareCurrentFloor, applyCombatOutcome, setCurrentFloor, attemptDiveFight, generateMonster, predictDifficulty } from './combat.js';
+import { createBattle, executeTurn, canUseAction, autoChoice, ACTIONS as COMBAT_ACTIONS } from './combatTurn.js';
 import {
   startDive, isDiving, getSession, recordWin, openBoonChoice, chooseBoon,
   finalizeDive, nextStartHp, diveMods, diveDepth,
@@ -147,12 +148,27 @@ document.body.addEventListener('click', async (e) => {
   // Close overlay (backdrop / ✕)
   if (t.closest('[data-close-overlay]')) { UI.closeOverlay(); return; }
 
-  // Combat dialog: actions inline
+  // Combat dialog: actions inline (Auto, Vitesse)
   const cbAct = t.closest('[data-combat-act]');
   if (cbAct) {
     const a = cbAct.dataset.combatAct;
     if (a === 'speed') { _combatSpeed = _combatSpeed === 2 ? 1 : 2; cbAct.classList.toggle('on', _combatSpeed === 2); soundClick(); }
     else if (a === 'skip') { _combatSkipped = true; UI.completeCombatDialog(); soundClick(); }
+    else if (a === 'auto') {
+      _autoMode = !_autoMode;
+      cbAct.classList.toggle('on', _autoMode);
+      soundClick();
+      // Si on attend une action joueur et qu'on vient d'activer l'Auto, on
+      // déclenche immédiatement le choix automatique pour ne pas rester figé.
+      if (_autoMode && _pendingAction && _currentBattle) submitAction(autoChoice(_currentBattle));
+    }
+    return;
+  }
+  // Combat action buttons (Attaquer / Frappe Puissante / Défendre / Fuir)
+  const actBtn = t.closest('[data-combat-action]');
+  if (actBtn && !actBtn.disabled) {
+    submitAction(actBtn.dataset.combatAction);
+    soundClick();
     return;
   }
 
@@ -468,33 +484,78 @@ function confirmSuicideFloor() {
   UI.showToast('💀', 'Étage mortel', 'Mort quasi certaine — re-clique pour confirmer');
   return false;
 }
+// === Tour-par-tour : promesse résolue par le clic sur un bouton d'action ===
+let _pendingAction = null;
+let _autoMode = false;
+let _currentBattle = null;     // pour que le toggle Auto puisse calculer l'autoChoice
+
+function waitForAction() {
+  return new Promise(resolve => { _pendingAction = resolve; });
+}
+function submitAction(actionId) {
+  if (!_pendingAction) return;
+  const r = _pendingAction;
+  _pendingAction = null;
+  r(actionId);
+}
+
+function refreshActionButtons(battle) {
+  battle._allowed = {
+    attack: canUseAction(battle, 'attack'),
+    power:  canUseAction(battle, 'power'),
+    defend: canUseAction(battle, 'defend'),
+    flee:   canUseAction(battle, 'flee'),
+  };
+  UI.setCombatActionsState(battle, _autoMode || state.combat.loopMode);
+}
+
 async function fightFlow() {
   if (fighting || isDiving()) return;
   fighting = true;
   try {
-    const { result, monster, droppedItem, advanced, milestone } = attemptCurrentFloor();
+    const { floor, monster } = prepareCurrentFloor();
     UI.openCombat(monster);
     resetTurn();
     _combatSkipped = false;
+    if (state.combat.loopMode) _autoMode = true;     // forced auto in loop
     await sleep(60);
-    const playerMaxHp = result.playerMaxHp;
-    const monsterMaxHp = monster.hp;
-    UI.showCombatBars(playerMaxHp, monsterMaxHp);
+
+    const battle = createBattle(monster);
+    _currentBattle = battle;
+    UI.showCombatBars(battle.pMaxHp, battle.mMaxHp);
     UI.setCombatDialog(monster.isBoss
       ? `Un ${monster.name} apparaît !`
       : `Tu engages le combat contre ${monster.name}.`);
 
-    const events = result.events || [];
-    const fast = !!state.settings?.fastCombat;
-    const basePerEvent = fast ? 12 : Math.max(45, Math.min(150, 1300 / Math.max(1, events.length)));
-
-    for (const ev of events) {
-      const perEvent = _combatSpeed === 2 ? Math.max(6, basePerEvent / 2) : basePerEvent;
-      if (_combatSkipped) { handleCombatEvent(ev, monsterMaxHp, playerMaxHp); continue; }
-      await sleep(perEvent);
-      handleCombatEvent(ev, monsterMaxHp, playerMaxHp);
+    // Boucle tour-par-tour : on attend une action joueur (ou Auto), on exécute,
+    // on anime les events, on rebouche jusqu'à fin de combat.
+    refreshActionButtons(battle);
+    while (!battle.ended) {
+      let action;
+      if (_autoMode || state.combat.loopMode) {
+        // Petit délai pour que le joueur voie ce qui se passe avant le tour suivant.
+        await sleep(_combatSpeed === 2 ? 250 : 500);
+        action = autoChoice(battle);
+      } else {
+        action = await waitForAction();
+      }
+      const { events, ended, won } = executeTurn(battle, action);
+      const baseDelay = _combatSpeed === 2 ? 200 : 380;
+      for (const ev of events) {
+        if (_combatSkipped) { handleCombatEvent(ev, battle.mMaxHp, battle.pMaxHp); continue; }
+        handleCombatEvent(ev, battle.mMaxHp, battle.pMaxHp);
+        await sleep(baseDelay);
+      }
+      refreshActionButtons(battle);
+      if (ended) break;
     }
     await sleep(280);
+
+    // Reconstruit le format de retour que le reste du flow attend
+    const result = { won: battle.won, playerMaxHp: battle.pMaxHp, log: [] };
+    const outcome = applyCombatOutcome(floor, monster, battle.won && !battle.fled);
+    const { droppedItem, advanced, milestone } = outcome;
+    if (battle.fled) UI.setCombatDialog('Tu fuis le combat…');
 
     UI.appendCombatLog(result.log, result.won ? 'win' : 'lose');
     if (result.won) {
@@ -530,6 +591,7 @@ async function fightFlow() {
     }
 
     await sleep(700);
+    _currentBattle = null;
     UI.closeCombat();
     if (drop) UI.showDropPopup(drop);
 

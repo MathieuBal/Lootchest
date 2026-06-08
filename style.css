@@ -1130,3 +1130,38 @@ input, select { font-family: inherit; }
   70%      { transform: translateX(6px); }
   90%      { transform: translateX(-2px); }
 }
+
+/* === Combat action menu (tour-par-tour Pokémon-like) === */
+.combat-menu {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+.cm-act {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  border: 2px solid #483a5a;
+  background: linear-gradient(135deg, #2a1a3a, #1a1028);
+  color: #f5eedd;
+  cursor: pointer;
+  transition: all .15s ease;
+  position: relative;
+  min-height: 56px;
+}
+.cm-act:hover:not(:disabled) { border-color: var(--gold-200, #f5c842); transform: translateY(-1px); box-shadow: 0 2px 10px rgba(245,200,66,.25); }
+.cm-act:active:not(:disabled) { transform: translateY(0); }
+.cm-act.primary { border-color: #f5c842; background: linear-gradient(135deg, #3a2a1a, #2a1a08); }
+.cm-act .cm-emoji { font-size: 22px; line-height: 1; }
+.cm-act .cm-label { font-size: 12px; font-weight: 700; letter-spacing: .5px; }
+.cm-act .cm-cd { position: absolute; top: 4px; right: 6px; font-size: 10px; color: #f5c842; font-weight: 700; }
+.cm-act:disabled, .cm-act.is-disabled {
+  opacity: .35;
+  cursor: not-allowed;
+  filter: grayscale(.7);
+}
+@media (min-width: 600px) {
+  .combat-menu { grid-template-columns: repeat(4, 1fr); }
+}

@@ -540,34 +540,37 @@ export function rollDungeonItem(floor, eliteOrBoss) {
 }
 
 // Returns { result, monster, droppedItem, advanced, milestone }
-export function attemptCurrentFloor() {
+// Generate the monster for the current floor without resolving the fight.
+// Used by the turn-based engine; the caller drives executeTurn() then calls
+// applyCombatOutcome() with the win/lose result.
+export function prepareCurrentFloor() {
   const floor = state.combat.currentFloor;
-  const monster = generateMonster(floor);
-  const result = resolveFight(monster);
+  return { floor, monster: generateMonster(floor) };
+}
 
+// Apply gold/keys/drops/floor advance/milestone after a battle resolves.
+// Returns { droppedItem, advanced, milestone }. Mutates state + notifies.
+export function applyCombatOutcome(floor, monster, won) {
   let droppedItem = null;
   let advanced = false;
   let milestone = null;
-  if (result.won) {
+  if (won) {
     state.combat.kills += 1;
     bountyTrack('kill_monsters', 1);
     if (monster.isBoss) {
       state.combat.bossKills += 1;
       bountyTrack('kill_bosses', 1);
-      // Codex: track boss kills per biome
       const biome = biomeForFloor(floor);
       if (state.codex && biome) {
         state.codex.bosses[biome.id] = (state.codex.bosses[biome.id] || 0) + 1;
       }
     }
     monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier() * relicGoldMult() * affinityGoldMult() * villageGoldMult());
-    // Legendary effect: goldenTouch → +30% gold per kill (compounds with other multipliers)
     if (activeLegendaryEffectIds().has('goldenTouch')) {
       monster.goldReward = Math.round(monster.goldReward * 1.30);
     }
     state.gold += monster.goldReward;
 
-    // 🗝 Key drops: boss = 3 guaranteed, elite = 1 guaranteed, normal = 30% chance
     let keyDrop = 0;
     if (monster.isBoss) keyDrop = 3;
     else if (monster.isElite) keyDrop = 1;
@@ -585,26 +588,32 @@ export function attemptCurrentFloor() {
       state.combat.highestUnlocked = floor + 1;
       advanced = true;
       bountySync();
-      // Milestone crossed? Only on first-time progression beyond a multiple of 25.
       if (floor > 0 && floor % 25 === 0) {
         const level = floor / 25;
         const reward = grantMilestoneReward(level);
         milestone = { floor, level, reward };
       }
     }
-    // Stay on the same floor when looping a beaten floor; otherwise advance.
-    // (Loop mode is meant to farm the current floor, not push forward.)
-    const wasBeatenFloor = !advanced; // !advanced ↔ floor was already in highestUnlocked range
+    const wasBeatenFloor = !advanced;
     if (!(state.combat.loopMode && wasBeatenFloor)) {
       state.combat.currentFloor = floor + 1;
     }
   } else {
     state.combat.deaths += 1;
   }
-  // Reroll the encounter (elite + affixes) for the next visit to any floor.
   state.combat.encounterNonce = (state.combat.encounterNonce || 0) + 1;
   notify();
-  return { result, monster, droppedItem, advanced, milestone };
+  return { droppedItem, advanced, milestone };
+}
+
+// Legacy entry point — kept for any caller that still wants the all-in-one
+// auto-resolve behaviour (currently unused by main.js, since fightFlow now
+// drives the turn-based engine, but exported for compat).
+export function attemptCurrentFloor() {
+  const { floor, monster } = prepareCurrentFloor();
+  const result = resolveFight(monster);
+  const outcome = applyCombatOutcome(floor, monster, result.won);
+  return { result, monster, ...outcome };
 }
 
 // === Deep Dive (roguelite endurance run) ===

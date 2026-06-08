@@ -1037,10 +1037,25 @@ function ovCombat() {
       <div class="combat-dialog-text" id="combat-dialog-text">Le combat commence…</div>
     </div>
 
-    <!-- Menu d'actions décoratif (auto/rush/defensive/skip) -->
+    <!-- Menu d'actions tour-par-tour (Pokémon-like) + Auto + Vitesse -->
+    <div class="combat-menu" id="combat-menu">
+      <button class="cm-act primary" data-combat-action="attack" id="btn-act-attack">
+        <span class="cm-emoji">⚔</span><span class="cm-label">Attaquer</span>
+      </button>
+      <button class="cm-act" data-combat-action="power" id="btn-act-power">
+        <span class="cm-emoji">💥</span><span class="cm-label">Frappe Puissante</span><span class="cm-cd" id="cd-power"></span>
+      </button>
+      <button class="cm-act" data-combat-action="defend" id="btn-act-defend">
+        <span class="cm-emoji">🛡</span><span class="cm-label">Défendre</span>
+      </button>
+      <button class="cm-act" data-combat-action="flee" id="btn-act-flee">
+        <span class="cm-emoji">🏃</span><span class="cm-label">Fuir</span>
+      </button>
+    </div>
+
     <div class="combat-actions">
+      <button class="combat-act" data-combat-act="auto" id="btn-combat-auto" title="Le système joue pour toi">🤖 Auto</button>
       <button class="combat-act" data-combat-act="speed" id="btn-combat-speed" title="Accélère le combat">⏩ Vitesse</button>
-      <button class="combat-act" data-combat-act="skip" id="btn-combat-skip" title="Saute à la fin">⏭ Skip</button>
     </div>
   </div>`;
 }
@@ -2102,6 +2117,33 @@ export function completeCombatDialog() {
 export function setCombatTurn(n) {
   const el = $('#combat-turn');
   if (el) el.textContent = `Tour ${n}`;
+}
+
+// Active/désactive les boutons d'action du combat et affiche le CD restant.
+// Appelé par main.js avant chaque tour pour refléter l'état courant du battle.
+export function setCombatActionsState(battle, autoOn = false) {
+  const setBtn = (id, enabled) => {
+    const b = $(id);
+    if (!b) return;
+    b.disabled = !enabled;
+    b.classList.toggle('is-disabled', !enabled);
+  };
+  // Délégation au moteur via les noms d'action — main.js passe canUseAction
+  // via un objet { attack, power, defend, flee } booléens dans battle._allowed.
+  const allowed = battle?._allowed || {};
+  setBtn('#btn-act-attack', !!allowed.attack && !autoOn);
+  setBtn('#btn-act-power',  !!allowed.power  && !autoOn);
+  setBtn('#btn-act-defend', !!allowed.defend && !autoOn);
+  setBtn('#btn-act-flee',   !!allowed.flee   && !autoOn);
+  // Indicateur CD sur le bouton Power
+  const cdEl = $('#cd-power');
+  if (cdEl) {
+    const cd = battle?.cooldowns?.power || 0;
+    cdEl.textContent = cd > 0 ? `(${cd})` : '';
+  }
+  // Visuel du toggle Auto
+  const autoBtn = $('#btn-combat-auto');
+  if (autoBtn) autoBtn.classList.toggle('on', !!autoOn);
 }
 
 // Petite animation de coup : strike CSS pour secouer un fighter, lunge pour le héros.
