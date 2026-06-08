@@ -47,7 +47,15 @@ export const MONSTER_SPRITE = {
 };
 
 export function monsterSpriteSrc(name, { hires = false } = {}) {
-  const id = MONSTER_SPRITE[name];
+  if (!name) return null;
+  // Direct hit first
+  let id = MONSTER_SPRITE[name];
+  // Elite prefixes ("Sauvage Gobelin", "Cuirassé Loup"…) — strip the first
+  // word and retry. Bosses are handled separately via bossSpriteSrcByName.
+  if (!id) {
+    const parts = name.split(/\s+/);
+    if (parts.length > 1) id = MONSTER_SPRITE[parts.slice(1).join(' ')];
+  }
   if (!id) return null;
   return `assets/monsters/${id}${hires ? '-hires' : ''}.png`;
 }
@@ -62,7 +70,10 @@ export const BOSS_SPRITE = {
 };
 
 export function bossSpriteSrcByName(name, { hires = false } = {}) {
-  const id = BOSS_SPRITE[name];
+  // combat.js suffixe les boss avec " (BOSS)" pour l'affichage. On strip
+  // ce suffixe (et tout autre suffixe entre parenthèses) avant lookup.
+  const clean = (name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const id = BOSS_SPRITE[clean];
   if (!id) return null;
   return `assets/bosses/${id}${hires ? '-hires' : ''}.png`;
 }
