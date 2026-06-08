@@ -1041,3 +1041,92 @@ input, select { font-family: inherit; }
   border-radius: 4px;
   font-size: 13px;
 }
+
+/* === Combat RPG-style — dialog box, action menu, sprite animations === */
+.combat.rpg { display: grid; grid-template-rows: 1fr auto auto; gap: 8px; padding: 12px; height: 100vh; box-sizing: border-box; }
+.combat.rpg .combat-stage {
+  position: relative;
+  display: grid;
+  grid-template-areas: "mob-card mob-sprite" ". ." "hero-sprite hero-card";
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr auto;
+  gap: 8px;
+  min-height: 0;
+}
+.combat.rpg .cf-card { background: linear-gradient(135deg, rgba(20,15,30,.85), rgba(10,8,20,.95)); border: 2px solid var(--border, #483a5a); border-radius: 8px; padding: 10px 12px; align-self: start; }
+.combat.rpg .cf-card.mob { grid-area: mob-card; }
+.combat.rpg .cf-card.hero { grid-area: hero-card; }
+.combat.rpg .cf-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.combat.rpg .cf-name { font-weight: 700; font-size: 13px; color: var(--gold-200, #f5c842); }
+.combat.rpg .cf-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.combat.rpg .cf-tag { font-size: 9px; padding: 2px 6px; border-radius: 8px; background: rgba(80,60,120,.4); border: 1px solid rgba(255,255,255,.1); }
+.combat.rpg .cf-tag.boss { background: rgba(255,80,80,.25); border-color: rgba(255,80,80,.5); color: #ffaaaa; }
+.combat.rpg .cf-tag.elite { background: rgba(180,80,255,.25); border-color: rgba(180,80,255,.5); color: #d8a8ff; }
+.combat.rpg .cf-tag.dmg { background: rgba(255,180,80,.18); color: #ffd060; }
+.combat.rpg .cf-tag.def { background: rgba(120,180,255,.18); color: #a0c8ff; }
+.combat.rpg .cf-turn { margin-top: 6px; font-size: 10px; opacity: .7; }
+.combat.rpg .mob-sprite { grid-area: mob-sprite; justify-self: end; align-self: end; }
+.combat.rpg .hero-sprite { grid-area: hero-sprite; justify-self: start; align-self: end; }
+.combat.rpg .combat-call { position: absolute; top: 45%; left: 50%; transform: translate(-50%,-50%); font-size: 32px; font-weight: 800; letter-spacing: 2px; opacity: 0; pointer-events: none; text-shadow: 0 0 12px currentColor; }
+.combat.rpg .combat-call.show { animation: combatCall 700ms ease-out forwards; }
+@keyframes combatCall {
+  0%   { opacity: 0; transform: translate(-50%,-30%) scale(.6); }
+  20%  { opacity: 1; transform: translate(-50%,-50%) scale(1.15); }
+  60%  { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%,-70%) scale(1); }
+}
+/* Dialog box style Pokémon */
+.combat-dialog {
+  background: linear-gradient(180deg, #fcf6e8 0%, #e8d8a8 100%);
+  border: 3px solid #2a1a08;
+  border-radius: 10px;
+  padding: 12px 16px;
+  min-height: 64px;
+  font-family: var(--f-mono, monospace);
+  font-size: 14px;
+  line-height: 1.4;
+  color: #2a1a08;
+  position: relative;
+  box-shadow: inset 0 0 0 2px #fcf6e8, 0 4px 0 #1a1208;
+}
+.combat-dialog::after {
+  content: '▼';
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  color: #2a1a08;
+  animation: dialogBlink 1s steps(2) infinite;
+}
+@keyframes dialogBlink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+/* Action buttons sous la dialog box */
+.combat-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.combat-act {
+  padding: 8px 14px; border-radius: 6px;
+  border: 2px solid #483a5a; background: linear-gradient(135deg, #2a1a3a, #1a1028);
+  color: var(--gold-200, #f5c842); font-weight: 700; font-size: 13px;
+  cursor: pointer; transition: all .15s ease;
+}
+.combat-act:hover { border-color: var(--gold-200, #f5c842); transform: translateY(-1px); }
+.combat-act.on { background: linear-gradient(135deg, #4a2860, #2a1840); border-color: var(--gold-200); }
+/* Sprite animations: attack lunge + hit shake */
+.cf-anim-attack { animation: cfLunge 350ms ease-out; }
+.cf-anim-hit    { animation: cfShake  350ms ease-out; }
+@keyframes cfLunge {
+  0%   { transform: translateX(0); }
+  40%  { transform: translateX(40px) scale(1.08); }
+  100% { transform: translateX(0); }
+}
+.combat.rpg .mob-sprite.cf-anim-attack { animation-name: cfLungeMob; }
+@keyframes cfLungeMob {
+  0%   { transform: translateX(0); }
+  40%  { transform: translateX(-40px) scale(1.08); }
+  100% { transform: translateX(0); }
+}
+@keyframes cfShake {
+  0%, 100% { transform: translateX(0); filter: brightness(1); }
+  10%      { transform: translateX(-8px); filter: brightness(1.8) saturate(0.4) hue-rotate(-20deg); }
+  30%      { transform: translateX(8px); filter: brightness(1.4); }
+  50%      { transform: translateX(-6px); }
+  70%      { transform: translateX(6px); }
+  90%      { transform: translateX(-2px); }
+}

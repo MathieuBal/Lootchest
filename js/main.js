@@ -147,6 +147,15 @@ document.body.addEventListener('click', async (e) => {
   // Close overlay (backdrop / ✕)
   if (t.closest('[data-close-overlay]')) { UI.closeOverlay(); return; }
 
+  // Combat dialog: actions inline
+  const cbAct = t.closest('[data-combat-act]');
+  if (cbAct) {
+    const a = cbAct.dataset.combatAct;
+    if (a === 'speed') { _combatSpeed = _combatSpeed === 2 ? 1 : 2; cbAct.classList.toggle('on', _combatSpeed === 2); soundClick(); }
+    else if (a === 'skip') { _combatSkipped = true; UI.completeCombatDialog(); soundClick(); }
+    return;
+  }
+
   // Tab / rail navigation
   const tabBtn = t.closest('[data-tab]');
   if (tabBtn) { UI.navTab(tabBtn.dataset.tab); soundClick(); return; }
@@ -465,16 +474,23 @@ async function fightFlow() {
   try {
     const { result, monster, droppedItem, advanced, milestone } = attemptCurrentFloor();
     UI.openCombat(monster);
+    resetTurn();
+    _combatSkipped = false;
     await sleep(60);
     const playerMaxHp = result.playerMaxHp;
     const monsterMaxHp = monster.hp;
     UI.showCombatBars(playerMaxHp, monsterMaxHp);
+    UI.setCombatDialog(monster.isBoss
+      ? `Un ${monster.name} apparaît !`
+      : `Tu engages le combat contre ${monster.name}.`);
 
     const events = result.events || [];
     const fast = !!state.settings?.fastCombat;
-    const perEvent = fast ? 12 : Math.max(45, Math.min(150, 1300 / Math.max(1, events.length)));
+    const basePerEvent = fast ? 12 : Math.max(45, Math.min(150, 1300 / Math.max(1, events.length)));
 
     for (const ev of events) {
+      const perEvent = _combatSpeed === 2 ? Math.max(6, basePerEvent / 2) : basePerEvent;
+      if (_combatSkipped) { handleCombatEvent(ev, monsterMaxHp, playerMaxHp); continue; }
       await sleep(perEvent);
       handleCombatEvent(ev, monsterMaxHp, playerMaxHp);
     }
@@ -599,54 +615,92 @@ function diveExit() {
   if (summary) UI.navOverlay('diveSummary', { summary });
 }
 
+// Compteur de tour pour la dialog box style Pokémon.
+let _combatTurn = 0;
+let _combatSpeed = 1;    // 1 = normal, 2 = rapide (bouton ⏩)
+let _combatSkipped = false; // bouton ⏭ Skip : joue les events restants sans pause
+function bumpTurn() { _combatTurn += 1; UI.setCombatTurn(_combatTurn); }
+function resetTurn() { _combatTurn = 0; _combatSpeed = 1; UI.setCombatTurn(0); }
+
 function handleCombatEvent(ev, monsterMaxHp, playerMaxHp) {
   if (ev.type === 'player_hit') {
     UI.updateMonsterHp(ev.monsterHp, monsterMaxHp);
+    bumpTurn();
+    UI.animateCombatSprite('hero', 'attack');
+    UI.animateCombatSprite('mob', 'hit');
     const c = UI.getMonsterEmojiCenter();
-    if (ev.blocked) { floatingText('🛡 BLOQUÉ', c.x, c.y, '#5a8af0'); soundClick(); }
-    else { floatingDamage(ev.dmg, c.x, c.y, ev.isCrit ? 'crit' : 'normal'); ev.isCrit ? soundCrit() : soundHit(); if (ev.isCrit) { screenShake(3, 120); UI.setCombatCall('Frappe Critique', '#ffe14a'); } }
+    if (ev.blocked) {
+      floatingText('🛡 BLOQUÉ', c.x, c.y, '#5a8af0'); soundClick();
+      UI.setCombatDialog(`Le monstre bloque ton attaque !`);
+    } else {
+      floatingDamage(ev.dmg, c.x, c.y, ev.isCrit ? 'crit' : 'normal');
+      ev.isCrit ? soundCrit() : soundHit();
+      if (ev.isCrit) { screenShake(3, 120); UI.setCombatCall('CRITIQUE !', '#ffe14a'); UI.setCombatDialog(`Coup critique ! ${ev.dmg} dégâts !`); }
+      else UI.setCombatDialog(`Tu frappes pour ${ev.dmg} dégâts.`);
+    }
     if (ev.mults && ev.mults.length) floatingText(ev.mults.map(m => m.emoji).join(' '), c.x + 30, c.y - 20, '#ffe14a');
   } else if (ev.type === 'monster_hit') {
     UI.updatePlayerHp(ev.playerHp, playerMaxHp);
+    UI.animateCombatSprite('mob', 'attack');
+    UI.animateCombatSprite('hero', 'hit');
     const c = UI.getCharacterAvatarCenter();
     floatingDamage(ev.dmg, c.x, c.y, 'player-took'); soundHit();
-    if (ev.swift) floatingText('⚡', c.x + 28, c.y - 24, '#ffe14a');
+    UI.setCombatDialog(`Le monstre te frappe pour ${ev.dmg} dégâts !`);
+    if (ev.swift) { floatingText('⚡', c.x + 28, c.y - 24, '#ffe14a'); UI.setCombatCall('Véloce !', '#ffe14a'); }
   } else if (ev.type === 'monster_thorns') {
     UI.updatePlayerHp(ev.playerHp, playerMaxHp);
+    UI.animateCombatSprite('hero', 'hit');
     const c = UI.getCharacterAvatarCenter();
     floatingDamage(ev.amount, c.x, c.y, 'player-took'); floatingText('🌵 Épines', c.x, c.y - 40, '#7adc4a'); soundHit();
+    UI.setCombatDialog(`Tu te blesses sur ses épines (-${ev.amount}).`);
   } else if (ev.type === 'monster_leech') {
     UI.updateMonsterHp(ev.monsterHp, monsterMaxHp);
     const c = UI.getMonsterEmojiCenter();
     floatingText(`🩸 +${ev.amount}`, c.x, c.y - 30, '#ff4a6a');
+    UI.setCombatDialog(`Il aspire ta vie (+${ev.amount} pour lui).`);
   } else if (ev.type === 'skill_heal') {
     UI.updatePlayerHp(ev.playerHp, playerMaxHp);
     const c = UI.getCharacterAvatarCenter();
     floatingDamage(ev.amount, c.x, c.y, 'heal'); floatingText(`${ev.emoji} Soin`, c.x, c.y - 40, '#6acc6a'); soundUpgrade(); spawnParticles('#6acc6a', c.x, c.y, 12);
+    UI.setCombatDialog(`Tu te soignes de ${ev.amount} PV !`);
   } else if (ev.type === 'skill_dodge') {
+    UI.animateCombatSprite('hero', 'attack');
     floatingText('💨 ESQUIVE', UI.getCharacterAvatarCenter().x, UI.getCharacterAvatarCenter().y, '#5a8af0'); soundClick();
+    UI.setCombatCall('ESQUIVE !', '#5a8af0');
+    UI.setCombatDialog(`Tu esquives l'attaque !`);
   } else if (ev.type === 'skill_reflect' || ev.type === 'legendary_burn') {
     UI.updateMonsterHp(ev.monsterHp, monsterMaxHp);
+    UI.animateCombatSprite('mob', 'hit');
     const c = UI.getMonsterEmojiCenter();
     floatingDamage(ev.amount, c.x, c.y, 'normal'); floatingText(`${ev.emoji} ${ev.type === 'legendary_burn' ? 'Brûlure' : 'Épines'}`, c.x, c.y - 40, '#ff6a30'); soundHit();
+    UI.setCombatDialog(ev.type === 'legendary_burn' ? `Ton arme le brûle (-${ev.amount}) !` : `Tes épines le blessent (-${ev.amount}) !`);
   } else if (ev.type === 'set_drain' || ev.type === 'set_heal') {
     UI.updatePlayerHp(ev.playerHp, playerMaxHp);
     const c = UI.getCharacterAvatarCenter();
     floatingText(`${ev.emoji} +${ev.amount}`, c.x, c.y - 30, '#7adc4a');
+    UI.setCombatDialog(`Effet de set : +${ev.amount} PV.`);
   } else if (ev.type === 'set_freeze' || ev.type === 'boss_shield') {
     floatingText(`${ev.emoji || '🛡'} ${ev.type === 'set_freeze' ? 'GEL' : 'BOUCLIER'}`, UI.getMonsterEmojiCenter().x, UI.getMonsterEmojiCenter().y, '#5ad8e8');
+    UI.setCombatCall(ev.type === 'set_freeze' ? 'GEL !' : 'BOUCLIER', '#5ad8e8');
+    UI.setCombatDialog(ev.type === 'set_freeze' ? `Le monstre est gelé !` : `Le boss érige un bouclier !`);
   } else if (ev.type === 'set_dodge') {
     floatingText(`${ev.emoji} BLOC`, UI.getCharacterAvatarCenter().x, UI.getCharacterAvatarCenter().y, '#ffaa00'); soundClick();
+    UI.setCombatDialog(`Tu pares le coup !`);
   } else if (ev.type === 'set_rebirth') {
     UI.updatePlayerHp(ev.playerHp, playerMaxHp);
     const c = UI.getCharacterAvatarCenter();
     floatingText(`${ev.emoji} RENAISSANCE`, c.x, c.y - 40, '#ff3000'); spawnParticles('#ff3000', c.x, c.y, 25); soundWin();
+    UI.setCombatCall('RENAISSANCE !', '#ff3000');
+    UI.setCombatDialog(`Tu reviens des morts à pleine vie !`);
   } else if (ev.type === 'boss_regen') {
     UI.updateMonsterHp(ev.monsterHp, monsterMaxHp);
     const c = UI.getMonsterEmojiCenter(); floatingText(`🌿 +${ev.amount}`, c.x, c.y - 30, '#6acc6a');
+    UI.setCombatDialog(`Le boss régénère ${ev.amount} PV.`);
   } else if (ev.type === 'boss_burn') {
     UI.updatePlayerHp(ev.playerHp, playerMaxHp);
+    UI.animateCombatSprite('hero', 'hit');
     const c = UI.getCharacterAvatarCenter(); floatingDamage(ev.amount, c.x, c.y, 'player-took'); floatingText('🔥 Brûlure', c.x, c.y - 40, '#ff7a1a');
+    UI.setCombatDialog(`Tu brûles ! (-${ev.amount} PV)`);
   }
 }
 

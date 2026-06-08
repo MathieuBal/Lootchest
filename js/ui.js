@@ -996,26 +996,52 @@ function ovCombat() {
   const biome = biomeForFloor(cur);
   const stats = computeStats();
   const playerMax = Math.round(100 + (stats.vitality || 0));
-  return `<div class="combat" style="--biome:${biome.bgGradient}">
-    <div class="combat-top">
-      <div class="combat-fighter mob">
-        <div class="cf-name">${monster.name}${monster.isBoss ? ' 👑' : ''}</div>
+  const monsterTags = [
+    monster.isBoss ? '<span class="cf-tag boss">👑 BOSS</span>' : '',
+    monster.isElite ? '<span class="cf-tag elite">⭐ ÉLITE</span>' : '',
+    `<span class="cf-tag biome">${biome.emoji} ${biome.name}</span>`,
+  ].filter(Boolean).join('');
+  const heroTags = [
+    `<span class="cf-tag dmg">⚔ ${Math.round(stats.damage || 0)}</span>`,
+    `<span class="cf-tag def">🛡 ${Math.round(stats.armor || 0)}</span>`,
+  ].join('');
+  return `<div class="combat rpg" style="--biome:${biome.bgGradient}">
+    <div class="combat-stage">
+      <!-- Monstre haut-droite façon Pokémon -->
+      <div class="cf-card mob">
+        <div class="cf-head">
+          <div class="cf-name">${monster.name}${monster.isBoss ? ' 👑' : ''}${monster.isElite ? ' ⭐' : ''}</div>
+          <div class="cf-tags">${monsterTags}</div>
+        </div>
         ${hpBar(monster.hp, monster.hp, { color: 'var(--r-ancestral)', id: 'combat-mob-hp' })}
       </div>
       <div class="mob-sprite pixel" id="combat-mob-sprite">${monsterSpriteHTML(monster, 120)}</div>
-    </div>
-    <div class="combat-center">
-      <div class="combat-floor smallcap">${biome.emoji} ${biome.name} · Étage ${cur}</div>
+
+      <!-- Action callout central : flash CRIT/DODGE/BLOC etc. -->
       <div class="combat-call" id="combat-call"></div>
-    </div>
-    <div class="combat-bottom">
+
+      <!-- Hero bas-gauche -->
       <div class="hero-sprite pixel" id="combat-hero-sprite">${composeCharacterWithGearSVG(state.equipment, 120)}</div>
-      <div class="combat-fighter hero">
-        <div class="cf-name">⚔ Héros</div>
+      <div class="cf-card hero">
+        <div class="cf-head">
+          <div class="cf-name">⚔ Héros</div>
+          <div class="cf-tags">${heroTags}</div>
+        </div>
         ${hpBar(playerMax, playerMax, { color: 'var(--r-poison)', id: 'combat-hero-hp' })}
+        <div class="cf-turn smallcap"><span id="combat-turn">Tour 1</span> · <span class="cf-floor">${biome.emoji} Étage ${cur}</span></div>
       </div>
     </div>
-    <div class="combat-log" id="combat-log"></div>
+
+    <!-- Dialog box façon Pokémon en bas, avec messages typewriter -->
+    <div class="combat-dialog" id="combat-dialog">
+      <div class="combat-dialog-text" id="combat-dialog-text">Le combat commence…</div>
+    </div>
+
+    <!-- Menu d'actions décoratif (auto/rush/defensive/skip) -->
+    <div class="combat-actions">
+      <button class="combat-act" data-combat-act="speed" id="btn-combat-speed" title="Accélère le combat">⏩ Vitesse</button>
+      <button class="combat-act" data-combat-act="skip" id="btn-combat-skip" title="Saute à la fin">⏭ Skip</button>
+    </div>
   </div>`;
 }
 
@@ -2047,6 +2073,46 @@ export function setCombatCall(text, color = 'var(--gold-200)') {
   el.textContent = text;
   el.style.color = color;
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+}
+
+// === Dialog box typewriter — affiche un message lettre par lettre, façon Pokémon ===
+let _typewriterTimer = null;
+let _typewriterFullText = '';
+export function setCombatDialog(text, { speed = 18, instant = false } = {}) {
+  const el = $('#combat-dialog-text');
+  if (!el) return;
+  if (_typewriterTimer) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
+  _typewriterFullText = text;
+  if (instant) { el.textContent = text; return; }
+  el.textContent = '';
+  let i = 0;
+  _typewriterTimer = setInterval(() => {
+    i++;
+    el.textContent = text.slice(0, i);
+    if (i >= text.length) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
+  }, speed);
+}
+// Permet au moteur de combat de skipper l'effet (clic skip, mode rapide…).
+export function completeCombatDialog() {
+  if (_typewriterTimer) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
+  const el = $('#combat-dialog-text');
+  if (el) el.textContent = _typewriterFullText;
+}
+
+export function setCombatTurn(n) {
+  const el = $('#combat-turn');
+  if (el) el.textContent = `Tour ${n}`;
+}
+
+// Petite animation de coup : strike CSS pour secouer un fighter, lunge pour le héros.
+export function animateCombatSprite(who, kind) {
+  // who: 'mob' | 'hero' ; kind: 'hit' | 'attack'
+  const sel = who === 'mob' ? '#combat-mob-sprite' : '#combat-hero-sprite';
+  const el = $(sel);
+  if (!el) return;
+  const cls = `cf-anim-${kind}`;
+  el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), 400);
 }
 
 // ─────────────────────────────────────────────────────────────
