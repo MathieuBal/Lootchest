@@ -888,15 +888,69 @@ function dtInventory() {
 // ═════════════════════════════════════════════════════════════
 // OVERLAYS
 // ═════════════════════════════════════════════════════════════
+// Track what's currently painted so we can skip redundant innerHTML writes
+// when notify() fires for unrelated state changes (village tick, bounty
+// progress, etc.). Re-painting the same overlay restarts CSS animations
+// and destroys the live button between touchstart and touchend on mobile,
+// causing taps to be lost.
+let _renderedOverlay = null;        // name currently in the DOM
+let _renderedParamsKey = '';        // params signature for that paint
+
+function paramsKey(p) {
+  try { return JSON.stringify(p || {}); } catch { return ''; }
+}
+
+// Overlays that should be refreshed in place when their underlying state
+// changes (their content depends on inventory/stats/etc, so a re-render
+// is desirable). Excluded by default = the "static" overlays (intro,
+// help, forgeGuide, settings, menu, onboarding, ascension/relicChoice)
+// where DOM thrash actively breaks taps and animations.
+const STATIC_OVERLAYS = new Set([
+  'help', 'forgeGuide', 'settings', 'menu', 'onboarding', 'intro',
+  'ascension', 'relicChoice', 'diveBoon', 'diveSummary', 'story',
+  'mimic',  // mimic is driven explicitly by refreshMimic()
+  'bulkResult',
+]);
+
+export function refreshOverlay() {
+  // Force a re-render of the current overlay (used by mimic step transitions etc.)
+  _renderedOverlay = null;
+  renderOverlay();
+}
+
 function renderOverlay() {
   if (!overlayEl) return;
-  if (!nav.overlay) { overlayEl.innerHTML = ''; overlayEl.classList.remove('on'); return; }
+  if (!nav.overlay) {
+    if (_renderedOverlay !== null) {
+      overlayEl.innerHTML = '';
+      overlayEl.classList.remove('on');
+      _renderedOverlay = null;
+      _renderedParamsKey = '';
+    }
+    return;
+  }
   // Never clobber a live combat overlay mid-animation (its monster + HP bars
   // are mutated directly by the fight loop; a re-render would reset them).
   if (nav.overlay === 'combat' && overlayEl.querySelector('.combat')) return;
+  const pKey = paramsKey(nav.params);
+  // Static overlays : only render on identity change. Notifications from
+  // background ticks must not destroy the DOM under the user's finger.
+  if (STATIC_OVERLAYS.has(nav.overlay)
+      && _renderedOverlay === nav.overlay
+      && _renderedParamsKey === pKey) {
+    return;
+  }
+  // Other overlays : refresh in place (their content depends on live state).
+  // Skip only if absolutely nothing changed.
+  if (_renderedOverlay === nav.overlay && _renderedParamsKey === pKey) {
+    // Same overlay, same params — still re-render to reflect state changes.
+    // (Inventory item detail, contracts, codex etc. need fresh stats.)
+  }
   overlayEl.classList.add('on');
   const fn = OVERLAYS[nav.overlay];
   overlayEl.innerHTML = fn ? fn(nav.params) : '';
+  _renderedOverlay = nav.overlay;
+  _renderedParamsKey = pKey;
 }
 const OVERLAYS = {
   combat: ovCombat,
@@ -987,7 +1041,7 @@ function monsterSpriteHTML(monster, size) {
 let currentMimic = null;
 export function getCurrentMimic() { return currentMimic; }
 export function showMimicEncounter(enc) { currentMimic = enc; navOverlay('mimic', {}); }
-export function refreshMimic() { if (nav.overlay === 'mimic') renderOverlay(); }
+export function refreshMimic() { if (nav.overlay === 'mimic') refreshOverlay(); }
 export function hideMimicEncounter() { currentMimic = null; if (nav.overlay === 'mimic') closeOverlay(); }
 
 function ovMimic() {
