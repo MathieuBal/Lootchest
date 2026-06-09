@@ -48,14 +48,27 @@ export const SPECIALS = {
 };
 
 // Élément dominant du build = la plus grosse stat élémentaire équipée.
-export function specialForStats(stats) {
+// Renvoie aussi le second pour les micro-procs (cf. secondaryElement).
+function rankedElements(stats) {
   const pools = [
     ['fire', stats.fireDmg || 0], ['frost', stats.frostDmg || 0],
     ['poison', stats.poisonDmg || 0], ['lightning', stats.lightningDmg || 0],
     ['void', stats.voidDmg || 0],
   ];
   pools.sort((a, b) => b[1] - a[1]);
-  return (pools[0][1] > 0) ? SPECIALS[pools[0][0]] : SPECIALS.none;
+  return pools;
+}
+export function specialForStats(stats) {
+  const top = rankedElements(stats)[0];
+  return top[1] > 0 ? SPECIALS[top[0]] : SPECIALS.none;
+}
+// Second élément du build — sert aux micro-procs en attaque normale.
+// La proba scale avec sa magnitude relative au dominant (max ~12 % à parité).
+export function secondaryElement(stats) {
+  const ranked = rankedElements(stats);
+  if (ranked[1][1] < 5) return null; // négligeable
+  const ratio = ranked[1][1] / Math.max(1, ranked[0][1]);
+  return { id: ranked[1][0], procChance: Math.min(0.12, 0.04 + 0.08 * ratio) };
 }
 
 const GAUGE_MAX = 100;
@@ -121,6 +134,7 @@ export function createBattle(monster, opts = {}) {
   );
   // Affinité biome vs élément dominant du joueur : ±50 % sur la part élémentaire.
   const special = specialForStats(stats);
+  const secondary = secondaryElement(stats);
   const biome = monster.floor ? biomeForFloor(monster.floor) : null;
   const biomeElems = biome ? BIOME_ELEMENTS[biome.baseId || biome.id] : null;
   let elemAffinity = null;
@@ -169,9 +183,12 @@ export function createBattle(monster, opts = {}) {
     cooldowns: { power: 0 },
     lastAction: null,
     // Jauge d'ultime : se remplit en agissant et en encaissant ; pleine = Spécial.
-    gauge: 0,
+    // startGauge permet de la conserver entre combats en mode Boucle — le farm
+    // peut alors planifier « j'ouvre le suivant avec un Blizzard ».
+    gauge: opts.startGauge != null ? Math.max(0, Math.min(GAUGE_MAX, opts.startGauge)) : 0,
     gaugeMax: GAUGE_MAX,
     special,
+    secondary,
     biomeElems, elemAffinity,
     // Attaque chargée : 'attack' | 'windup' (charge, n'attaque pas) | 'unleash' (×2.3)
     mNextMove: 'attack',
@@ -202,7 +219,10 @@ export function canUseAction(battle, actionId) {
   if (battle.ended) return false;
   switch (actionId) {
     case 'attack':  return true;
-    case 'power':   return (battle.cooldowns.power || 0) <= 0;
+    // Frappe Puissante : CD 2 ET interdite si déjà jouée au dernier tour.
+    // Empêche le spam ×2.2 contre le trash où le malus « monstre frappe en
+    // premier » est négligeable — la rend un vrai choix tactique.
+    case 'power':   return (battle.cooldowns.power || 0) <= 0 && battle.lastAction !== 'power';
     case 'defend':  return battle.lastAction !== 'defend';
     case 'special': return battle.gauge >= battle.gaugeMax;
     case 'flee':    return !battle.monster.isBoss && !battle.monster.isElite;
@@ -461,6 +481,35 @@ export function executeTurn(battle, actionId) {
     // monstre) le brisera via applyMonsterHit : il représente donc les
     // attaques enchaînées sans encaisser.
     battle.combo += 1;
+
+    // Micro-procs de l'élément secondaire : seulement sur Attaquer/Power
+    // (l'ultime déjà spectaculaire, suffirait à dominer). Refresh-pas-empile
+    // pour ne pas dépasser la version Spécial. Touche le trash où la jauge
+    // n'a pas le temps de se remplir.
+    if (battle.secondary && !specialMode && hit > 0 && Math.random() < battle.secondary.procChance) {
+      const id = battle.secondary.id;
+      if (id === 'fire' && (!battle.mStatuses.burn || battle.mStatuses.burn.turns <= 0)) {
+        battle.mStatuses.burn = { turns: 1, dmgPerTurn: Math.max(1, Math.round(battle.mMaxHp * 0.02)) };
+        events.push({ type: 'proc_apply', element: 'fire', emoji: '🔥', label: 'Étincelle', monsterHp: battle.mHp, playerHp: battle.pHp });
+      } else if (id === 'frost' && !battle.mStatuses.chill) {
+        battle.mStatuses.chill = { turns: 1 };
+        events.push({ type: 'proc_apply', element: 'frost', emoji: '🧊', label: 'Engourdi', monsterHp: battle.mHp, playerHp: battle.pHp });
+      } else if (id === 'poison' && (!battle.mStatuses.poison || battle.mStatuses.poison.turns <= 1)) {
+        battle.mStatuses.poison = { turns: 2, dmgPerTurn: Math.max(1, Math.round(battle.mMaxHp * 0.02)) };
+        events.push({ type: 'proc_apply', element: 'poison', emoji: '☠', label: 'Toxine', monsterHp: battle.mHp, playerHp: battle.pHp });
+      } else if (id === 'lightning') {
+        const bolt = Math.max(1, Math.round(hit * 0.25));
+        battle.mHp = Math.max(0, battle.mHp - bolt);
+        events.push({ type: 'proc_apply', element: 'lightning', emoji: '⚡', label: 'Foudre', amount: bolt, monsterHp: battle.mHp, playerHp: battle.pHp });
+      } else if (id === 'void') {
+        // Pic pur, perce la moitié de l'armure conceptuellement.
+        const pierce = Math.max(1, Math.round(battle.pBaseDmg * 0.35));
+        battle.mHp = Math.max(0, battle.mHp - pierce);
+        events.push({ type: 'proc_apply', element: 'void', emoji: '🌑', label: 'Faille', amount: pierce, monsterHp: battle.mHp, playerHp: battle.pHp });
+      }
+      if (battle.mHp <= 0) battle.ended = true; // proc letal autorisé
+      if (battle.mHp <= 0) battle.won = true;
+    }
 
     // Effets de signature post-frappe.
     if (specialMode && hit > 0) {

@@ -5,7 +5,7 @@ import { state, subscribe, resetState, notify } from './state.js';
 import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS, CURRENCY_BY_ID } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
 import { openChest, openChests, upgradeChest, canOpen } from './chest.js';
-import { attemptCurrentFloor, prepareCurrentFloor, applyCombatOutcome, setCurrentFloor, attemptDiveFight, generateMonster, predictDifficulty } from './combat.js';
+import { attemptCurrentFloor, prepareCurrentFloor, applyCombatOutcome, setCurrentFloor, attemptDiveFight, generateMonster, generateDiveMonster, predictDifficulty } from './combat.js';
 import { createBattle, executeTurn, canUseAction, autoChoice, ACTIONS as COMBAT_ACTIONS } from './combatTurn.js';
 import {
   startDive, isDiving, getSession, recordWin, openBoonChoice, chooseBoon,
@@ -488,6 +488,8 @@ function confirmSuicideFloor() {
 let _pendingAction = null;
 let _autoMode = false;
 let _currentBattle = null;     // pour que le toggle Auto puisse calculer l'autoChoice
+let _loopGaugeCarry = 0;       // jauge restée en fin du combat précédent (mode Boucle)
+let _diveGaugeCarry = 0;       // idem pour la plongée — réinitialisée à chaque nouvelle dive
 
 function waitForAction() {
   return new Promise(resolve => { _pendingAction = resolve; });
@@ -524,7 +526,11 @@ async function fightFlow() {
     if (state.combat.loopMode) _autoMode = true;     // forced auto in loop
     await sleep(60);
 
-    const battle = createBattle(monster);
+    // Jauge d'ultime persistante en mode Boucle : on récupère ce qu'on a
+    // laissé au combat précédent (en ne dépassant pas 60 % pour ne pas
+    // entrer dans la chaîne avec un ultime déjà prêt et trivialiser).
+    const carry = (state.combat.loopMode && _loopGaugeCarry > 0) ? Math.min(60, _loopGaugeCarry) : 0;
+    const battle = createBattle(monster, { startGauge: carry });
     _currentBattle = battle;
     UI.showCombatBars(battle.pMaxHp, battle.mMaxHp);
     if (battle.ambush === 'monster') {
@@ -573,11 +579,14 @@ async function fightFlow() {
     const { droppedItem, advanced, milestone } = outcome;
     if (battle.fled) UI.setCombatDialog('Tu fuis le combat…');
 
-    UI.appendCombatLog(result.log, result.won ? 'win' : 'lose');
+    // Récap unifié des récompenses — affiché dans la dialog box.
+    // Le combat-log scrollable a disparu de l'overlay, donc on regroupe
+    // tout ici pour que rien (drop / clés / ressources / étage / palier)
+    // ne soit perdu silencieusement.
+    const summary = [];
     if (result.won) {
       soundWin();
       UI.setCombatCall(battle.finisher ? '⚡ COUP DE GRÂCE !' : (monster.isBoss ? 'VICTOIRE !' : 'Vaincu'), battle.finisher ? '#ffd84a' : '#6acc6a');
-      // Jalon de série : toast tous les 10.
       const streak = state.combat.winStreak || 0;
       if (streak > 0 && streak % 10 === 0) {
         UI.showToast('🔥', `Série de ${streak} victoires !`, `+${Math.min(50, streak * 2)} % or · +${Math.min(15, Math.round(streak * 0.5))} % drops`);
@@ -585,17 +594,21 @@ async function fightFlow() {
       const c = UI.getMonsterEmojiCenter();
       spawnParticles(monster.isBoss ? '#ff7a1a' : '#ffe14a', c.x, c.y, monster.isBoss ? 40 : 20);
       floatingText(`+${monster.goldReward} 💰`, c.x, c.y - 30, '#f5c842');
-      if (monster.keyDrop) { floatingText(`+${monster.keyDrop} 🗝`, c.x + 40, c.y - 30, '#ffd060'); soundCoin(); UI.appendCombatLog([`🗝 +${monster.keyDrop} clé${monster.keyDrop > 1 ? 's' : ''}`], 'reward'); }
+      summary.push(`+${monster.goldReward.toLocaleString('fr-FR')} 💰`);
+      if (monster.keyDrop) {
+        floatingText(`+${monster.keyDrop} 🗝`, c.x + 40, c.y - 30, '#ffd060'); soundCoin();
+        summary.push(`+${monster.keyDrop} 🗝`);
+      }
       const res = grantDungeonResources(monster.floor, monster.isBoss, monster.isElite);
-      if (res) UI.appendCombatLog([`🪵 +${res.wood} · 🪨 +${res.stone}`], 'reward');
+      if (res) summary.push(`+${res.wood} 🪵 · +${res.stone} 🪨`);
       if (monster.isBoss) screenShake(8, 350);
     } else {
       soundLose(); UI.setCombatCall('DÉFAITE', '#ff5050'); screenShake(10, 400);
     }
-    if (advanced) UI.appendCombatLog([`🆙 Étage débloqué : ${state.combat.highestUnlocked}`], 'reward');
+    if (advanced) summary.push(`🆙 Étage ${state.combat.highestUnlocked} débloqué`);
     if (milestone) {
       const orbBits = Object.entries(milestone.reward.orbs).filter(([, q]) => q > 0).map(([id, q]) => `${q} ${CURRENCY_BY_ID[id].emoji}`).join(' · ');
-      UI.appendCombatLog([`🎉 PALIER ÉTAGE ${milestone.floor} (niv ${milestone.level})`, `+${milestone.reward.gold.toLocaleString('fr-FR')} 💰${orbBits ? ' · ' + orbBits : ''}`], 'reward');
+      summary.push(`🎉 PALIER ${milestone.floor} — +${milestone.reward.gold.toLocaleString('fr-FR')} 💰${orbBits ? ' · ' + orbBits : ''}`);
       UI.showToast('🎉', `Palier étage ${milestone.floor} !`, `+${milestone.reward.gold.toLocaleString('fr-FR')} 💰  ${orbBits}`);
       soundAchievement(); screenShake(14, 600);
       spawnParticles('#ffe14a', innerWidth / 2, innerHeight / 2, 60, { minSpeed: 150, maxSpeed: 400, size: 10 });
@@ -603,13 +616,17 @@ async function fightFlow() {
 
     let drop = null;
     if (droppedItem) {
-      UI.appendCombatLog([`🎁 Drop : ${droppedItem.name}`], 'reward');
       soundDrop(droppedItem.rarity);
       const action = autoActionFor(droppedItem.rarity);
-      if (action === 'sell') { sellDrop(droppedItem); soundCoin(); }
-      else if (action === 'salvage') { salvageDrop(droppedItem); soundForge(); }
-      else drop = droppedItem;
+      if (action === 'sell') { sellDrop(droppedItem); soundCoin(); summary.push(`🎁 ${droppedItem.name} → vendu`); }
+      else if (action === 'salvage') { salvageDrop(droppedItem); soundForge(); summary.push(`🎁 ${droppedItem.name} → recyclé`); }
+      else { drop = droppedItem; summary.push(`🎁 ${droppedItem.name}`); }
     }
+    if (summary.length) UI.setCombatDialog(summary.join(' · '), { instant: true });
+
+    // Conserve la jauge restante si on enchaîne en Boucle (victoire),
+    // sinon vide tout : la chaîne casse, on repart de zéro.
+    _loopGaugeCarry = (state.combat.loopMode && battle.won && !battle.fled) ? battle.gauge : 0;
 
     await sleep(700);
     _currentBattle = null;
@@ -619,8 +636,10 @@ async function fightFlow() {
     // Loop mode continuation
     if (state.combat.loopMode) {
       const beaten = state.combat.currentFloor < state.combat.highestUnlocked;
-      if (!beaten || !result.won) { state.combat.loopMode = false; notify(); }
+      if (!beaten || !result.won) { state.combat.loopMode = false; _loopGaugeCarry = 0; notify(); }
       else if (UI.getActiveTab() === 'dungeon' && !drop) setTimeout(fightFlow, 350);
+    } else {
+      _loopGaugeCarry = 0;
     }
   } finally {
     fighting = false;
@@ -632,43 +651,70 @@ let diving = false;
 function beginDive() {
   if (state.combat.loopMode) { state.combat.loopMode = false; }
   if (!startDive()) return;
+  _diveGaugeCarry = 0;
   soundAscension();
   UI.showToast('🌊', 'Plongée lancée', 'Descends aussi profond que possible !');
   diveFlow();
 }
 
+// Le Dive partage désormais le moteur tour-par-tour : intentions, charges,
+// jauge d'ultime, combo, micro-procs s'appliquent — l'ancien resolveFight ne
+// sert plus pour le donjon principal ni la plongée. Auto reste forcé en
+// Dive (boucle continue) ; le joueur garde la main avec ⏩/⏭ et peut désactiver
+// Auto à tout moment pour reprendre le contrôle.
 async function diveFlow() {
   if (diving || !isDiving()) return;
   diving = true;
   try {
     const s = getSession();
     const startHp = nextStartHp();
-    const { monster, result, won, maxHp } = attemptDiveFight(s.baseFloor, s.depth + 1, startHp, diveMods());
+    const monster = generateDiveMonster(s.baseFloor, s.depth + 1);
+    monster.floor = s.baseFloor + s.depth + 1; // pour les affinités de biome
     UI.openCombat(monster);
+    resetTurn();
+    _combatSkipped = false;
+    _autoMode = true;                 // dive = auto par défaut, le joueur peut couper
     await sleep(60);
-    const monsterMaxHp = monster.hp;
-    UI.showCombatBars(maxHp, monsterMaxHp);
-    if (startHp != null) UI.updatePlayerHp(startHp, maxHp); // begin from carried HP
 
-    const events = result.events || [];
-    const fast = !!state.settings?.fastCombat;
-    const perEvent = fast ? 12 : Math.max(40, Math.min(140, 1200 / Math.max(1, events.length)));
-    for (const ev of events) {
-      await sleep(perEvent);
-      handleCombatEvent(ev, monsterMaxHp, maxHp);
+    const carry = _diveGaugeCarry > 0 ? Math.min(60, _diveGaugeCarry) : 0;
+    const battle = createBattle(monster, { startHp, mods: diveMods(), startGauge: carry });
+    _currentBattle = battle;
+    UI.showCombatBars(battle.pMaxHp, battle.mMaxHp);
+    UI.setCombatDialog(`🌊 Profondeur ${s.depth + 1} — ${monster.name} surgit.`);
+
+    refreshActionButtons(battle);
+    while (!battle.ended) {
+      let action;
+      if (_autoMode) {
+        await sleep(_combatSpeed === 2 ? 200 : 400);
+        action = autoChoice(battle);
+      } else {
+        action = await waitForAction();
+      }
+      const { events } = executeTurn(battle, action);
+      const baseDelay = _combatSpeed === 2 ? 180 : 320;
+      for (const ev of events) {
+        if (_combatSkipped) { handleCombatEvent(ev, battle.mMaxHp, battle.pMaxHp); continue; }
+        handleCombatEvent(ev, battle.mMaxHp, battle.pMaxHp);
+        await sleep(baseDelay);
+      }
+      refreshActionButtons(battle);
     }
-    await sleep(260);
-    UI.appendCombatLog(result.log, won ? 'win' : 'lose');
+    await sleep(280);
 
-    if (won) {
+    if (battle.won) {
+      // Fabrique un result compatible avec recordWin (ancien contrat resolveFight).
+      const result = { won: true, playerMaxHp: battle.pMaxHp, playerHpLeft: battle.pHp };
       const rec = recordWin(monster, result);
       soundWin();
       UI.setCombatCall(`Profondeur ${rec.depth}`, '#5ad8e8');
       const c = UI.getMonsterEmojiCenter();
       spawnParticles('#5ad8e8', c.x, c.y, 18);
       floatingText(`+${rec.gold} 💰`, c.x, c.y - 30, '#f5c842');
-      UI.appendCombatLog([`🌊 Profondeur ${rec.depth} · butin en jeu sécurisé`], 'reward');
-      await sleep(600);
+      UI.setCombatDialog(`🌊 Profondeur ${rec.depth} · +${rec.gold.toLocaleString('fr-FR')} 💰 en jeu` + (rec.checkpoint ? ' · 🛡 sécurisé' : ''), { instant: true });
+      _diveGaugeCarry = battle.gauge;
+      await sleep(700);
+      _currentBattle = null;
       UI.closeCombat();
       if (rec.checkpoint) {
         openBoonChoice();
@@ -678,7 +724,9 @@ async function diveFlow() {
       }
     } else {
       soundLose(); UI.setCombatCall('VAINCU', '#ff5050'); screenShake(10, 400);
-      await sleep(600);
+      _diveGaugeCarry = 0;
+      await sleep(700);
+      _currentBattle = null;
       UI.closeCombat();
       const summary = finalizeDive(true);
       UI.navOverlay('diveSummary', { summary });
@@ -756,6 +804,11 @@ function handleCombatEvent(ev, monsterMaxHp, playerMaxHp) {
     floatingDamage(ev.amount, c.x, c.y, 'normal');
     floatingText(ev.emoji, c.x + 30, c.y - 24, ev.status === 'burn' ? '#ff7a30' : '#7adc4a');
     UI.setCombatDialog(`${ev.status === 'burn' ? 'La brûlure' : 'Le poison'} ronge le monstre (-${ev.amount}).`);
+  } else if (ev.type === 'proc_apply') {
+    const c = UI.getMonsterEmojiCenter();
+    floatingText(`${ev.emoji} ${ev.label}`, c.x, c.y - 60, '#c0a8ff');
+    if (ev.amount) floatingDamage(ev.amount, c.x + 20, c.y - 10, 'normal');
+    UI.updateMonsterHp(ev.monsterHp, monsterMaxHp);
   } else if (ev.type === 'status_freeze_skip') {
     const c = UI.getMonsterEmojiCenter();
     floatingText('❄ GELÉ', c.x, c.y, '#7adcff');
