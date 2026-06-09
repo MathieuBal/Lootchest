@@ -32,7 +32,7 @@ import * as Story from './story.js';
 import { rerollCost as bountyRerollCost } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { monsterSpriteSrc, bossSpriteSrcByName, chestSpriteSrc, orbSpriteSrc, treasureSpriteSrc, mimicSpriteSrc, spriteImg } from './spriteMap.js';
-import { specialForStats } from './combatTurn.js';
+import { specialForStats, getIntent, BIOME_ELEMENTS, ELEMENT_META } from './combatTurn.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
 import { MATERIALS } from './materials.js';
 import { ELEMENTS } from './elements.js';
@@ -1003,10 +1003,17 @@ function ovCombat() {
   const MECH_LABEL = { regen: 'Régénère', enrage: 'Enrage', shieldCycle: 'Bouclier', burn: 'Brûlure', phaseShift: 'Instable', executioner: 'Exécuteur', thorns: 'Épineux', lifesteal: 'Vampirique', swift: 'Véloce', healBlock: 'Maudit', damageCap: 'Carapacé' };
   const mechTags = mechanics.map(m =>
     `<span class="cf-tag mech" title="${m.desc || ''}">${m.icon || '✦'} ${m.name || MECH_LABEL[m.type] || m.type}</span>`).join('');
+  // Faiblesse / résistance élémentaire du biome — guide le choix d'équipement.
+  const be = BIOME_ELEMENTS[biome.baseId || biome.id];
+  const elemTags = be ? [
+    `<span class="cf-tag weak" title="Prend +50 % de dégâts ${ELEMENT_META[be.weak].name}">${ELEMENT_META[be.weak].emoji} Faible</span>`,
+    `<span class="cf-tag resist" title="Subit −50 % de dégâts ${ELEMENT_META[be.resist].name}">${ELEMENT_META[be.resist].emoji} Résiste</span>`,
+  ].join('') : '';
   const monsterTags = [
     monster.isBoss ? '<span class="cf-tag boss">👑 BOSS</span>' : '',
     monster.isElite ? '<span class="cf-tag elite">⭐ ÉLITE</span>' : '',
     `<span class="cf-tag biome">${biome.emoji} ${biome.name}</span>`,
+    elemTags,
     mechTags,
   ].filter(Boolean).join('');
   const heroTags = [
@@ -1024,6 +1031,7 @@ function ovCombat() {
         </div>
         ${hpBar(monster.hp, monster.hp, { color: 'var(--r-ancestral)', id: 'combat-mob-hp' })}
         <div class="mob-statuses" id="mob-statuses"></div>
+        <div class="mob-intent" id="mob-intent"></div>
       </div>
       <div class="mob-sprite pixel" id="combat-mob-sprite">${monsterSpriteHTML(monster, 120)}</div>
 
@@ -1954,6 +1962,8 @@ function ovHelp() {
     <h3>⚔ Donjon</h3><p>Affronte des monstres pour or, items et clés. Tous les 5 étages : boss. Mode 🔁 Boucle sur un étage déjà battu.</p>
     <h3>🎮 Combat tour-par-tour</h3><p>À chaque tour, choisis : <b>⚔ Attaquer</b> (coup normal) · <b>💥 Frappe Puissante</b> (×2.2 dégâts mais le monstre frappe en premier, recharge 2 tours) · <b>🛡 Défendre</b> (–60 % dégâts subis + soin 8 %, pas deux fois de suite) · <b>🏃 Fuir</b> (impossible contre boss/élites). Le bouton <b>🤖 Auto</b> laisse le jeu jouer pour toi. Lis les tags oranges sur la carte du monstre : un boss qui <i>régénère</i> doit être tué vite, un <i>enragé</i> devient dangereux sous 30 % PV.</p>
     <h3>✨ Jauge d'ultime & Spécial</h3><p>Chaque action remplit ta jauge (encaisser des coups aussi). Pleine, elle débloque ton <b>attaque Spéciale</b> — sa signature dépend de ton <b>élément dominant</b> : 🔥 <b>Embrasement</b> (brûlure 3 tours) · ❄ <b>Blizzard</b> (gel + givre) · ☠ <b>Toxines</b> (poison 5 tours) · ⚡ <b>Tempête</b> (3 frappes) · 🌑 <b>Annihilation</b> (perce boucliers) · 💢 <b>Cri de Guerre</b> (sans élément : +20 % dégâts). Change d'équipement pour changer de signature !</p>
+    <h3>👁 Intentions & charges</h3><p>Le monstre <b>annonce son prochain coup</b> sous sa barre de PV : dégâts estimés, bouclier à venir… Les boss et élites peuvent <b>CHARGER</b> une attaque dévastatrice (×2.3) télégraphiée un tour à l'avance — réponds en <b>Défendant</b>, en l'achevant avant, ou en le <b>Gelant</b> (le gel annule la charge !). Pendant qu'il charge, il n'attaque pas : tour parfait pour une Frappe Puissante.</p>
+    <h3>🌍 Affinités de biome</h3><p>Chaque biome a une <b>faiblesse</b> et une <b>résistance</b> élémentaires (affichées sur la carte du monstre) : +50 % de ta part élémentaire si ton élément dominant tape la faiblesse, −50 % s'il est résisté. L'Enfer craint le Givre mais rit du Feu — adapte ton équipement à ta destination.</p>
     <h3>⚒ Forge</h3><p>Chaque action consomme un orbe spécifique. Transmute, augmente, reroll… pour améliorer tes objets. <button class="btn-ghost" data-overlay="forgeGuide">📖 Guide forge & orbes</button></p>
     <h3>🌟 Ascension & 🌳 Talents</h3><p>À T5 + étage 50, ascensionne pour repartir plus puissant (+prestige permanent). Gagne des points de talent par paliers d'étage.</p>
     <h3>💡 Raccourcis</h3><p>Espace : ouvrir/combattre · Échap : fermer.</p>
@@ -2191,6 +2201,16 @@ export function renderMonsterStatuses(battle) {
     const meta = STATUS_META[k] || { emoji: '✦', label: k };
     return `<span class="status-chip status-${k}">${meta.emoji} ${meta.label}${st.turns > 0 ? ` (${st.turns})` : ''}</span>`;
   }).join('');
+}
+
+// Intention du monstre (télégraphe) — bandeau sous sa carte.
+export function renderMonsterIntent(battle) {
+  const el = $('#mob-intent');
+  if (!el) return;
+  const intent = getIntent(battle);
+  if (!intent) { el.innerHTML = ''; el.className = 'mob-intent'; return; }
+  el.className = `mob-intent intent-${intent.type}`;
+  el.innerHTML = `<span class="intent-emoji">${intent.emoji}</span> ${intent.text}`;
 }
 
 // Petite animation de coup : strike CSS pour secouer un fighter, lunge pour le héros.

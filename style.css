@@ -1224,3 +1224,25 @@ input, select { font-family: inherit; }
   .cm-act.cm-special { grid-column: auto; }
   .combat-menu { grid-template-columns: repeat(5, 1fr); }
 }
+
+/* === Intention du monstre (télégraphe) + affinités élémentaires === */
+.mob-intent {
+  margin-top: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  min-height: 16px;
+  transition: all .2s ease;
+}
+.mob-intent.intent-attack  { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.15); color: #d8d0c8; }
+.mob-intent.intent-windup  { background: rgba(255,60,60,.18); border-color: rgba(255,80,80,.6); color: #ff9090; animation: intentPulse .8s ease-in-out infinite; }
+.mob-intent.intent-unleash { background: rgba(255,30,30,.3); border-color: #ff4040; color: #ffb0b0; animation: intentPulse .5s ease-in-out infinite; }
+.mob-intent.intent-frozen  { background: rgba(120,210,255,.15); border-color: rgba(122,220,255,.5); color: #aadfff; }
+@keyframes intentPulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(255,60,60,.3); }
+  50%      { box-shadow: 0 0 14px rgba(255,60,60,.8); }
+}
+.combat.rpg .cf-tag.weak   { background: rgba(120,255,120,.14); border-color: rgba(120,255,140,.5); color: #a0ffb0; }
+.combat.rpg .cf-tag.resist { background: rgba(140,140,160,.18); border-color: rgba(170,170,190,.5); color: #c0c0d8; }

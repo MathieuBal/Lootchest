@@ -509,6 +509,7 @@ function refreshActionButtons(battle) {
   };
   UI.setCombatActionsState(battle, _autoMode || state.combat.loopMode);
   UI.renderMonsterStatuses(battle);
+  UI.renderMonsterIntent(battle);
 }
 
 async function fightFlow() {
@@ -709,7 +710,12 @@ function handleCombatEvent(ev, monsterMaxHp, playerMaxHp) {
     UI.animateCombatSprite('hero', 'hit');
     const c = UI.getCharacterAvatarCenter();
     floatingDamage(ev.dmg, c.x, c.y, 'player-took'); soundHit();
-    if (ev.enraged) { UI.setCombatCall('ENRAGÉ !', '#ff5050'); UI.setCombatDialog(`Le monstre enrage et te frappe pour ${ev.dmg} dégâts !`); }
+    if (ev.charged) {
+      UI.setCombatCall('DÉVASTATION !', '#ff3030');
+      UI.setCombatDialog(`L'attaque dévastatrice s'abat : ${ev.dmg} dégâts !`);
+      screenShake(10, 400);
+      spawnParticles('#ff5030', c.x, c.y, 24);
+    } else if (ev.enraged) { UI.setCombatCall('ENRAGÉ !', '#ff5050'); UI.setCombatDialog(`Le monstre enrage et te frappe pour ${ev.dmg} dégâts !`); }
     else UI.setCombatDialog(`Le monstre te frappe pour ${ev.dmg} dégâts !`);
     if (ev.swift) { floatingText('⚡', c.x + 28, c.y - 24, '#ffe14a'); UI.setCombatCall('Véloce !', '#ffe14a'); }
   } else if (ev.type === 'player_flee') {
@@ -736,7 +742,16 @@ function handleCombatEvent(ev, monsterMaxHp, playerMaxHp) {
     const c = UI.getMonsterEmojiCenter();
     floatingText('❄ GELÉ', c.x, c.y, '#7adcff');
     UI.setCombatCall('GELÉ !', '#7adcff');
-    UI.setCombatDialog('Le monstre est gelé — il passe son tour !');
+    UI.setCombatDialog(ev.chargeCancelled
+      ? 'Le gel ANNULE la charge du monstre !'
+      : 'Le monstre est gelé — il passe son tour !');
+  } else if (ev.type === 'charge_windup') {
+    UI.animateCombatSprite('mob', 'attack');
+    const c = UI.getMonsterEmojiCenter();
+    floatingText('💢 CHARGE', c.x, c.y - 30, '#ff5050');
+    UI.setCombatCall('IL CHARGE !', '#ff5050');
+    UI.setCombatDialog('Le monstre charge une attaque dévastatrice… Défends-toi ou achève-le !');
+    screenShake(4, 200);
   } else if (ev.type === 'monster_thorns') {
     UI.updatePlayerHp(ev.playerHp, playerMaxHp);
     UI.animateCombatSprite('hero', 'hit');

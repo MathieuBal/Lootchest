@@ -13,7 +13,7 @@
 
 import { state } from './state.js';
 import { computeStats, activeSetEffects } from './character.js';
-import { PLAYER_BASE, prestigeDamageMult, prestigeHpMult } from './data.js';
+import { PLAYER_BASE, prestigeDamageMult, prestigeHpMult, biomeForFloor } from './data.js';
 import { armorMitigation, ELEM_DMG_CAP } from './combat.js';
 import { damageMultiplier, hpMultiplier } from './talents.js';
 import { relicDamageMult, relicHpMult, relicDmgTakenMult, relicElemMult, relicLifesteal, relicEffects } from './relics.js';
@@ -62,6 +62,30 @@ const GAUGE_MAX = 100;
 const GAUGE_GAIN = { attack: 14, power: 22, defend: 10, special: 0 };
 const GAUGE_ON_HIT_TAKEN = 8;
 
+// === Affinités élémentaires par biome ===
+// Le monstre prend +50 % de la part élémentaire s'il est faible à ton élément
+// dominant, −50 % s'il y résiste. Affiché sur sa carte → choix d'équipement.
+export const BIOME_ELEMENTS = {
+  forest: { weak: 'fire',      resist: 'poison' },   // plantes : brûlent, immunisées au venin
+  cave:   { weak: 'lightning', resist: 'frost' },    // roche humide conductrice, froide de nature
+  castle: { weak: 'void',      resist: 'frost' },    // morts-vivants : le néant les disloque
+  hell:   { weak: 'frost',     resist: 'fire' },     // démons : givre oui, feu non
+  void:   { weak: 'lightning', resist: 'void' },     // créatures du néant
+};
+export const ELEMENT_META = {
+  fire: { emoji: '🔥', name: 'Feu' }, frost: { emoji: '❄', name: 'Givre' },
+  poison: { emoji: '☠', name: 'Poison' }, lightning: { emoji: '⚡', name: 'Foudre' },
+  void: { emoji: '🌑', name: 'Néant' },
+};
+
+// === Attaque chargée (boss/élites) ===
+// Le monstre télégraphie : tour N il CHARGE (n'attaque pas), tour N+1 il
+// déchaîne ×2.3. Réponses : Défendre (−60 %), le tuer avant, ou le Geler
+// (annule la charge). C'est ce qui donne un usage réel à Défendre.
+const CHARGE_MULT = 2.3;
+const CHARGE_COOLDOWN = 3;   // tours mini entre deux charges
+const CHARGE_CHANCE = 0.45;  // proba de charger quand le CD est prêt
+
 export function createBattle(monster, opts = {}) {
   const mods = opts.mods || {};
   const dmgMod = mods.damageMult || 1;
@@ -77,10 +101,19 @@ export function createBattle(monster, opts = {}) {
 
   // Elemental pool : additive % bonus rolled 0..max per swing, capped.
   const arcaneMult = affinityElemMult();
-  const elemBonus = Math.min(
+  let elemBonus = Math.min(
     ELEM_DMG_CAP * arcaneMult,
     (((stats.fireDmg || 0) + (stats.frostDmg || 0) + (stats.voidDmg || 0) + (stats.poisonDmg || 0) + (stats.lightningDmg || 0)) / 100) * relicElemMult() * arcaneMult,
   );
+  // Affinité biome vs élément dominant du joueur : ±50 % sur la part élémentaire.
+  const special = specialForStats(stats);
+  const biome = monster.floor ? biomeForFloor(monster.floor) : null;
+  const biomeElems = biome ? BIOME_ELEMENTS[biome.baseId || biome.id] : null;
+  let elemAffinity = null;
+  if (biomeElems && special.id !== 'none') {
+    if (special.id === biomeElems.weak)   { elemBonus *= 1.5; elemAffinity = 'weak'; }
+    if (special.id === biomeElems.resist) { elemBonus *= 0.5; elemAffinity = 'resist'; }
+  }
 
   // Per-fight contexts : skills + slotted abilities share the hook system.
   const { active: activeSkills, states: skillStates } = buildSkillContext();
@@ -124,7 +157,12 @@ export function createBattle(monster, opts = {}) {
     // Jauge d'ultime : se remplit en agissant et en encaissant ; pleine = Spécial.
     gauge: 0,
     gaugeMax: GAUGE_MAX,
-    special: specialForStats(stats),
+    special,
+    biomeElems, elemAffinity,
+    // Attaque chargée : 'attack' | 'windup' (charge, n'attaque pas) | 'unleash' (×2.3)
+    mNextMove: 'attack',
+    mChargeCd: CHARGE_COOLDOWN,
+    canCharge: !!(monster.isBoss || monster.isElite),
     // Statuts infligés au monstre : { burn: {turns, dmgPerTurn}, poison: {...},
     // freeze: {turns}, chill: {turns} }. Tick à chaque début de tour.
     mStatuses: {},
@@ -442,10 +480,18 @@ export function executeTurn(battle, actionId) {
 
   const monsterPhase = () => {
     if (battle.ended || battle.mHp <= 0 || monsterFrozen) return;
-    // Statut Gel (Blizzard) : le monstre passe son tour.
+    // Statut Gel (Blizzard) : le monstre passe son tour — et une charge en
+    // cours est ANNULÉE (le contre du build givre).
     if (battle.mStatuses.freeze) {
       delete battle.mStatuses.freeze;
-      events.push({ type: 'status_freeze_skip', emoji: '❄', playerHp: battle.pHp, monsterHp: battle.mHp });
+      const wasCharging = battle.mNextMove !== 'attack';
+      if (wasCharging) { battle.mNextMove = 'attack'; battle.mChargeCd = CHARGE_COOLDOWN; }
+      events.push({ type: 'status_freeze_skip', emoji: '❄', chargeCancelled: wasCharging, playerHp: battle.pHp, monsterHp: battle.mHp });
+      return;
+    }
+    // Charge télégraphiée : tour de windup = le monstre n'attaque pas.
+    if (battle.mNextMove === 'windup') {
+      events.push({ type: 'charge_windup', emoji: '💢', playerHp: battle.pHp, monsterHp: battle.mHp });
       return;
     }
     // Dodges : skill hooks then set effects.
@@ -466,8 +512,10 @@ export function executeTurn(battle, actionId) {
     }
     // Givre (Blizzard) : −25 % dégâts du monstre tant que le statut court.
     const chillMod = battle.mStatuses.chill ? 0.75 : 1;
-    const dmg = Math.max(1, Math.round(battle.monsterDmg * monsterDmgMod * chillMod * (1 - damageReduction)));
-    applyMonsterHit(battle, events, dmg, { enraged: monsterDmgMod > 1 });
+    // Attaque dévastatrice (fin de charge) : ×2.3.
+    const chargeMod = battle.mNextMove === 'unleash' ? CHARGE_MULT : 1;
+    const dmg = Math.max(1, Math.round(battle.monsterDmg * monsterDmgMod * chillMod * chargeMod * (1 - damageReduction)));
+    applyMonsterHit(battle, events, dmg, { enraged: monsterDmgMod > 1, charged: chargeMod > 1 });
     if (finish()) return;
     // Swift affix : chance of a second strike.
     const swift = battle.mechanics.find(m => m.type === 'swift');
@@ -508,18 +556,51 @@ export function executeTurn(battle, actionId) {
     if (gained > 0) events.push({ type: 'skill_heal', amount: gained, emoji: '🛡', playerHp: battle.pHp, monsterHp: battle.mHp });
   }
 
+  // Machine à états de la charge : windup → unleash → repos (CD).
+  if (!battle.ended) {
+    if (battle.mNextMove === 'windup') battle.mNextMove = 'unleash';
+    else if (battle.mNextMove === 'unleash') { battle.mNextMove = 'attack'; battle.mChargeCd = CHARGE_COOLDOWN; }
+    else if (battle.canCharge) {
+      battle.mChargeCd -= 1;
+      if (battle.mChargeCd <= 0 && Math.random() < CHARGE_CHANCE) battle.mNextMove = 'windup';
+    }
+  }
+
   battle.lastAction = actionId;
   return { events, ended: battle.ended, won: battle.won };
+}
+
+// Intention du monstre pour le PROCHAIN tour — affichée sur sa carte.
+// C'est l'info qui transforme Défendre en vraie décision tactique.
+export function getIntent(battle) {
+  if (!battle || battle.ended) return null;
+  const nextTurn = battle.turn + 1;
+  const shield = battle.mechanics.some(m => m.type === 'shieldCycle' && (nextTurn % (m.everyTurns || 3)) === 0);
+  const enrage = battle.mechanics.find(m => m.type === 'enrage' && battle.mHp / battle.mMaxHp <= (m.triggerHpPct || 0.3));
+  const chillMod = battle.mStatuses.chill ? 0.75 : 1;
+  const estim = Math.round(battle.monsterDmg * (enrage ? (enrage.dmgMult || 2) : 1) * chillMod);
+  if (battle.mStatuses.freeze) return { type: 'frozen',  emoji: '❄',  text: 'Gelé — il passera son tour', shield };
+  if (battle.mNextMove === 'windup')  return { type: 'windup',  emoji: '💢', text: 'CHARGE une attaque dévastatrice !', shield };
+  if (battle.mNextMove === 'unleash') return { type: 'unleash', emoji: '💥', text: `DÉVASTATION imminente (~${Math.round(estim * CHARGE_MULT)}) — défends-toi !`, shield };
+  return { type: 'attack', emoji: '⚔', text: `Va attaquer (~${estim})${shield ? ' · 🛡 bouclier' : ''}`, shield };
 }
 
 // Auto-pick : what a competent player would do.
 export function autoChoice(battle) {
   const pPct = battle.pHp / battle.pMaxHp;
   const mPct = battle.mHp / battle.mMaxHp;
+  const shieldNext = battle.mechanics.some(m => m.type === 'shieldCycle' && ((battle.turn + 1) % (m.everyTurns || 3)) === 0);
+  // Dévastation annoncée : finir le monstre si possible, sinon Défendre.
+  if (battle.mNextMove === 'unleash') {
+    if (battle.mHp <= battle.pBaseDmg) return 'attack';
+    if (canUseAction(battle, 'defend')) return 'defend';
+    if (canUseAction(battle, 'special') && mPct > 0.15 && !shieldNext) return 'special';
+  }
+  // Windup : le monstre n'attaque pas ce tour → Frappe Puissante gratuite.
+  if (battle.mNextMove === 'windup' && canUseAction(battle, 'power')) return 'power';
   if (pPct < 0.3 && canUseAction(battle, 'defend')) return 'defend';
   // Ultime : le lâcher dès qu'il est prêt, sauf si le monstre est presque
   // mort (gaspillage), ou si son bouclier va se lever ce tour-ci.
-  const shieldNext = battle.mechanics.some(m => m.type === 'shieldCycle' && ((battle.turn + 1) % (m.everyTurns || 3)) === 0);
   if (canUseAction(battle, 'special') && mPct > 0.15 && !shieldNext) return 'special';
   if (canUseAction(battle, 'power')) {
     if (mPct < 0.25) return 'power';
