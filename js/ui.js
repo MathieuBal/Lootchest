@@ -32,6 +32,7 @@ import * as Story from './story.js';
 import { rerollCost as bountyRerollCost } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { monsterSpriteSrc, bossSpriteSrcByName, chestSpriteSrc, orbSpriteSrc, treasureSpriteSrc, mimicSpriteSrc, spriteImg } from './spriteMap.js';
+import { specialForStats, getIntent, BIOME_ELEMENTS, ELEMENT_META } from './combatTurn.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
 import { MATERIALS } from './materials.js';
 import { ELEMENTS } from './elements.js';
@@ -996,26 +997,92 @@ function ovCombat() {
   const biome = biomeForFloor(cur);
   const stats = computeStats();
   const playerMax = Math.round(100 + (stats.vitality || 0));
-  return `<div class="combat" style="--biome:${biome.bgGradient}">
-    <div class="combat-top">
-      <div class="combat-fighter mob">
-        <div class="cf-name">${monster.name}${monster.isBoss ? ' 👑' : ''}</div>
+  // Mécaniques visibles : le joueur doit savoir contre quoi il se bat pour
+  // choisir ses actions (régen → finir vite ; enrage → garder Défendre…).
+  const mechanics = monster.mechanics || (monster.mechanic ? [monster.mechanic] : []);
+  const MECH_LABEL = { regen: 'Régénère', enrage: 'Enrage', shieldCycle: 'Bouclier', burn: 'Brûlure', phaseShift: 'Instable', executioner: 'Exécuteur', thorns: 'Épineux', lifesteal: 'Vampirique', swift: 'Véloce', healBlock: 'Maudit', damageCap: 'Carapacé' };
+  const mechTags = mechanics.map(m =>
+    `<span class="cf-tag mech" title="${m.desc || ''}">${m.icon || '✦'} ${m.name || MECH_LABEL[m.type] || m.type}</span>`).join('');
+  // Faiblesse / résistance élémentaire du biome — guide le choix d'équipement.
+  const be = BIOME_ELEMENTS[biome.baseId || biome.id];
+  const elemTags = be ? [
+    `<span class="cf-tag weak" title="Prend +50 % de dégâts ${ELEMENT_META[be.weak].name}">${ELEMENT_META[be.weak].emoji} Faible</span>`,
+    `<span class="cf-tag resist" title="Subit −50 % de dégâts ${ELEMENT_META[be.resist].name}">${ELEMENT_META[be.resist].emoji} Résiste</span>`,
+  ].join('') : '';
+  const monsterTags = [
+    monster.isBoss ? '<span class="cf-tag boss">👑 BOSS</span>' : '',
+    monster.isElite ? '<span class="cf-tag elite">⭐ ÉLITE</span>' : '',
+    `<span class="cf-tag biome">${biome.emoji} ${biome.name}</span>`,
+    elemTags,
+    mechTags,
+  ].filter(Boolean).join('');
+  const heroTags = [
+    `<span class="cf-tag dmg">⚔ ${Math.round(stats.damage || 0)}</span>`,
+    `<span class="cf-tag def">🛡 ${Math.round(stats.armor || 0)}</span>`,
+  ].join('');
+  const special = specialForStats(stats);
+  return `<div class="combat rpg" style="--biome:${biome.bgGradient}">
+    <div class="combat-stage">
+      <!-- Monstre haut-droite façon Pokémon -->
+      <div class="cf-card mob">
+        <div class="cf-head">
+          <div class="cf-name">${monster.name}${monster.isBoss ? ' 👑' : ''}${monster.isElite ? ' ⭐' : ''}</div>
+          <div class="cf-tags">${monsterTags}</div>
+        </div>
         ${hpBar(monster.hp, monster.hp, { color: 'var(--r-ancestral)', id: 'combat-mob-hp' })}
+        <div class="mob-statuses" id="mob-statuses"></div>
+        <div class="mob-intent" id="mob-intent"></div>
       </div>
       <div class="mob-sprite pixel" id="combat-mob-sprite">${monsterSpriteHTML(monster, 120)}</div>
-    </div>
-    <div class="combat-center">
-      <div class="combat-floor smallcap">${biome.emoji} ${biome.name} · Étage ${cur}</div>
+
+      <!-- Action callout central : flash CRIT/DODGE/BLOC etc. -->
       <div class="combat-call" id="combat-call"></div>
-    </div>
-    <div class="combat-bottom">
+
+      <!-- Hero bas-gauche -->
       <div class="hero-sprite pixel" id="combat-hero-sprite">${composeCharacterWithGearSVG(state.equipment, 120)}</div>
-      <div class="combat-fighter hero">
-        <div class="cf-name">⚔ Héros</div>
+      <div class="cf-card hero">
+        <div class="cf-head">
+          <div class="cf-name">⚔ Héros</div>
+          <div class="cf-tags">${heroTags}</div>
+        </div>
         ${hpBar(playerMax, playerMax, { color: 'var(--r-poison)', id: 'combat-hero-hp' })}
+        <div class="gauge-bar" title="Jauge d'ultime — pleine, elle débloque ✨ Spécial">
+          <div class="gauge-fill" id="combat-gauge" style="width:0%"></div>
+          <span class="gauge-label" id="combat-gauge-label">✨ 0%</span>
+        </div>
+        <div class="hero-statuses" id="hero-statuses"></div>
+        <div class="cf-turn smallcap"><span id="combat-turn">Tour 1</span> · <span class="cf-floor">${biome.emoji} Étage ${cur}</span>${(state.combat.winStreak || 0) >= 3 ? ` · <span class="cf-streak">🔥 Série ${state.combat.winStreak}</span>` : ''}</div>
       </div>
     </div>
-    <div class="combat-log" id="combat-log"></div>
+
+    <!-- Dialog box façon Pokémon en bas, avec messages typewriter -->
+    <div class="combat-dialog" id="combat-dialog">
+      <div class="combat-dialog-text" id="combat-dialog-text">Le combat commence…</div>
+    </div>
+
+    <!-- Menu d'actions tour-par-tour (Pokémon-like) + Auto + Vitesse -->
+    <div class="combat-menu" id="combat-menu">
+      <button class="cm-act primary" data-combat-action="attack" id="btn-act-attack">
+        <span class="cm-emoji">⚔</span><span class="cm-label">Attaquer</span>
+      </button>
+      <button class="cm-act" data-combat-action="power" id="btn-act-power">
+        <span class="cm-emoji">💥</span><span class="cm-label">Frappe Puissante</span><span class="cm-cd" id="cd-power"></span>
+      </button>
+      <button class="cm-act" data-combat-action="defend" id="btn-act-defend">
+        <span class="cm-emoji">🛡</span><span class="cm-label">Défendre</span>
+      </button>
+      <button class="cm-act" data-combat-action="flee" id="btn-act-flee">
+        <span class="cm-emoji">🏃</span><span class="cm-label">Fuir</span>
+      </button>
+      <button class="cm-act cm-special" data-combat-action="special" id="btn-act-special" title="${special.desc}">
+        <span class="cm-emoji">${special.emoji}</span><span class="cm-label">${special.name}</span><span class="cm-cd" id="gauge-pct">0%</span>
+      </button>
+    </div>
+
+    <div class="combat-actions">
+      <button class="combat-act" data-combat-act="auto" id="btn-combat-auto" title="Le système joue pour toi">🤖 Auto</button>
+      <button class="combat-act" data-combat-act="speed" id="btn-combat-speed" title="Accélère le combat">⏩ Vitesse</button>
+    </div>
   </div>`;
 }
 
@@ -1894,6 +1961,12 @@ function ovHelp() {
   return overlayShell('Comment jouer', `
     <h3>📦 Coffre</h3><p>Ouvre des coffres (1 clé) pour looter des objets. Améliore le tier pour de meilleurs drops. Légendaire garanti tous les ${PITY_THRESHOLD} coffres (jauge pity).</p>
     <h3>⚔ Donjon</h3><p>Affronte des monstres pour or, items et clés. Tous les 5 étages : boss. Mode 🔁 Boucle sur un étage déjà battu.</p>
+    <h3>🎮 Combat tour-par-tour</h3><p>À chaque tour, choisis : <b>⚔ Attaquer</b> (coup normal) · <b>💥 Frappe Puissante</b> (×2.2 dégâts mais le monstre frappe en premier, recharge 2 tours) · <b>🛡 Défendre</b> (–60 % dégâts subis + soin 8 %, pas deux fois de suite) · <b>🏃 Fuir</b> (impossible contre boss/élites). Le bouton <b>🤖 Auto</b> laisse le jeu jouer pour toi. Lis les tags oranges sur la carte du monstre : un boss qui <i>régénère</i> doit être tué vite, un <i>enragé</i> devient dangereux sous 30 % PV.</p>
+    <h3>✨ Jauge d'ultime & Spécial</h3><p>Chaque action remplit ta jauge (encaisser des coups aussi). Pleine, elle débloque ton <b>attaque Spéciale</b> — sa signature dépend de ton <b>élément dominant</b> : 🔥 <b>Embrasement</b> (brûlure 3 tours) · ❄ <b>Blizzard</b> (gel + givre) · ☠ <b>Toxines</b> (poison 5 tours) · ⚡ <b>Tempête</b> (3 frappes) · 🌑 <b>Annihilation</b> (perce boucliers) · 💢 <b>Cri de Guerre</b> (sans élément : +20 % dégâts). Change d'équipement pour changer de signature !</p>
+    <h3>👁 Intentions & charges</h3><p>Le monstre <b>annonce son prochain coup</b> sous sa barre de PV : dégâts estimés, bouclier à venir… Les boss et élites peuvent <b>CHARGER</b> une attaque dévastatrice (×2.3) télégraphiée un tour à l'avance — réponds en <b>Défendant</b>, en l'achevant avant, ou en le <b>Gelant</b> (le gel annule la charge !). Pendant qu'il charge, il n'attaque pas : tour parfait pour une Frappe Puissante.</p>
+    <h3>🌍 Affinités de biome</h3><p>Chaque biome a une <b>faiblesse</b> et une <b>résistance</b> élémentaires (affichées sur la carte du monstre) : +50 % de ta part élémentaire si ton élément dominant tape la faiblesse, −50 % s'il est résisté. L'Enfer craint le Givre mais rit du Feu — adapte ton équipement à ta destination.</p>
+    <h3>🔥 Combo & séries</h3><p>Chaque action offensive consécutive empile <b>+8 % de dégâts</b> (max +40 %). Un coup encaissé de plus de 5 % de tes PV max <b>brise le combo</b> — esquive, gel, armure épaisse et windups adverses le préservent. Hors combat, chaque <b>victoire consécutive</b> booste l'or (+2 %/victoire, max +50 %) et les drops (+0,5 %, max +15 %) ; défaite ou fuite remet la série à zéro. Bonus : achever un monstre avec ton <b>Spécial</b> = ⚡ Coup de Grâce, +15 % d'or. Et garde un œil sur les <b>embuscades</b> : parfois le monstre frappe en premier, parfois c'est toi qui le surprends.</p>
+    <h3>⚡ Procs élémentaires & jauge persistante</h3><p>Ton <b>second élément</b> a une chance par coup normal (~4-12 % selon son ampleur) de procer un effet léger : 🔥 Étincelle (brûlure 1 tour), 🧊 Engourdi (−25 % dégâts 1 tour), ☠ Toxine (poison 2 tours), ⚡ Foudre (+25 % de dégâts bonus), 🌑 Faille (pic perçant). Le trash devient plus vivant sans ralentir. En <b>mode Boucle</b>, la jauge d'ultime <b>persiste entre combats</b> (cap 60 %) : tu peux planifier d'ouvrir le suivant avec un Blizzard. Une fuite ou une défaite remet à zéro. La <b>Frappe Puissante</b> est désormais interdite deux fois de suite — son cycle force d'autres choix.</p>
     <h3>⚒ Forge</h3><p>Chaque action consomme un orbe spécifique. Transmute, augmente, reroll… pour améliorer tes objets. <button class="btn-ghost" data-overlay="forgeGuide">📖 Guide forge & orbes</button></p>
     <h3>🌟 Ascension & 🌳 Talents</h3><p>À T5 + étage 50, ascensionne pour repartir plus puissant (+prestige permanent). Gagne des points de talent par paliers d'étage.</p>
     <h3>💡 Raccourcis</h3><p>Espace : ouvrir/combattre · Échap : fermer.</p>
@@ -2047,6 +2120,126 @@ export function setCombatCall(text, color = 'var(--gold-200)') {
   el.textContent = text;
   el.style.color = color;
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+}
+
+// === Dialog box typewriter — affiche un message lettre par lettre, façon Pokémon ===
+let _typewriterTimer = null;
+let _typewriterFullText = '';
+export function setCombatDialog(text, { speed = 18, instant = false } = {}) {
+  const el = $('#combat-dialog-text');
+  if (!el) return;
+  if (_typewriterTimer) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
+  _typewriterFullText = text;
+  if (instant) { el.textContent = text; return; }
+  el.textContent = '';
+  let i = 0;
+  _typewriterTimer = setInterval(() => {
+    i++;
+    el.textContent = text.slice(0, i);
+    if (i >= text.length) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
+  }, speed);
+}
+// Permet au moteur de combat de skipper l'effet (clic skip, mode rapide…).
+export function completeCombatDialog() {
+  if (_typewriterTimer) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
+  const el = $('#combat-dialog-text');
+  if (el) el.textContent = _typewriterFullText;
+}
+
+export function setCombatTurn(n) {
+  const el = $('#combat-turn');
+  if (el) el.textContent = `Tour ${n}`;
+}
+
+// Active/désactive les boutons d'action du combat et affiche le CD restant.
+// Appelé par main.js avant chaque tour pour refléter l'état courant du battle.
+export function setCombatActionsState(battle, autoOn = false) {
+  const setBtn = (id, enabled) => {
+    const b = $(id);
+    if (!b) return;
+    b.disabled = !enabled;
+    b.classList.toggle('is-disabled', !enabled);
+  };
+  // Délégation au moteur via les noms d'action — main.js passe canUseAction
+  // via un objet { attack, power, defend, flee } booléens dans battle._allowed.
+  const allowed = battle?._allowed || {};
+  setBtn('#btn-act-attack',  !!allowed.attack  && !autoOn);
+  setBtn('#btn-act-power',   !!allowed.power   && !autoOn);
+  setBtn('#btn-act-defend',  !!allowed.defend  && !autoOn);
+  setBtn('#btn-act-flee',    !!allowed.flee    && !autoOn);
+  setBtn('#btn-act-special', !!allowed.special && !autoOn);
+  // Indicateur CD sur le bouton Power
+  const cdEl = $('#cd-power');
+  if (cdEl) {
+    const cd = battle?.cooldowns?.power || 0;
+    cdEl.textContent = cd > 0 ? `(${cd})` : '';
+  }
+  // Jauge d'ultime : barre + % sur le bouton + glow quand prête.
+  const pct = battle ? Math.round((battle.gauge / battle.gaugeMax) * 100) : 0;
+  const fill = $('#combat-gauge');
+  if (fill) fill.style.width = `${pct}%`;
+  const lbl = $('#combat-gauge-label');
+  if (lbl) lbl.textContent = `✨ ${pct}%`;
+  const gp = $('#gauge-pct');
+  if (gp) gp.textContent = pct >= 100 ? 'PRÊT !' : `${pct}%`;
+  const spBtn = $('#btn-act-special');
+  if (spBtn) spBtn.classList.toggle('ready', pct >= 100);
+  // Visuel du toggle Auto
+  const autoBtn = $('#btn-combat-auto');
+  if (autoBtn) autoBtn.classList.toggle('on', !!autoOn);
+}
+
+// Statuts infligés au monstre, affichés sous sa barre de PV.
+const STATUS_META = {
+  burn:   { emoji: '🔥', label: 'Brûlure' },
+  poison: { emoji: '☠',  label: 'Poison' },
+  freeze: { emoji: '❄',  label: 'Gelé' },
+  chill:  { emoji: '🧊', label: 'Givre −25 %' },
+};
+export function renderMonsterStatuses(battle) {
+  const el = $('#mob-statuses');
+  if (!el) return;
+  const sts = battle?.mStatuses || {};
+  el.innerHTML = Object.entries(sts).map(([k, st]) => {
+    const meta = STATUS_META[k] || { emoji: '✦', label: k };
+    return `<span class="status-chip status-${k}">${meta.emoji} ${meta.label}${st.turns > 0 ? ` (${st.turns})` : ''}</span>`;
+  }).join('');
+}
+
+// Statuts du héros : combo en cours, buff Cri de Guerre.
+export function renderHeroStatuses(battle) {
+  const el = $('#hero-statuses');
+  if (!el) return;
+  const chips = [];
+  if (battle?.combo >= 1) {
+    const capped = Math.min(battle.combo, 5);
+    chips.push(`<span class="status-chip status-combo">🔥 Combo ×${battle.combo}${battle.combo >= 1 ? ` (+${capped * 8} %)` : ''}</span>`);
+  }
+  if (battle?.dmgBuffMult > 1) {
+    chips.push(`<span class="status-chip status-warcry">💢 +${Math.round((battle.dmgBuffMult - 1) * 100)} % dégâts</span>`);
+  }
+  el.innerHTML = chips.join('');
+}
+
+// Intention du monstre (télégraphe) — bandeau sous sa carte.
+export function renderMonsterIntent(battle) {
+  const el = $('#mob-intent');
+  if (!el) return;
+  const intent = getIntent(battle);
+  if (!intent) { el.innerHTML = ''; el.className = 'mob-intent'; return; }
+  el.className = `mob-intent intent-${intent.type}`;
+  el.innerHTML = `<span class="intent-emoji">${intent.emoji}</span> ${intent.text}`;
+}
+
+// Petite animation de coup : strike CSS pour secouer un fighter, lunge pour le héros.
+export function animateCombatSprite(who, kind) {
+  // who: 'mob' | 'hero' ; kind: 'hit' | 'attack'
+  const sel = who === 'mob' ? '#combat-mob-sprite' : '#combat-hero-sprite';
+  const el = $(sel);
+  if (!el) return;
+  const cls = `cf-anim-${kind}`;
+  el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), 400);
 }
 
 // ─────────────────────────────────────────────────────────────
