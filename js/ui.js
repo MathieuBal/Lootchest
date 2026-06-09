@@ -32,6 +32,7 @@ import * as Story from './story.js';
 import { rerollCost as bountyRerollCost } from './bounties.js';
 import { chestSpriteSVG, characterSpriteSVG, composedSpriteSVG, composeCharacterWithGearSVG, hasBossSprite, bossSpriteSVG } from './sprites.js';
 import { monsterSpriteSrc, bossSpriteSrcByName, chestSpriteSrc, orbSpriteSrc, treasureSpriteSrc, mimicSpriteSrc, spriteImg } from './spriteMap.js';
+import { specialForStats } from './combatTurn.js';
 import { LEGENDARY_EFFECTS } from './legendaryEffects.js';
 import { MATERIALS } from './materials.js';
 import { ELEMENTS } from './elements.js';
@@ -1012,6 +1013,7 @@ function ovCombat() {
     `<span class="cf-tag dmg">⚔ ${Math.round(stats.damage || 0)}</span>`,
     `<span class="cf-tag def">🛡 ${Math.round(stats.armor || 0)}</span>`,
   ].join('');
+  const special = specialForStats(stats);
   return `<div class="combat rpg" style="--biome:${biome.bgGradient}">
     <div class="combat-stage">
       <!-- Monstre haut-droite façon Pokémon -->
@@ -1021,6 +1023,7 @@ function ovCombat() {
           <div class="cf-tags">${monsterTags}</div>
         </div>
         ${hpBar(monster.hp, monster.hp, { color: 'var(--r-ancestral)', id: 'combat-mob-hp' })}
+        <div class="mob-statuses" id="mob-statuses"></div>
       </div>
       <div class="mob-sprite pixel" id="combat-mob-sprite">${monsterSpriteHTML(monster, 120)}</div>
 
@@ -1035,6 +1038,10 @@ function ovCombat() {
           <div class="cf-tags">${heroTags}</div>
         </div>
         ${hpBar(playerMax, playerMax, { color: 'var(--r-poison)', id: 'combat-hero-hp' })}
+        <div class="gauge-bar" title="Jauge d'ultime — pleine, elle débloque ✨ Spécial">
+          <div class="gauge-fill" id="combat-gauge" style="width:0%"></div>
+          <span class="gauge-label" id="combat-gauge-label">✨ 0%</span>
+        </div>
         <div class="cf-turn smallcap"><span id="combat-turn">Tour 1</span> · <span class="cf-floor">${biome.emoji} Étage ${cur}</span></div>
       </div>
     </div>
@@ -1057,6 +1064,9 @@ function ovCombat() {
       </button>
       <button class="cm-act" data-combat-action="flee" id="btn-act-flee">
         <span class="cm-emoji">🏃</span><span class="cm-label">Fuir</span>
+      </button>
+      <button class="cm-act cm-special" data-combat-action="special" id="btn-act-special" title="${special.desc}">
+        <span class="cm-emoji">${special.emoji}</span><span class="cm-label">${special.name}</span><span class="cm-cd" id="gauge-pct">0%</span>
       </button>
     </div>
 
@@ -1943,6 +1953,7 @@ function ovHelp() {
     <h3>📦 Coffre</h3><p>Ouvre des coffres (1 clé) pour looter des objets. Améliore le tier pour de meilleurs drops. Légendaire garanti tous les ${PITY_THRESHOLD} coffres (jauge pity).</p>
     <h3>⚔ Donjon</h3><p>Affronte des monstres pour or, items et clés. Tous les 5 étages : boss. Mode 🔁 Boucle sur un étage déjà battu.</p>
     <h3>🎮 Combat tour-par-tour</h3><p>À chaque tour, choisis : <b>⚔ Attaquer</b> (coup normal) · <b>💥 Frappe Puissante</b> (×2.2 dégâts mais le monstre frappe en premier, recharge 2 tours) · <b>🛡 Défendre</b> (–60 % dégâts subis + soin 8 %, pas deux fois de suite) · <b>🏃 Fuir</b> (impossible contre boss/élites). Le bouton <b>🤖 Auto</b> laisse le jeu jouer pour toi. Lis les tags oranges sur la carte du monstre : un boss qui <i>régénère</i> doit être tué vite, un <i>enragé</i> devient dangereux sous 30 % PV.</p>
+    <h3>✨ Jauge d'ultime & Spécial</h3><p>Chaque action remplit ta jauge (encaisser des coups aussi). Pleine, elle débloque ton <b>attaque Spéciale</b> — sa signature dépend de ton <b>élément dominant</b> : 🔥 <b>Embrasement</b> (brûlure 3 tours) · ❄ <b>Blizzard</b> (gel + givre) · ☠ <b>Toxines</b> (poison 5 tours) · ⚡ <b>Tempête</b> (3 frappes) · 🌑 <b>Annihilation</b> (perce boucliers) · 💢 <b>Cri de Guerre</b> (sans élément : +20 % dégâts). Change d'équipement pour changer de signature !</p>
     <h3>⚒ Forge</h3><p>Chaque action consomme un orbe spécifique. Transmute, augmente, reroll… pour améliorer tes objets. <button class="btn-ghost" data-overlay="forgeGuide">📖 Guide forge & orbes</button></p>
     <h3>🌟 Ascension & 🌳 Talents</h3><p>À T5 + étage 50, ascensionne pour repartir plus puissant (+prestige permanent). Gagne des points de talent par paliers d'étage.</p>
     <h3>💡 Raccourcis</h3><p>Espace : ouvrir/combattre · Échap : fermer.</p>
@@ -2139,19 +2150,47 @@ export function setCombatActionsState(battle, autoOn = false) {
   // Délégation au moteur via les noms d'action — main.js passe canUseAction
   // via un objet { attack, power, defend, flee } booléens dans battle._allowed.
   const allowed = battle?._allowed || {};
-  setBtn('#btn-act-attack', !!allowed.attack && !autoOn);
-  setBtn('#btn-act-power',  !!allowed.power  && !autoOn);
-  setBtn('#btn-act-defend', !!allowed.defend && !autoOn);
-  setBtn('#btn-act-flee',   !!allowed.flee   && !autoOn);
+  setBtn('#btn-act-attack',  !!allowed.attack  && !autoOn);
+  setBtn('#btn-act-power',   !!allowed.power   && !autoOn);
+  setBtn('#btn-act-defend',  !!allowed.defend  && !autoOn);
+  setBtn('#btn-act-flee',    !!allowed.flee    && !autoOn);
+  setBtn('#btn-act-special', !!allowed.special && !autoOn);
   // Indicateur CD sur le bouton Power
   const cdEl = $('#cd-power');
   if (cdEl) {
     const cd = battle?.cooldowns?.power || 0;
     cdEl.textContent = cd > 0 ? `(${cd})` : '';
   }
+  // Jauge d'ultime : barre + % sur le bouton + glow quand prête.
+  const pct = battle ? Math.round((battle.gauge / battle.gaugeMax) * 100) : 0;
+  const fill = $('#combat-gauge');
+  if (fill) fill.style.width = `${pct}%`;
+  const lbl = $('#combat-gauge-label');
+  if (lbl) lbl.textContent = `✨ ${pct}%`;
+  const gp = $('#gauge-pct');
+  if (gp) gp.textContent = pct >= 100 ? 'PRÊT !' : `${pct}%`;
+  const spBtn = $('#btn-act-special');
+  if (spBtn) spBtn.classList.toggle('ready', pct >= 100);
   // Visuel du toggle Auto
   const autoBtn = $('#btn-combat-auto');
   if (autoBtn) autoBtn.classList.toggle('on', !!autoOn);
+}
+
+// Statuts infligés au monstre, affichés sous sa barre de PV.
+const STATUS_META = {
+  burn:   { emoji: '🔥', label: 'Brûlure' },
+  poison: { emoji: '☠',  label: 'Poison' },
+  freeze: { emoji: '❄',  label: 'Gelé' },
+  chill:  { emoji: '🧊', label: 'Givre −25 %' },
+};
+export function renderMonsterStatuses(battle) {
+  const el = $('#mob-statuses');
+  if (!el) return;
+  const sts = battle?.mStatuses || {};
+  el.innerHTML = Object.entries(sts).map(([k, st]) => {
+    const meta = STATUS_META[k] || { emoji: '✦', label: k };
+    return `<span class="status-chip status-${k}">${meta.emoji} ${meta.label}${st.turns > 0 ? ` (${st.turns})` : ''}</span>`;
+  }).join('');
 }
 
 // Petite animation de coup : strike CSS pour secouer un fighter, lunge pour le héros.

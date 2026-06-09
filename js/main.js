@@ -501,12 +501,14 @@ function submitAction(actionId) {
 
 function refreshActionButtons(battle) {
   battle._allowed = {
-    attack: canUseAction(battle, 'attack'),
-    power:  canUseAction(battle, 'power'),
-    defend: canUseAction(battle, 'defend'),
-    flee:   canUseAction(battle, 'flee'),
+    attack:  canUseAction(battle, 'attack'),
+    power:   canUseAction(battle, 'power'),
+    defend:  canUseAction(battle, 'defend'),
+    flee:    canUseAction(battle, 'flee'),
+    special: canUseAction(battle, 'special'),
   };
   UI.setCombatActionsState(battle, _autoMode || state.combat.loopMode);
+  UI.renderMonsterStatuses(battle);
 }
 
 async function fightFlow() {
@@ -712,6 +714,29 @@ function handleCombatEvent(ev, monsterMaxHp, playerMaxHp) {
     if (ev.swift) { floatingText('⚡', c.x + 28, c.y - 24, '#ffe14a'); UI.setCombatCall('Véloce !', '#ffe14a'); }
   } else if (ev.type === 'player_flee') {
     UI.setCombatDialog('Tu prends la fuite…');
+  } else if (ev.type === 'special_cast') {
+    UI.animateCombatSprite('hero', 'attack');
+    UI.setCombatCall(`${ev.emoji} ${ev.name} !`, '#ffd84a');
+    UI.setCombatDialog(`Tu déchaînes ${ev.name} !`);
+    const c = UI.getMonsterEmojiCenter();
+    spawnParticles('#ffd84a', c.x, c.y, 30);
+    screenShake(6, 250);
+    soundCrit();
+  } else if (ev.type === 'status_apply') {
+    const c = UI.getMonsterEmojiCenter();
+    floatingText(`${ev.emoji} ${ev.label}`, c.x, c.y - 44, '#ffb060');
+    UI.setCombatDialog(`Le monstre subit : ${ev.label}.`);
+  } else if (ev.type === 'status_tick') {
+    UI.updateMonsterHp(ev.monsterHp, monsterMaxHp);
+    const c = UI.getMonsterEmojiCenter();
+    floatingDamage(ev.amount, c.x, c.y, 'normal');
+    floatingText(ev.emoji, c.x + 30, c.y - 24, ev.status === 'burn' ? '#ff7a30' : '#7adc4a');
+    UI.setCombatDialog(`${ev.status === 'burn' ? 'La brûlure' : 'Le poison'} ronge le monstre (-${ev.amount}).`);
+  } else if (ev.type === 'status_freeze_skip') {
+    const c = UI.getMonsterEmojiCenter();
+    floatingText('❄ GELÉ', c.x, c.y, '#7adcff');
+    UI.setCombatCall('GELÉ !', '#7adcff');
+    UI.setCombatDialog('Le monstre est gelé — il passe son tour !');
   } else if (ev.type === 'monster_thorns') {
     UI.updatePlayerHp(ev.playerHp, playerMaxHp);
     UI.animateCombatSprite('hero', 'hit');

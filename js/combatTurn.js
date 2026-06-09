@@ -28,11 +28,39 @@ const DEFEND_REDUCTION = 0.6;
 const DEFEND_HEAL_PCT = 0.08;
 
 export const ACTIONS = {
-  attack: { id: 'attack', emoji: '⚔', label: 'Attaquer', desc: 'Coup normal.' },
-  power:  { id: 'power',  emoji: '💥', label: 'Frappe Puissante', desc: '×2.2 dégâts, mais le monstre frappe en premier.' },
-  defend: { id: 'defend', emoji: '🛡', label: 'Défendre', desc: '–60 % dégâts subis et soin 8 % PV max.' },
-  flee:   { id: 'flee',   emoji: '🏃', label: 'Fuir',    desc: 'Quitte le combat sans récompense.' },
+  attack:  { id: 'attack',  emoji: '⚔', label: 'Attaquer', desc: 'Coup normal.' },
+  power:   { id: 'power',   emoji: '💥', label: 'Frappe Puissante', desc: '×2.2 dégâts, mais le monstre frappe en premier.' },
+  defend:  { id: 'defend',  emoji: '🛡', label: 'Défendre', desc: '–60 % dégâts subis et soin 8 % PV max.' },
+  special: { id: 'special', emoji: '✨', label: 'Spécial', desc: 'Attaque signature de ton élément dominant. Consomme la jauge.' },
+  flee:    { id: 'flee',    emoji: '🏃', label: 'Fuir',    desc: 'Quitte le combat sans récompense.' },
 };
+
+// === Attaques spéciales (jauge pleine) ===
+// La signature dépend de l'élément dominant du build : un build feu ne se
+// joue pas comme un build givre. Sans élément, fallback Cri de Guerre.
+export const SPECIALS = {
+  fire:      { id: 'fire',      emoji: '🔥', name: 'Embrasement',   desc: '×1.6 dégâts + Brûlure (4 % PV max du monstre pendant 3 tours).' },
+  frost:     { id: 'frost',     emoji: '❄',  name: 'Blizzard',      desc: '×1.4 dégâts + Gel (le monstre passe son tour) + Givre (−25 % dégâts, 2 tours).' },
+  poison:    { id: 'poison',    emoji: '☠',  name: 'Toxines',       desc: '×1.2 dégâts + Poison (4 % PV max du monstre pendant 5 tours).' },
+  lightning: { id: 'lightning', emoji: '⚡', name: 'Tempête',       desc: '3 frappes ×0.65 — chacune peut être critique.' },
+  void:      { id: 'void',      emoji: '🌑', name: 'Annihilation',  desc: '×1.5 dégâts — ignore boucliers et carapaces.' },
+  none:      { id: 'none',      emoji: '💢', name: 'Cri de Guerre', desc: '×1.3 dégâts + 20 % de dégâts pour le reste du combat.' },
+};
+
+// Élément dominant du build = la plus grosse stat élémentaire équipée.
+export function specialForStats(stats) {
+  const pools = [
+    ['fire', stats.fireDmg || 0], ['frost', stats.frostDmg || 0],
+    ['poison', stats.poisonDmg || 0], ['lightning', stats.lightningDmg || 0],
+    ['void', stats.voidDmg || 0],
+  ];
+  pools.sort((a, b) => b[1] - a[1]);
+  return (pools[0][1] > 0) ? SPECIALS[pools[0][0]] : SPECIALS.none;
+}
+
+const GAUGE_MAX = 100;
+const GAUGE_GAIN = { attack: 14, power: 22, defend: 10, special: 0 };
+const GAUGE_ON_HIT_TAKEN = 8;
 
 export function createBattle(monster, opts = {}) {
   const mods = opts.mods || {};
@@ -93,6 +121,14 @@ export function createBattle(monster, opts = {}) {
     turn: 0,
     cooldowns: { power: 0 },
     lastAction: null,
+    // Jauge d'ultime : se remplit en agissant et en encaissant ; pleine = Spécial.
+    gauge: 0,
+    gaugeMax: GAUGE_MAX,
+    special: specialForStats(stats),
+    // Statuts infligés au monstre : { burn: {turns, dmgPerTurn}, poison: {...},
+    // freeze: {turns}, chill: {turns} }. Tick à chaque début de tour.
+    mStatuses: {},
+    dmgBuffMult: 1,   // Cri de Guerre : buff permanent pour le combat
     ended: false,
     won: null,
     fled: false,
@@ -102,10 +138,11 @@ export function createBattle(monster, opts = {}) {
 export function canUseAction(battle, actionId) {
   if (battle.ended) return false;
   switch (actionId) {
-    case 'attack': return true;
-    case 'power':  return (battle.cooldowns.power || 0) <= 0;
-    case 'defend': return battle.lastAction !== 'defend';
-    case 'flee':   return !battle.monster.isBoss && !battle.monster.isElite;
+    case 'attack':  return true;
+    case 'power':   return (battle.cooldowns.power || 0) <= 0;
+    case 'defend':  return battle.lastAction !== 'defend';
+    case 'special': return battle.gauge >= battle.gaugeMax;
+    case 'flee':    return !battle.monster.isBoss && !battle.monster.isElite;
   }
   return false;
 }
@@ -132,6 +169,7 @@ function applyHeal(battle, amount) {
 // One monster blow : damage + phoenix revives + lifesteal affix.
 function applyMonsterHit(battle, events, dmg, extra = {}) {
   battle.pHp = Math.max(0, battle.pHp - dmg);
+  battle.gauge = Math.min(battle.gaugeMax, battle.gauge + GAUGE_ON_HIT_TAKEN);
   events.push({ type: 'monster_hit', dmg, monsterHp: battle.mHp, playerHp: battle.pHp, ...extra });
   if (battle.setEffectIds.has('phoenix_rebirth') && !battle.phoenixUsed && battle.pHp <= 0) {
     battle.phoenixUsed = true;
@@ -175,6 +213,21 @@ export function executeTurn(battle, actionId) {
   }
 
   // ── Turn-start effects ──────────────────────────────────────
+  // Statuts infligés au monstre : DoT (brûlure/poison) tick, durées décomptées.
+  for (const key of ['burn', 'poison']) {
+    const st = battle.mStatuses[key];
+    if (!st) continue;
+    const tick = Math.max(1, st.dmgPerTurn || 1);
+    battle.mHp = Math.max(0, battle.mHp - tick);
+    events.push({ type: 'status_tick', status: key, amount: tick, emoji: key === 'burn' ? '🔥' : '☠', monsterHp: battle.mHp, playerHp: battle.pHp });
+    st.turns -= 1;
+    if (st.turns <= 0) delete battle.mStatuses[key];
+    if (finish()) return { events, ended: true, won: battle.won };
+  }
+  if (battle.mStatuses.chill) {
+    battle.mStatuses.chill.turns -= 1;
+    if (battle.mStatuses.chill.turns < 0) delete battle.mStatuses.chill;
+  }
   // Set : druid_growth → heal 20% max HP every 4 turns.
   if (battle.setEffectIds.has('druid_growth') && battle.turn > 1 && (battle.turn % 4) === 0 && battle.pHp > 0 && battle.pHp < battle.pMaxHp) {
     const heal = applyHeal(battle, Math.max(1, Math.round(battle.pMaxHp * 0.20)));
@@ -236,6 +289,7 @@ export function executeTurn(battle, actionId) {
   let playerAttacks = true;
   let monsterFrozen = false;
 
+  let specialMode = null;
   if (actionId === 'power') {
     actionDmgMult = POWER_MULT;
     playerFirst = false;
@@ -244,6 +298,11 @@ export function executeTurn(battle, actionId) {
     playerAttacks = false;
     damageReduction = DEFEND_REDUCTION;
     defendHeal = Math.round(battle.pMaxHp * DEFEND_HEAL_PCT);
+  } else if (actionId === 'special') {
+    specialMode = battle.special;
+    battle.gauge = 0;
+    // Multiplicateur par signature ; lightning gère ses 3 frappes plus bas.
+    actionDmgMult = { fire: 1.6, frost: 1.4, poison: 1.2, lightning: 0.65, void: 1.5, none: 1.3 }[specialMode.id] || 1.3;
   }
 
   const playerPhase = () => {
@@ -294,12 +353,42 @@ export function executeTurn(battle, actionId) {
       extraMult *= 1 + 0.5 * battle.executeStacks;
       mults.push({ emoji: '🪓', label: 'Faucheur' });
     }
-    const isCrit = forceCrit || Math.random() < battle.critChance;
-    let hit = Math.round(battle.pBaseDmg * (isCrit ? 2 : 1) * (1 + battle.elemBonus * Math.random()) * extraMult);
-    if (hit > battle.playerHitCap) hit = battle.playerHitCap;
-    if (monsterShielded) hit = 0;
-    battle.mHp = Math.max(0, battle.mHp - hit);
-    events.push({ type: 'player_hit', dmg: hit, isCrit, forceCrit, monsterHp: battle.mHp, playerHp: battle.pHp, mults, blocked: monsterShielded });
+    if (specialMode) {
+      events.push({ type: 'special_cast', name: specialMode.name, emoji: specialMode.emoji, playerHp: battle.pHp, monsterHp: battle.mHp });
+      mults.push({ emoji: specialMode.emoji, label: specialMode.name });
+    }
+    // Annihilation (void) perce boucliers et carapaces.
+    const piercing = specialMode?.id === 'void';
+    const swings = specialMode?.id === 'lightning' ? 3 : 1;
+    let hit = 0;          // total des dégâts du tour (sert aux riders ci-dessous)
+    let isCrit = false;   // au moins un crit dans le tour
+    for (let s = 0; s < swings && battle.mHp > 0; s++) {
+      const swingCrit = (s === 0 && forceCrit) || Math.random() < battle.critChance;
+      let swing = Math.round(battle.pBaseDmg * (swingCrit ? 2 : 1) * (1 + battle.elemBonus * Math.random()) * extraMult * battle.dmgBuffMult);
+      if (!piercing && swing > battle.playerHitCap) swing = battle.playerHitCap;
+      if (!piercing && monsterShielded) swing = 0;
+      battle.mHp = Math.max(0, battle.mHp - swing);
+      hit += swing;
+      isCrit = isCrit || swingCrit;
+      events.push({ type: 'player_hit', dmg: swing, isCrit: swingCrit, forceCrit, monsterHp: battle.mHp, playerHp: battle.pHp, mults: s === 0 ? mults : [{ emoji: '⚡', label: 'Tempête' }], blocked: !piercing && monsterShielded });
+    }
+    // Effets de signature post-frappe.
+    if (specialMode && hit > 0) {
+      if (specialMode.id === 'fire') {
+        battle.mStatuses.burn = { turns: 3, dmgPerTurn: Math.max(1, Math.round(battle.mMaxHp * 0.04)) };
+        events.push({ type: 'status_apply', status: 'burn', emoji: '🔥', label: 'Brûlure', monsterHp: battle.mHp, playerHp: battle.pHp });
+      } else if (specialMode.id === 'frost') {
+        battle.mStatuses.freeze = { turns: 1 };
+        battle.mStatuses.chill = { turns: 2 };
+        events.push({ type: 'status_apply', status: 'freeze', emoji: '❄', label: 'Gel + Givre', monsterHp: battle.mHp, playerHp: battle.pHp });
+      } else if (specialMode.id === 'poison') {
+        battle.mStatuses.poison = { turns: 5, dmgPerTurn: Math.max(1, Math.round(battle.mMaxHp * 0.04)) };
+        events.push({ type: 'status_apply', status: 'poison', emoji: '☠', label: 'Poison', monsterHp: battle.mHp, playerHp: battle.pHp });
+      } else if (specialMode.id === 'none') {
+        battle.dmgBuffMult *= 1.2;
+        events.push({ type: 'status_apply', status: 'warcry', emoji: '💢', label: '+20 % dégâts', monsterHp: battle.mHp, playerHp: battle.pHp });
+      }
+    }
 
     // Relic lifesteal.
     if (battle.lifestealPct > 0 && hit > 0) {
@@ -353,6 +442,12 @@ export function executeTurn(battle, actionId) {
 
   const monsterPhase = () => {
     if (battle.ended || battle.mHp <= 0 || monsterFrozen) return;
+    // Statut Gel (Blizzard) : le monstre passe son tour.
+    if (battle.mStatuses.freeze) {
+      delete battle.mStatuses.freeze;
+      events.push({ type: 'status_freeze_skip', emoji: '❄', playerHp: battle.pHp, monsterHp: battle.mHp });
+      return;
+    }
     // Dodges : skill hooks then set effects.
     let dodged = runHook(battle, 'onMonsterAttack', hookCtx(battle)).some(h => h.result.kind === 'dodge');
     if (!dodged && battle.setEffectIds.has('titan_wall') && Math.random() < 0.15) {
@@ -369,7 +464,9 @@ export function executeTurn(battle, actionId) {
       if (!last || last.type !== 'set_dodge') events.push({ type: 'skill_dodge', playerHp: battle.pHp, monsterHp: battle.mHp });
       return;
     }
-    const dmg = Math.max(1, Math.round(battle.monsterDmg * monsterDmgMod * (1 - damageReduction)));
+    // Givre (Blizzard) : −25 % dégâts du monstre tant que le statut court.
+    const chillMod = battle.mStatuses.chill ? 0.75 : 1;
+    const dmg = Math.max(1, Math.round(battle.monsterDmg * monsterDmgMod * chillMod * (1 - damageReduction)));
     applyMonsterHit(battle, events, dmg, { enraged: monsterDmgMod > 1 });
     if (finish()) return;
     // Swift affix : chance of a second strike.
@@ -399,6 +496,9 @@ export function executeTurn(battle, actionId) {
   else { monsterPhase(); playerPhase(); }
   finish();
 
+  // Jauge : chaque action en donne (l'ultime non — il vient de la consommer).
+  battle.gauge = Math.min(battle.gaugeMax, battle.gauge + (GAUGE_GAIN[actionId] || 0));
+
   // Defend : end-of-turn heal.
   if (defendHeal > 0 && !battle.ended) {
     const amt = applyHeal(battle, defendHeal);
@@ -417,6 +517,10 @@ export function autoChoice(battle) {
   const pPct = battle.pHp / battle.pMaxHp;
   const mPct = battle.mHp / battle.mMaxHp;
   if (pPct < 0.3 && canUseAction(battle, 'defend')) return 'defend';
+  // Ultime : le lâcher dès qu'il est prêt, sauf si le monstre est presque
+  // mort (gaspillage), ou si son bouclier va se lever ce tour-ci.
+  const shieldNext = battle.mechanics.some(m => m.type === 'shieldCycle' && ((battle.turn + 1) % (m.everyTurns || 3)) === 0);
+  if (canUseAction(battle, 'special') && mPct > 0.15 && !shieldNext) return 'special';
   if (canUseAction(battle, 'power')) {
     if (mPct < 0.25) return 'power';
     if (mPct > 0.7 && pPct > 0.6) return 'power';
