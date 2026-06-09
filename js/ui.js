@@ -996,10 +996,17 @@ function ovCombat() {
   const biome = biomeForFloor(cur);
   const stats = computeStats();
   const playerMax = Math.round(100 + (stats.vitality || 0));
+  // Mécaniques visibles : le joueur doit savoir contre quoi il se bat pour
+  // choisir ses actions (régen → finir vite ; enrage → garder Défendre…).
+  const mechanics = monster.mechanics || (monster.mechanic ? [monster.mechanic] : []);
+  const MECH_LABEL = { regen: 'Régénère', enrage: 'Enrage', shieldCycle: 'Bouclier', burn: 'Brûlure', phaseShift: 'Instable', executioner: 'Exécuteur', thorns: 'Épineux', lifesteal: 'Vampirique', swift: 'Véloce', healBlock: 'Maudit', damageCap: 'Carapacé' };
+  const mechTags = mechanics.map(m =>
+    `<span class="cf-tag mech" title="${m.desc || ''}">${m.icon || '✦'} ${m.name || MECH_LABEL[m.type] || m.type}</span>`).join('');
   const monsterTags = [
     monster.isBoss ? '<span class="cf-tag boss">👑 BOSS</span>' : '',
     monster.isElite ? '<span class="cf-tag elite">⭐ ÉLITE</span>' : '',
     `<span class="cf-tag biome">${biome.emoji} ${biome.name}</span>`,
+    mechTags,
   ].filter(Boolean).join('');
   const heroTags = [
     `<span class="cf-tag dmg">⚔ ${Math.round(stats.damage || 0)}</span>`,

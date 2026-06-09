@@ -707,8 +707,11 @@ function handleCombatEvent(ev, monsterMaxHp, playerMaxHp) {
     UI.animateCombatSprite('hero', 'hit');
     const c = UI.getCharacterAvatarCenter();
     floatingDamage(ev.dmg, c.x, c.y, 'player-took'); soundHit();
-    UI.setCombatDialog(`Le monstre te frappe pour ${ev.dmg} dégâts !`);
+    if (ev.enraged) { UI.setCombatCall('ENRAGÉ !', '#ff5050'); UI.setCombatDialog(`Le monstre enrage et te frappe pour ${ev.dmg} dégâts !`); }
+    else UI.setCombatDialog(`Le monstre te frappe pour ${ev.dmg} dégâts !`);
     if (ev.swift) { floatingText('⚡', c.x + 28, c.y - 24, '#ffe14a'); UI.setCombatCall('Véloce !', '#ffe14a'); }
+  } else if (ev.type === 'player_flee') {
+    UI.setCombatDialog('Tu prends la fuite…');
   } else if (ev.type === 'monster_thorns') {
     UI.updatePlayerHp(ev.playerHp, playerMaxHp);
     UI.animateCombatSprite('hero', 'hit');

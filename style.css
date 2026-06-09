@@ -1165,3 +1165,6 @@ input, select { font-family: inherit; }
 @media (min-width: 600px) {
   .combat-menu { grid-template-columns: repeat(4, 1fr); }
 }
+
+/* Tag mécanique de monstre dans le combat (régen, enrage, épines…) */
+.combat.rpg .cf-tag.mech { background: rgba(255,120,40,.18); border-color: rgba(255,140,60,.45); color: #ffb080; }
