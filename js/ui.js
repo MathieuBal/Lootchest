@@ -1942,6 +1942,7 @@ function ovHelp() {
   return overlayShell('Comment jouer', `
     <h3>📦 Coffre</h3><p>Ouvre des coffres (1 clé) pour looter des objets. Améliore le tier pour de meilleurs drops. Légendaire garanti tous les ${PITY_THRESHOLD} coffres (jauge pity).</p>
     <h3>⚔ Donjon</h3><p>Affronte des monstres pour or, items et clés. Tous les 5 étages : boss. Mode 🔁 Boucle sur un étage déjà battu.</p>
+    <h3>🎮 Combat tour-par-tour</h3><p>À chaque tour, choisis : <b>⚔ Attaquer</b> (coup normal) · <b>💥 Frappe Puissante</b> (×2.2 dégâts mais le monstre frappe en premier, recharge 2 tours) · <b>🛡 Défendre</b> (–60 % dégâts subis + soin 8 %, pas deux fois de suite) · <b>🏃 Fuir</b> (impossible contre boss/élites). Le bouton <b>🤖 Auto</b> laisse le jeu jouer pour toi. Lis les tags oranges sur la carte du monstre : un boss qui <i>régénère</i> doit être tué vite, un <i>enragé</i> devient dangereux sous 30 % PV.</p>
     <h3>⚒ Forge</h3><p>Chaque action consomme un orbe spécifique. Transmute, augmente, reroll… pour améliorer tes objets. <button class="btn-ghost" data-overlay="forgeGuide">📖 Guide forge & orbes</button></p>
     <h3>🌟 Ascension & 🌳 Talents</h3><p>À T5 + étage 50, ascensionne pour repartir plus puissant (+prestige permanent). Gagne des points de talent par paliers d'étage.</p>
     <h3>💡 Raccourcis</h3><p>Espace : ouvrir/combattre · Échap : fermer.</p>
