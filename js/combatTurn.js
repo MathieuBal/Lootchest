@@ -86,6 +86,20 @@ const CHARGE_MULT = 2.3;
 const CHARGE_COOLDOWN = 3;   // tours mini entre deux charges
 const CHARGE_CHANCE = 0.45;  // proba de charger quand le CD est prêt
 
+// === Combo ===
+// Chaque action offensive consécutive empile +8 % de dégâts (cap ×5 = +40 %).
+// Encaisser un coup brise le combo — esquiver, geler ou tuer vite le préserve.
+// Récompense le jeu agressif et les builds esquive/contrôle.
+const COMBO_STEP = 0.08;
+const COMBO_CAP = 5;
+
+// === Embuscades ===
+// Variance d'ouverture : parfois le monstre frappe en premier (élites surtout),
+// parfois c'est toi qui le surprends (il perd son premier tour).
+const AMBUSH_MONSTER_CHANCE = 0.12;
+const AMBUSH_MONSTER_CHANCE_ELITE = 0.22;
+const AMBUSH_PLAYER_CHANCE = 0.12;
+
 export function createBattle(monster, opts = {}) {
   const mods = opts.mods || {};
   const dmgMod = mods.damageMult || 1;
@@ -163,6 +177,10 @@ export function createBattle(monster, opts = {}) {
     mNextMove: 'attack',
     mChargeCd: CHARGE_COOLDOWN,
     canCharge: !!(monster.isBoss || monster.isElite),
+    // Combo offensif + embuscade d'ouverture + coup de grâce à l'ultime.
+    combo: 0,
+    ambush: rollAmbush(monster),
+    finisher: false,
     // Statuts infligés au monstre : { burn: {turns, dmgPerTurn}, poison: {...},
     // freeze: {turns}, chill: {turns} }. Tick à chaque début de tour.
     mStatuses: {},
@@ -171,6 +189,13 @@ export function createBattle(monster, opts = {}) {
     won: null,
     fled: false,
   };
+}
+
+function rollAmbush(monster) {
+  // Les boss n'embusquent pas (leurs charges suffisent) ; toi tu peux les surprendre.
+  if (!monster.isBoss && Math.random() < (monster.isElite ? AMBUSH_MONSTER_CHANCE_ELITE : AMBUSH_MONSTER_CHANCE)) return 'monster';
+  if (Math.random() < AMBUSH_PLAYER_CHANCE) return 'player';
+  return null;
 }
 
 export function canUseAction(battle, actionId) {
@@ -209,6 +234,14 @@ function applyMonsterHit(battle, events, dmg, extra = {}) {
   battle.pHp = Math.max(0, battle.pHp - dmg);
   battle.gauge = Math.min(battle.gaugeMax, battle.gauge + GAUGE_ON_HIT_TAKEN);
   events.push({ type: 'monster_hit', dmg, monsterHp: battle.mHp, playerHp: battle.pHp, ...extra });
+  // Encaisser un coup SIGNIFICATIF (>5 % PV max) brise le combo. Les
+  // égratignures n'interrompent pas — l'armure et la mitigation deviennent
+  // une voie vers le combo, au même titre que l'esquive et le gel.
+  if (dmg > battle.pMaxHp * 0.05 && battle.combo > 0) {
+    const broken = battle.combo;
+    battle.combo = 0;
+    if (broken >= 2) events.push({ type: 'combo_break', broken, playerHp: battle.pHp, monsterHp: battle.mHp });
+  }
   if (battle.setEffectIds.has('phoenix_rebirth') && !battle.phoenixUsed && battle.pHp <= 0) {
     battle.phoenixUsed = true;
     battle.pHp = Math.round(battle.pMaxHp * 0.30);
@@ -343,6 +376,12 @@ export function executeTurn(battle, actionId) {
     actionDmgMult = { fire: 1.6, frost: 1.4, poison: 1.2, lightning: 0.65, void: 1.5, none: 1.3 }[specialMode.id] || 1.3;
   }
 
+  // Embuscades — uniquement le premier tour.
+  if (battle.turn === 1) {
+    if (battle.ambush === 'monster') playerFirst = false;
+    else if (battle.ambush === 'player') monsterFrozen = true;
+  }
+
   const playerPhase = () => {
     if (!playerAttacks || battle.ended) return;
     // Hooks : forceCrit / heal / damage multipliers.
@@ -391,6 +430,11 @@ export function executeTurn(battle, actionId) {
       extraMult *= 1 + 0.5 * battle.executeStacks;
       mults.push({ emoji: '🪓', label: 'Faucheur' });
     }
+    // Combo : +8 % par action offensive consécutive (cap +40 %).
+    if (battle.combo > 0) {
+      extraMult *= 1 + COMBO_STEP * Math.min(battle.combo, COMBO_CAP);
+      mults.push({ emoji: '🔥', label: `Combo ×${Math.min(battle.combo, COMBO_CAP)}` });
+    }
     if (specialMode) {
       events.push({ type: 'special_cast', name: specialMode.name, emoji: specialMode.emoji, playerHp: battle.pHp, monsterHp: battle.mHp });
       mults.push({ emoji: specialMode.emoji, label: specialMode.name });
@@ -410,6 +454,14 @@ export function executeTurn(battle, actionId) {
       isCrit = isCrit || swingCrit;
       events.push({ type: 'player_hit', dmg: swing, isCrit: swingCrit, forceCrit, monsterHp: battle.mHp, playerHp: battle.pHp, mults: s === 0 ? mults : [{ emoji: '⚡', label: 'Tempête' }], blocked: !piercing && monsterShielded });
     }
+    // Coup de grâce : tuer avec l'ultime = bonus d'or (géré par le caller).
+    if (specialMode && battle.mHp <= 0) battle.finisher = true;
+
+    // L'action offensive empile le combo — un coup reçu APRÈS (riposte du
+    // monstre) le brisera via applyMonsterHit : il représente donc les
+    // attaques enchaînées sans encaisser.
+    battle.combo += 1;
+
     // Effets de signature post-frappe.
     if (specialMode && hit > 0) {
       if (specialMode.id === 'fire') {

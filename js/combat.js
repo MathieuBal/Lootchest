@@ -557,6 +557,12 @@ export function applyCombatOutcome(floor, monster, won) {
   if (won) {
     state.combat.kills += 1;
     bountyTrack('kill_monsters', 1);
+    // Série de victoires : chaque win consécutive booste or (+2 %/série,
+    // cap +50 %) et chance de drop (+0.5 %/série, cap +15 %). Défaite ou
+    // fuite remet à zéro — le farm en boucle devient un défi de build.
+    state.combat.winStreak = (state.combat.winStreak || 0) + 1;
+    const streak = state.combat.winStreak;
+    const streakGold = 1 + Math.min(0.5, streak * 0.02);
     if (monster.isBoss) {
       state.combat.bossKills += 1;
       bountyTrack('kill_bosses', 1);
@@ -565,7 +571,7 @@ export function applyCombatOutcome(floor, monster, won) {
         state.codex.bosses[biome.id] = (state.codex.bosses[biome.id] || 0) + 1;
       }
     }
-    monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier() * relicGoldMult() * affinityGoldMult() * villageGoldMult());
+    monster.goldReward = Math.round(monster.goldReward * monsterGoldMultiplier() * relicGoldMult() * affinityGoldMult() * villageGoldMult() * streakGold);
     if (activeLegendaryEffectIds().has('goldenTouch')) {
       monster.goldReward = Math.round(monster.goldReward * 1.30);
     }
@@ -580,7 +586,8 @@ export function applyCombatOutcome(floor, monster, won) {
       monster.keyDrop = keyDrop;
     }
 
-    if (Math.random() < monster.dropChance) {
+    const streakDrop = 1 + Math.min(0.15, streak * 0.005);
+    if (Math.random() < monster.dropChance * streakDrop) {
       droppedItem = rollDungeonItem(floor, monster.isBoss || monster.isElite);
     }
 
@@ -600,6 +607,7 @@ export function applyCombatOutcome(floor, monster, won) {
     }
   } else {
     state.combat.deaths += 1;
+    state.combat.winStreak = 0;
   }
   state.combat.encounterNonce = (state.combat.encounterNonce || 0) + 1;
   notify();

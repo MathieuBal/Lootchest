@@ -1050,7 +1050,8 @@ function ovCombat() {
           <div class="gauge-fill" id="combat-gauge" style="width:0%"></div>
           <span class="gauge-label" id="combat-gauge-label">✨ 0%</span>
         </div>
-        <div class="cf-turn smallcap"><span id="combat-turn">Tour 1</span> · <span class="cf-floor">${biome.emoji} Étage ${cur}</span></div>
+        <div class="hero-statuses" id="hero-statuses"></div>
+        <div class="cf-turn smallcap"><span id="combat-turn">Tour 1</span> · <span class="cf-floor">${biome.emoji} Étage ${cur}</span>${(state.combat.winStreak || 0) >= 3 ? ` · <span class="cf-streak">🔥 Série ${state.combat.winStreak}</span>` : ''}</div>
       </div>
     </div>
 
@@ -1964,6 +1965,7 @@ function ovHelp() {
     <h3>✨ Jauge d'ultime & Spécial</h3><p>Chaque action remplit ta jauge (encaisser des coups aussi). Pleine, elle débloque ton <b>attaque Spéciale</b> — sa signature dépend de ton <b>élément dominant</b> : 🔥 <b>Embrasement</b> (brûlure 3 tours) · ❄ <b>Blizzard</b> (gel + givre) · ☠ <b>Toxines</b> (poison 5 tours) · ⚡ <b>Tempête</b> (3 frappes) · 🌑 <b>Annihilation</b> (perce boucliers) · 💢 <b>Cri de Guerre</b> (sans élément : +20 % dégâts). Change d'équipement pour changer de signature !</p>
     <h3>👁 Intentions & charges</h3><p>Le monstre <b>annonce son prochain coup</b> sous sa barre de PV : dégâts estimés, bouclier à venir… Les boss et élites peuvent <b>CHARGER</b> une attaque dévastatrice (×2.3) télégraphiée un tour à l'avance — réponds en <b>Défendant</b>, en l'achevant avant, ou en le <b>Gelant</b> (le gel annule la charge !). Pendant qu'il charge, il n'attaque pas : tour parfait pour une Frappe Puissante.</p>
     <h3>🌍 Affinités de biome</h3><p>Chaque biome a une <b>faiblesse</b> et une <b>résistance</b> élémentaires (affichées sur la carte du monstre) : +50 % de ta part élémentaire si ton élément dominant tape la faiblesse, −50 % s'il est résisté. L'Enfer craint le Givre mais rit du Feu — adapte ton équipement à ta destination.</p>
+    <h3>🔥 Combo & séries</h3><p>Chaque action offensive consécutive empile <b>+8 % de dégâts</b> (max +40 %). Un coup encaissé de plus de 5 % de tes PV max <b>brise le combo</b> — esquive, gel, armure épaisse et windups adverses le préservent. Hors combat, chaque <b>victoire consécutive</b> booste l'or (+2 %/victoire, max +50 %) et les drops (+0,5 %, max +15 %) ; défaite ou fuite remet la série à zéro. Bonus : achever un monstre avec ton <b>Spécial</b> = ⚡ Coup de Grâce, +15 % d'or. Et garde un œil sur les <b>embuscades</b> : parfois le monstre frappe en premier, parfois c'est toi qui le surprends.</p>
     <h3>⚒ Forge</h3><p>Chaque action consomme un orbe spécifique. Transmute, augmente, reroll… pour améliorer tes objets. <button class="btn-ghost" data-overlay="forgeGuide">📖 Guide forge & orbes</button></p>
     <h3>🌟 Ascension & 🌳 Talents</h3><p>À T5 + étage 50, ascensionne pour repartir plus puissant (+prestige permanent). Gagne des points de talent par paliers d'étage.</p>
     <h3>💡 Raccourcis</h3><p>Espace : ouvrir/combattre · Échap : fermer.</p>
@@ -2201,6 +2203,21 @@ export function renderMonsterStatuses(battle) {
     const meta = STATUS_META[k] || { emoji: '✦', label: k };
     return `<span class="status-chip status-${k}">${meta.emoji} ${meta.label}${st.turns > 0 ? ` (${st.turns})` : ''}</span>`;
   }).join('');
+}
+
+// Statuts du héros : combo en cours, buff Cri de Guerre.
+export function renderHeroStatuses(battle) {
+  const el = $('#hero-statuses');
+  if (!el) return;
+  const chips = [];
+  if (battle?.combo >= 1) {
+    const capped = Math.min(battle.combo, 5);
+    chips.push(`<span class="status-chip status-combo">🔥 Combo ×${battle.combo}${battle.combo >= 1 ? ` (+${capped * 8} %)` : ''}</span>`);
+  }
+  if (battle?.dmgBuffMult > 1) {
+    chips.push(`<span class="status-chip status-warcry">💢 +${Math.round((battle.dmgBuffMult - 1) * 100)} % dégâts</span>`);
+  }
+  el.innerHTML = chips.join('');
 }
 
 // Intention du monstre (télégraphe) — bandeau sous sa carte.

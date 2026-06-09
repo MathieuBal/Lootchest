@@ -510,6 +510,7 @@ function refreshActionButtons(battle) {
   UI.setCombatActionsState(battle, _autoMode || state.combat.loopMode);
   UI.renderMonsterStatuses(battle);
   UI.renderMonsterIntent(battle);
+  UI.renderHeroStatuses(battle);
 }
 
 async function fightFlow() {
@@ -526,9 +527,17 @@ async function fightFlow() {
     const battle = createBattle(monster);
     _currentBattle = battle;
     UI.showCombatBars(battle.pMaxHp, battle.mMaxHp);
-    UI.setCombatDialog(monster.isBoss
-      ? `Un ${monster.name} apparaît !`
-      : `Tu engages le combat contre ${monster.name}.`);
+    if (battle.ambush === 'monster') {
+      UI.setCombatDialog(`⚠ ${monster.name} t'embusque — il frappera en premier ce tour !`);
+      UI.setCombatCall('EMBUSCADE !', '#ff7050');
+    } else if (battle.ambush === 'player') {
+      UI.setCombatDialog(`Tu surprends ${monster.name} — il perd son premier tour !`);
+      UI.setCombatCall('SURPRISE !', '#7adcff');
+    } else {
+      UI.setCombatDialog(monster.isBoss
+        ? `Un ${monster.name} apparaît !`
+        : `Tu engages le combat contre ${monster.name}.`);
+    }
 
     // Boucle tour-par-tour : on attend une action joueur (ou Auto), on exécute,
     // on anime les events, on rebouche jusqu'à fin de combat.
@@ -556,6 +565,10 @@ async function fightFlow() {
 
     // Reconstruit le format de retour que le reste du flow attend
     const result = { won: battle.won, playerMaxHp: battle.pMaxHp, log: [] };
+    // Coup de grâce : kill à l'ultime = +15 % d'or sur ce monstre.
+    if (battle.finisher && battle.won) {
+      monster.goldReward = Math.round(monster.goldReward * 1.15);
+    }
     const outcome = applyCombatOutcome(floor, monster, battle.won && !battle.fled);
     const { droppedItem, advanced, milestone } = outcome;
     if (battle.fled) UI.setCombatDialog('Tu fuis le combat…');
@@ -563,7 +576,12 @@ async function fightFlow() {
     UI.appendCombatLog(result.log, result.won ? 'win' : 'lose');
     if (result.won) {
       soundWin();
-      UI.setCombatCall(monster.isBoss ? 'VICTOIRE !' : 'Vaincu', '#6acc6a');
+      UI.setCombatCall(battle.finisher ? '⚡ COUP DE GRÂCE !' : (monster.isBoss ? 'VICTOIRE !' : 'Vaincu'), battle.finisher ? '#ffd84a' : '#6acc6a');
+      // Jalon de série : toast tous les 10.
+      const streak = state.combat.winStreak || 0;
+      if (streak > 0 && streak % 10 === 0) {
+        UI.showToast('🔥', `Série de ${streak} victoires !`, `+${Math.min(50, streak * 2)} % or · +${Math.min(15, Math.round(streak * 0.5))} % drops`);
+      }
       const c = UI.getMonsterEmojiCenter();
       spawnParticles(monster.isBoss ? '#ff7a1a' : '#ffe14a', c.x, c.y, monster.isBoss ? 40 : 20);
       floatingText(`+${monster.goldReward} 💰`, c.x, c.y - 30, '#f5c842');
@@ -745,6 +763,9 @@ function handleCombatEvent(ev, monsterMaxHp, playerMaxHp) {
     UI.setCombatDialog(ev.chargeCancelled
       ? 'Le gel ANNULE la charge du monstre !'
       : 'Le monstre est gelé — il passe son tour !');
+  } else if (ev.type === 'combo_break') {
+    const c = UI.getCharacterAvatarCenter();
+    floatingText(`💔 Combo ×${ev.broken} brisé`, c.x, c.y - 50, '#ff8080');
   } else if (ev.type === 'charge_windup') {
     UI.animateCombatSprite('mob', 'attack');
     const c = UI.getMonsterEmojiCenter();
