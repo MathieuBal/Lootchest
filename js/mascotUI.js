@@ -9,7 +9,7 @@ import { Mascot, MASCOT_SPRITES, MASCOT_EMOJI } from './mascot.js';
 import { spriteImg } from './spriteMap.js';
 
 const css = `
-.memo-layer { position: fixed; inset: 0; z-index: 300; pointer-events: none; }
+.memo-layer { position: fixed; inset: 0; z-index: 1500; pointer-events: none; }
 .memo-fullscreen {
   position: absolute; inset: 0; pointer-events: auto;
   background: rgba(5, 3, 10, .82); backdrop-filter: blur(3px);
@@ -17,9 +17,10 @@ const css = `
   padding: 24px 18px calc(env(safe-area-inset-bottom, 0px) + 28px);
   animation: memoFade .35s ease;
 }
-.memo-fullscreen .memo-sprite { width: min(46vw, 240px); margin-bottom: 14px; animation: memoHover 3.2s ease-in-out infinite; text-align: center; }
+.memo-fullscreen .memo-sprite { width: min(46vw, 240px); min-height: 130px; margin-bottom: 14px; animation: memoHover 3.2s ease-in-out infinite; text-align: center; display: flex; align-items: center; justify-content: center; }
 .memo-fullscreen .memo-sprite img { width: 100%; filter: drop-shadow(0 0 24px rgba(150, 130, 255, .4)); }
-.memo-fullscreen .memo-sprite .memo-emoji { font-size: min(30vw, 130px); filter: drop-shadow(0 0 24px rgba(150, 130, 255, .55)); }
+.memo-emoji { display: inline-block; line-height: 1; font-size: 32px; }
+.memo-fullscreen .memo-sprite .memo-emoji { font-size: min(28vw, 120px); filter: drop-shadow(0 0 24px rgba(150, 130, 255, .55)); }
 .memo-box {
   width: min(560px, 100%); background: linear-gradient(160deg, #1c1530, #120d20);
   border: 1px solid #4a3a6e; border-radius: 14px; padding: 14px 16px;
@@ -32,7 +33,7 @@ const css = `
   pointer-events: auto; display: flex; gap: 10px; align-items: flex-end;
   animation: memoRise .3s ease;
 }
-.memo-bubble .memo-mini { width: 56px; flex-shrink: 0; text-align: center; }
+.memo-bubble .memo-mini { width: 56px; height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .memo-bubble .memo-mini img { width: 100%; filter: drop-shadow(0 0 10px rgba(150, 130, 255, .4)); }
 .memo-bubble .memo-mini .memo-emoji { font-size: 40px; filter: drop-shadow(0 0 10px rgba(150, 130, 255, .55)); }
 .memo-bubble .memo-box { flex: 1; border-radius: 14px 14px 14px 4px; }
@@ -43,7 +44,7 @@ const css = `
   animation: memoPulse 2.6s ease-in-out infinite;
 }
 .memo-ping img { width: 32px; }
-.memo-ping .memo-emoji { font-size: 24px; }
+.memo-ping .memo-emoji { font-size: 26px; }
 /* Mémo perché sur le hub, flottant à droite du coffre (.chest-hero est relative) */
 .memo-perch {
   position: absolute; right: -54px; bottom: 8px;
@@ -52,12 +53,8 @@ const css = `
   animation: memoHover 3.6s ease-in-out infinite; z-index: 3;
 }
 .memo-perch img { width: 100%; filter: drop-shadow(0 0 12px rgba(150, 130, 255, .45)); }
-.memo-perch .memo-emoji { font-size: 42px; filter: drop-shadow(0 0 12px rgba(150, 130, 255, .6)); }
+.memo-perch .memo-emoji { font-size: 44px; filter: drop-shadow(0 0 12px rgba(150, 130, 255, .6)); }
 .memo-perch:active { transform: scale(.92); }
-.memo-perch .memo-zzz {
-  position: absolute; top: -6px; right: -4px; font-size: 14px; color: #b39ddb;
-  animation: memoFade 1s ease; pointer-events: none;
-}
 @keyframes memoFade { from { opacity: 0 } }
 @keyframes memoRise { from { opacity: 0; transform: translateY(10px) } }
 @keyframes memoHover { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }

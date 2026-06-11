@@ -62,6 +62,7 @@ onBountyComplete(b => {
   UI.showToast(b.emoji, `Contrat complété : ${b.name}`, bits.join(' · '));
   soundAchievement();
   spawnParticles(b.diffColor, innerWidth / 2, innerHeight / 3, 30);
+  Mascot.fire('bounty:done');
 });
 setMuted(!!state.ui?.muted);
 UI.mountApp();
@@ -246,7 +247,7 @@ document.body.addEventListener('click', async (e) => {
     notify(); soundClick(); return;
   }
   if (t.closest('#btn-upgrade')) {
-    if (upgradeChest()) { soundUpgrade(); const c = UI.getChestCenter(); spawnParticles('#f5c842', c.x, c.y, 30); }
+    if (upgradeChest()) { soundUpgrade(); const c = UI.getChestCenter(); spawnParticles('#f5c842', c.x, c.y, 30); Mascot.fire('chest:upgraded'); }
     return;
   }
 
@@ -313,7 +314,7 @@ document.body.addEventListener('click', async (e) => {
   if (iAct) { itemAction(iAct.dataset.itemAction); return; }
 
   // Loot reveal actions
-  if (t.closest('#btn-equip')) { const d = UI.getCurrentDrop(); if (d) { equipItem(d); soundClick(); UI.hideDropPopup(); resumeLoop(); } return; }
+  if (t.closest('#btn-equip')) { const d = UI.getCurrentDrop(); if (d) { equipItem(d); soundClick(); Mascot.fire('equip:first'); UI.hideDropPopup(); resumeLoop(); } return; }
   if (t.closest('#btn-keep')) { const d = UI.getCurrentDrop(); if (d) { addToInventory(d); soundClick(); UI.hideDropPopup(); resumeLoop(); } return; }
   if (t.closest('#btn-sell') && UI.getCurrentDrop()) { const d = UI.getCurrentDrop(); sellDrop(d); soundCoin(); UI.hideDropPopup(); resumeLoop(); return; }
 
@@ -343,7 +344,7 @@ document.body.addEventListener('click', async (e) => {
 
   // Talents
   const talBtn = t.closest('[data-talent]');
-  if (talBtn && !talBtn.disabled) { if (upgradeTalent(talBtn.dataset.talent)) { soundClick(); soundUpgrade(); } return; }
+  if (talBtn && !talBtn.disabled) { if (upgradeTalent(talBtn.dataset.talent)) { soundClick(); soundUpgrade(); Mascot.fire('talent:spent'); } return; }
   const respecBtn = t.closest('[data-respec]');
   if (respecBtn && !respecBtn.disabled) {
     if (confirm('↺ Réinitialiser tous les talents ? Les points te seront rendus contre de l\'or.')) {
@@ -709,6 +710,7 @@ async function fightFlow() {
     if (result.won) {
       soundWin();
       UI.setCombatCall(battle.finisher ? '⚡ COUP DE GRÂCE !' : (monster.isBoss ? 'VICTOIRE !' : 'Vaincu'), battle.finisher ? '#ffd84a' : '#6acc6a');
+      Mascot.fire(monster.isBoss ? 'boss:down' : 'combat:win');
       const streak = state.combat.winStreak || 0;
       if (streak > 0 && streak % 10 === 0) {
         UI.showToast('🔥', `Série de ${streak} victoires !`, `+${Math.min(50, streak * 2)} % or · +${Math.min(15, Math.round(streak * 0.5))} % drops`);
@@ -1020,7 +1022,7 @@ function itemAction(action) {
   if (!item) return;
   const equipped = !!Object.values(state.equipment).find(i => i && i.id === item.id);
   if (action === 'equip') {
-    if (equipped) unequipSlot(item.slot); else { equipItem(item); soundClick(); }
+    if (equipped) unequipSlot(item.slot); else { equipItem(item); soundClick(); Mascot.fire('equip:first'); }
     UI.closeOverlay();
   } else if (action === 'sell') {
     const wasPrecious = item.uniqueId || item.rarity === 'ancestral' || item.rarity === 'legendary';
