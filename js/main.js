@@ -2,9 +2,9 @@
 // All DOM is built by ui.js; this file owns interactions (event delegation on
 // document so handlers survive full re-renders) and the combat sequence.
 import { state, subscribe, resetState, notify } from './state.js';
-import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS, CURRENCY_BY_ID } from './data.js';
+import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS, CURRENCY_BY_ID, PITY_THRESHOLD } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
-import { openChest, openChests, upgradeChest, canOpen } from './chest.js';
+import { openChest, openChests, upgradeChest, canOpen, canUpgrade } from './chest.js';
 import { attemptCurrentFloor, prepareCurrentFloor, applyCombatOutcome, setCurrentFloor, attemptDiveFight, generateMonster, generateDiveMonster, predictDifficulty } from './combat.js';
 import { createBattle, executeTurn, canUseAction, autoChoice, ACTIONS as COMBAT_ACTIONS } from './combatTurn.js';
 import {
@@ -13,7 +13,7 @@ import {
 } from './dive.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
 import { FORGE_ACTIONS, applyMasterCraft, applyExchange, toggleAffixLock } from './forge.js';
-import { upgradeTalent, respecTalents } from './talents.js';
+import { upgradeTalent, respecTalents, pityReduction } from './talents.js';
 import { refreshBoardIfEmpty, rerollBounty, onBountyComplete } from './bounties.js';
 import { canAscend, ascend } from './prestige.js';
 import { chooseRelic, rerollRelicChoice } from './relics.js';
@@ -41,9 +41,12 @@ import {
   unlockAutoSell, toggleAutoSell, setAutoMode, isAutoSellOn,
 } from './inventory.js';
 import * as UI from './ui.js';
+import { Mascot } from './mascot.js';
+import { memoSay } from './mascotUI.js'; // s'abonne à Mascot.onSpeak au chargement
 
 // ── Init ─────────────────────────────────────────────────────
 loadFromLocal();
+Mascot.init(state.mascot);
 startAutosave();
 subscribe(checkAchievements);
 subscribe(UI.renderAll);
@@ -62,6 +65,13 @@ onBountyComplete(b => {
 });
 setMuted(!!state.ui?.muted);
 UI.mountApp();
+// Mémo : surveille les périodes d'inactivité et le tas d'or qui dort.
+// Différé en microtâche : _memo et ses helpers sont déclarés plus bas
+// (const ne hoiste pas — temporal dead zone).
+queueMicrotask(() => {
+  memoStartIdleWatch();
+  ['click', 'touchstart', 'keydown'].forEach(ev => document.addEventListener(ev, memoTrackInteraction, { passive: true }));
+});
 
 // When a sprite finishes probing as "ok", schedule a single coalesced
 // re-render so the PNG swaps in cleanly without flicker. Multiple probes
@@ -136,7 +146,12 @@ document.body.addEventListener('click', async (e) => {
   // Chronicle (story)
   if (t.closest('[data-story-claim]')) {
     const c = claimChapter();
-    if (c) { soundAchievement(); UI.showToast('📜', 'Chapitre accompli', c.title); spawnParticles('#c79bff', innerWidth / 2, innerHeight / 3, 28); }
+    if (c) {
+      soundAchievement();
+      UI.showToast('📜', 'Chapitre accompli', c.title);
+      spawnParticles('#c79bff', innerWidth / 2, innerHeight / 3, 28);
+      Mascot.fire('story:chapterDone', { chapter: state.story?.step || 0 });
+    }
     return;
   }
 
@@ -157,6 +172,7 @@ document.body.addEventListener('click', async (e) => {
     else if (a === 'auto') {
       _autoMode = !_autoMode;
       cbAct.classList.toggle('on', _autoMode);
+      _memo.autoStartedAt = _autoMode ? Date.now() : 0;
       soundClick();
       // Si on attend une action joueur et qu'on vient d'activer l'Auto, on
       // déclenche immédiatement le choix automatique pour ne pas rester figé.
@@ -172,11 +188,39 @@ document.body.addEventListener('click', async (e) => {
     return;
   }
 
+  // Mémo perché sur le hub : réplique ambiante contextuelle
+  if (t.closest('[data-memo-tap]')) {
+    const pityMax = Math.max(1, PITY_THRESHOLD - pityReduction());
+    const justDied = _memo.recentDeaths.length > 0
+      && (Date.now() - _memo.recentDeaths[_memo.recentDeaths.length - 1]) < 60000;
+    memoSay(Mascot.ambient({
+      keys: state.keys || 0,
+      gold: state.gold || 0,
+      pityLeft: Math.max(0, pityMax - (state.pity?.sinceLegendary || 0)),
+      canUpgrade: canUpgrade(),
+      floor: state.combat?.currentFloor || 1,
+      streak: state.combat?.winStreak || 0,
+      hour: new Date().getHours(),
+      invSize: state.inventory?.length || 0,
+      prestige: state.prestige?.level || 0,
+      justDied,
+    }));
+    soundClick();
+    return;
+  }
+  // Mémo : mode de voix (Paramètres — overlay statique, on met à jour en place)
+  const memoMode = t.closest('[data-memo-mode]');
+  if (memoMode) {
+    Mascot.setMode(memoMode.dataset.memoMode);
+    memoMode.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === memoMode));
+    soundClick(); notify(); return;
+  }
+
   // Tab / rail navigation
   const tabBtn = t.closest('[data-tab]');
-  if (tabBtn) { UI.navTab(tabBtn.dataset.tab); soundClick(); return; }
+  if (tabBtn) { UI.navTab(tabBtn.dataset.tab); soundClick(); fireTabMascot(tabBtn.dataset.tab); return; }
   const navBtn = t.closest('[data-nav]');
-  if (navBtn) { UI.navTab(navBtn.dataset.nav); soundClick(); return; }
+  if (navBtn) { UI.navTab(navBtn.dataset.nav); soundClick(); fireTabMascot(navBtn.dataset.nav); return; }
 
   // Open an overlay
   const ovBtn = t.closest('[data-overlay]');
@@ -367,6 +411,7 @@ document.body.addEventListener('change', (e) => {
     const on = setEl.checked;
     if (key === 'mute') { setMuted(on); state.ui.muted = on; }
     else state.settings[key] = on;
+    if (key === 'hardMode' && on) Mascot.fire('hardmode:on');
     notify();
     return;
   }
@@ -388,17 +433,84 @@ document.body.addEventListener('mousemove', (e) => {
 // ═════════════════════════════════════════════════════════════
 // Flows
 // ═════════════════════════════════════════════════════════════
+// Réaction de Mémo à un drop marquant (coffre, donjon, bulk).
+function fireMascotDrop(item) {
+  if (!item) return;
+  if (item.uniqueId) Mascot.fire('loot:unique');
+  else if (item.rarity === 'ancestral') Mascot.fire('loot:ancestral');
+  else if (item.rarity === 'legendary') Mascot.fire('loot:legendary');
+}
+
+// Compteurs de session pour Mémo : il réagit aux séries (morts, communs, AFK).
+const _memo = {
+  recentDeaths: [],   // timestamps des dernières morts
+  commonRunCount: 0,  // ouvertures consécutives qui ne donnent QUE du commun
+  autoStartedAt: 0,   // début de la session Auto en cours (0 = off)
+  lastInteraction: Date.now(),
+  idleTimer: null,
+};
+
+function memoTrackChestDrop(items) {
+  // Strict : que des communs purs. 8 d'affilée et Mémo s'en mêle.
+  if (items.every(it => it.rarity === 'common')) {
+    _memo.commonRunCount += 1;
+    if (_memo.commonRunCount === 8) Mascot.fire('loot:commonStreak');
+  } else {
+    _memo.commonRunCount = 0;
+  }
+}
+
+function memoTrackDeath() {
+  const now = Date.now();
+  _memo.recentDeaths = _memo.recentDeaths.filter(t => now - t < 300000); // 5 min
+  _memo.recentDeaths.push(now);
+  if (_memo.recentDeaths.length >= 3) Mascot.fire('player:deathStreak');
+}
+
+function memoTrackInteraction() {
+  _memo.lastInteraction = Date.now();
+}
+function memoStartIdleWatch() {
+  if (_memo.idleTimer) return;
+  _memo.idleTimer = setInterval(() => {
+    const idle = Date.now() - _memo.lastInteraction;
+    // 2 min sans toucher au hub (et hub uniquement) → Mémo s'inquiète.
+    if (idle > 120000 && UI.getActiveTab() === 'hub' && !UI.getCurrentDrop() && Mascot.isFreed()) {
+      Mascot.fire('player:idle');
+      _memo.lastInteraction = Date.now(); // évite la rafale
+    }
+    // Hoarder : 1M+ d'or qui dormirait.
+    if ((state.gold || 0) >= 1e6 && idle > 60000 && UI.getActiveTab() === 'hub') {
+      Mascot.fire('wealth:hoarder');
+    }
+  }, 30000);
+}
+
+// Mémo : déclenchements de la mascotte aux changements d'onglet.
+function fireTabMascot(tab) {
+  if (tab === 'village') Mascot.fire('village:firstVisit');
+  else if (tab === 'forge') Mascot.fire('forge:firstVisit');
+  memoTrackInteraction();
+}
+
 function openChestFlow() {
   if (!canOpen()) { if (!state.keys) UI.showToast('🗝', 'Pas de clé', 'Farme des clés au donjon'); return; }
   soundChestOpen();
   const result = openChest();
   if (!result) return;
+  Mascot.fire('chest:opened');
   if (result.mimic) {
     UI.playChestOpen();
     UI.showMimicEncounter(result.mimic);
+    Mascot.fire('mimic:reveal');
     return;
   }
   const { items, orbs } = result;
+  if (orbs && orbs.length) Mascot.fire('orb:firstDrop');
+  if (items.some(it => it.rarity !== 'common')) Mascot.fire('loot:firstMagic');
+  fireMascotDrop(items[0]);
+  memoTrackChestDrop(items);
+  memoTrackInteraction();
   const item = items[0];                   // primary item drives the reveal
   const extras = items.slice(1);
   UI.playChestOpen();
@@ -451,6 +563,7 @@ function openBulkFlow(n) {
   }
   for (const oid of orbs) summary.orbs[oid] = (summary.orbs[oid] || 0) + 1;
   soundCoin();
+  if (summary.notable.length) fireMascotDrop(summary.notable[summary.notable.length - 1]);
   UI.showBulkResult(summary);
 }
 
@@ -544,10 +657,19 @@ async function fightFlow() {
         ? `Un ${monster.name} apparaît !`
         : `Tu engages le combat contre ${monster.name}.`);
     }
+    if (monster.isBoss) Mascot.fire('boss:encounter');
 
     // Boucle tour-par-tour : on attend une action joueur (ou Auto), on exécute,
     // on anime les events, on rebouche jusqu'à fin de combat.
     refreshActionButtons(battle);
+    // Mémo : si Auto/Boucle roule depuis longtemps, il finit par le commenter.
+    if ((_autoMode || state.combat.loopMode) && _memo.autoStartedAt
+        && Date.now() - _memo.autoStartedAt > 300000) {
+      Mascot.fire('combat:autoLong');
+      _memo.autoStartedAt = Date.now();
+    } else if ((_autoMode || state.combat.loopMode) && !_memo.autoStartedAt) {
+      _memo.autoStartedAt = Date.now();
+    }
     while (!battle.ended) {
       let action;
       if (_autoMode || state.combat.loopMode) {
@@ -590,6 +712,7 @@ async function fightFlow() {
       const streak = state.combat.winStreak || 0;
       if (streak > 0 && streak % 10 === 0) {
         UI.showToast('🔥', `Série de ${streak} victoires !`, `+${Math.min(50, streak * 2)} % or · +${Math.min(15, Math.round(streak * 0.5))} % drops`);
+        Mascot.fire('streak:milestone', { streak });
       }
       const c = UI.getMonsterEmojiCenter();
       spawnParticles(monster.isBoss ? '#ff7a1a' : '#ffe14a', c.x, c.y, monster.isBoss ? 40 : 20);
@@ -601,9 +724,12 @@ async function fightFlow() {
       }
       const res = grantDungeonResources(monster.floor, monster.isBoss, monster.isElite);
       if (res) summary.push(`+${res.wood} 🪵 · +${res.stone} 🪨`);
+      if (res && res.essence > 0) Mascot.fire('crystal:firstDrop');
       if (monster.isBoss) screenShake(8, 350);
     } else {
       soundLose(); UI.setCombatCall('DÉFAITE', '#ff5050'); screenShake(10, 400);
+      Mascot.fire('player:death');
+      memoTrackDeath();
     }
     if (advanced) summary.push(`🆙 Étage ${state.combat.highestUnlocked} débloqué`);
     if (milestone) {
@@ -616,6 +742,7 @@ async function fightFlow() {
 
     let drop = null;
     if (droppedItem) {
+      fireMascotDrop(droppedItem);
       soundDrop(droppedItem.rarity);
       const action = autoActionFor(droppedItem.rarity);
       if (action === 'sell') { sellDrop(droppedItem); soundCoin(); summary.push(`🎁 ${droppedItem.name} → vendu`); }
@@ -654,6 +781,7 @@ function beginDive() {
   _diveGaugeCarry = 0;
   soundAscension();
   UI.showToast('🌊', 'Plongée lancée', 'Descends aussi profond que possible !');
+  Mascot.fire('dive:start');
   diveFlow();
 }
 
@@ -717,6 +845,7 @@ async function diveFlow() {
       _currentBattle = null;
       UI.closeCombat();
       if (rec.checkpoint) {
+        if (rec.depth >= 10) Mascot.fire('dive:deep', { depth: rec.depth });
         openBoonChoice();
         UI.navOverlay('diveBoon');     // pauses the loop until the player picks/exits
       } else if (isDiving()) {
@@ -894,9 +1023,13 @@ function itemAction(action) {
     if (equipped) unequipSlot(item.slot); else { equipItem(item); soundClick(); }
     UI.closeOverlay();
   } else if (action === 'sell') {
-    if (sellItem(item) > 0) soundCoin(); UI.closeOverlay();
+    const wasPrecious = item.uniqueId || item.rarity === 'ancestral' || item.rarity === 'legendary';
+    if (sellItem(item) > 0) { soundCoin(); if (wasPrecious) Mascot.fire('sell:precious'); }
+    UI.closeOverlay();
   } else if (action === 'salvage') {
-    if (salvageItem(item) > 0) soundForge(); UI.closeOverlay();
+    const wasUnique = !!item.uniqueId;
+    if (salvageItem(item) > 0) { soundForge(); if (wasUnique) Mascot.fire('salvage:unique'); }
+    UI.closeOverlay();
   } else if (action === 'lock') {
     toggleLockItem(item.id); soundClick();
     // Mobile: refresh the open sheet. Desktop: the inline panel re-renders via notify().
@@ -922,6 +1055,7 @@ function ascendFlow() {
     ok = confirm(`🌟 Ascension Niv ${newLevel} ?\n\nTu repars de zéro (or, items, coffre T1, étage 1).\nTu gardes succès, prestige, stats.\nBonus permanent : +${6 * newLevel}% dégâts & PV, +${15 * newLevel}% drops & or.\n\nConfirmer ?`);
   }
   if (ok && ascend()) {
+    Mascot.fire('prestige:ascend', { level: newLevel });
     soundAscension(); screenShake(8, 600);
     spawnParticles('#f5c842', innerWidth / 2, innerHeight / 2, 80, { minSpeed: 200, maxSpeed: 500, size: 10 });
     UI.navTab('hub');
@@ -935,6 +1069,7 @@ function chooseRelicFlow(id) {
   if (chooseRelic(id)) {
     soundAscension();
     spawnParticles('#c9a3ff', innerWidth / 2, innerHeight / 2, 50, { minSpeed: 150, maxSpeed: 400, size: 8 });
+    Mascot.fire('relic:firstDrop');
     UI.closeOverlay();
     notify();
   }

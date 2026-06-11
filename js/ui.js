@@ -38,6 +38,8 @@ import { MATERIALS } from './materials.js';
 import { ELEMENTS } from './elements.js';
 import { FACTIONS } from './factions.js';
 import { getCompositionLayers } from './parts.js';
+import { Mascot } from './mascot.js';
+import { memoSprite } from './mascotUI.js';
 
 // ─────────────────────────────────────────────────────────────
 // Small helpers
@@ -366,6 +368,7 @@ function screenHub() {
       <div class="stage-title display">Coffre ${tier.name}</div>
       <div class="chest-hero${enoughKeys ? ' has-key' : ''}" id="chest-hero">
         <div class="chest-sprite pixel" id="chest-sprite">${spriteImg(chestSpriteSrc(tier.tier, { hires: true }), chestSpriteSVG(tier.tier, 168), { size: 168, title: tier.name })}</div>
+        ${Mascot.isFreed() ? `<button class="memo-perch" data-memo-tap title="Mémo — tape-moi !">${memoSprite('idle')}</button>` : ''}
       </div>
 
       <div class="drop-card panel">
@@ -686,6 +689,13 @@ function screenForge() {
   </div>`;
 }
 
+// Sous-titre de la carte Codex : les souvenirs de Mémo en avant.
+function memoriesSub() {
+  const mems = Mascot.memories();
+  const n = mems.filter(m => m.unlocked).length;
+  return n ? `🔮 ${n}/${mems.length} souvenirs` : 'Découvertes';
+}
+
 // ── ④ Meta hub (links to talents/skills/stats/codex/ascension) ─
 function screenMeta() {
   const stats = computeStats();
@@ -701,7 +711,7 @@ function screenMeta() {
     { ov: 'affinities', icon: '🜂', name: 'Affinités', sub: affinitiesSub() },
     { ov: 'story', icon: '📜', name: 'Chronique', sub: Story.storyReady() ? '◈ Chapitre à accomplir !' : (Story.activeChapter()?.title || 'Histoire'), ready: Story.storyReady() },
     { ov: 'contracts', icon: '📋', name: 'Contrats', sub: `${(state.bounties?.active || []).length} actifs` },
-    { ov: 'codex', icon: '📖', name: 'Codex', sub: 'Découvertes' },
+    { ov: 'codex', icon: '📖', name: 'Codex', sub: memoriesSub() },
     { ov: 'achievements', icon: '🏆', name: 'Succès', sub: `${ap.unlocked}/${ap.total}` },
   ];
   const ascReady = canAscend();
@@ -1786,13 +1796,26 @@ function ovCodex() {
     count = SETS.filter(s => state.codex?.sets?.[s.id]).length;
     grid = SETS.map(s => { const seen = state.codex?.sets?.[s.id];
       return `<div class="codex-cell${seen ? '' : ' unknown'}" title="${seen ? s.name : '???'}" style="${seen ? `--c:${s.color}` : ''}">${seen ? s.emoji : '?'}</div>`; }).join('');
+  } else if (codexTab === 'memo') {
+    const mems = Mascot.memories();
+    total = mems.length;
+    count = mems.filter(m => m.unlocked).length;
+    grid = `<div class="memo-mems">${mems.map(m => m.unlocked
+      ? `<div class="memo-mem"><div class="memo-mem-title">🔮 ${m.title}</div><div class="memo-mem-text smallcap">« ${m.text.join(' ')} »</div></div>`
+      : `<div class="memo-mem locked"><div class="memo-mem-title">❔ Souvenir scellé</div><div class="memo-mem-text smallcap">Avance dans la Chronique pour aider Mémo à se souvenir.</div></div>`
+    ).join('')}</div>`;
+    const tabs2 = [['uniques', 'Uniques'], ['sets', 'Sets'], ['bosses', 'Boss'], ['memo', '🔮 Mémo']];
+    return overlayShell('Codex', `
+      <div class="codex-tabs">${tabs2.map(([id, lbl]) => `<button class="codex-tab${codexTab === id ? ' active' : ''}" data-codex-tab="${id}">${lbl}</button>`).join('')}</div>
+      <div class="codex-count smallcap">${count}/${total} souvenirs retrouvés</div>
+      ${grid}`, { wide: true });
   } else {
     total = BIOMES.length;
     count = BIOMES.filter(b => state.codex?.bosses?.[b.id]).length;
     grid = BIOMES.map(b => { const k = state.codex?.bosses?.[b.id];
       return `<div class="codex-cell${k ? '' : ' unknown'}" title="${k ? b.boss.name : '???'}">${k ? b.boss.emoji : '?'}</div>`; }).join('');
   }
-  const tabs = [['uniques', 'Uniques'], ['sets', 'Sets'], ['bosses', 'Boss']];
+  const tabs = [['uniques', 'Uniques'], ['sets', 'Sets'], ['bosses', 'Boss'], ['memo', '🔮 Mémo']];
   return overlayShell('Codex', `
     <div class="codex-tabs">${tabs.map(([id, lbl]) => `<button class="codex-tab${codexTab === id ? ' active' : ''}" data-codex-tab="${id}">${lbl}</button>`).join('')}</div>
     <div class="codex-count smallcap">${count}/${total} découverts</div>
@@ -1889,6 +1912,7 @@ function ovOnboarding() {
     ['🗝', 'Ouvre des coffres', 'Tu démarres avec 10 clés. Ouvre des coffres pour looter armes et armures.'],
     ['⚔', 'Équipe et combats', 'Équipe tes meilleurs objets, puis va au donjon pour gagner or, clés et items.'],
     ['📈', 'Progresse', 'Améliore ton coffre, débloque la forge, les talents, et grimpe les étages.'],
+    ['🔮', 'Écoute Mémo', 'Un esprit dort dans ton premier coffre. Libère-le : il connaît ce monde mieux que personne — il l\'a juste un peu oublié.'],
     ['💡', 'Astuces', 'Tape un objet pour ouvrir sa fiche. Le menu ⋯ contient l\'aide complète.'],
   ];
   return `<div class="overlay-backdrop"></div>
@@ -1941,7 +1965,13 @@ function ovAutosell() {
 function ovSettings() {
   const s = state.settings || {};
   const row = (id, on, label) => `<label class="set-row"><input type="checkbox" data-setting="${id}" ${on ? 'checked' : ''}/><span>${label}</span></label>`;
+  const memoMode = state.mascot?.mode || 'normal';
+  const memoBtn = (m, lbl) => `<button class="${memoMode === m ? 'on' : ''}" data-memo-mode="${m}">${lbl}</button>`;
   return overlayShell('Paramètres', `
+    <div class="set-row set-memo">
+      <span>🔮 Voix de Mémo</span>
+      <div class="as-seg">${memoBtn('normal', 'Bavard')}${memoBtn('discret', 'Discret')}${memoBtn('muet', 'Muet')}</div>
+    </div>
     ${row('mute', state.ui?.muted, '🔇 Muet')}
     ${row('fastCombat', s.fastCombat, '⚡ Combat rapide')}
     ${row('reducedParticles', s.reducedParticles, '🎇 Particules réduites')}
@@ -1969,6 +1999,7 @@ function ovHelp() {
     <h3>⚡ Procs élémentaires & jauge persistante</h3><p>Ton <b>second élément</b> a une chance par coup normal (~4-12 % selon son ampleur) de procer un effet léger : 🔥 Étincelle (brûlure 1 tour), 🧊 Engourdi (−25 % dégâts 1 tour), ☠ Toxine (poison 2 tours), ⚡ Foudre (+25 % de dégâts bonus), 🌑 Faille (pic perçant). Le trash devient plus vivant sans ralentir. En <b>mode Boucle</b>, la jauge d'ultime <b>persiste entre combats</b> (cap 60 %) : tu peux planifier d'ouvrir le suivant avec un Blizzard. Une fuite ou une défaite remet à zéro. La <b>Frappe Puissante</b> est désormais interdite deux fois de suite — son cycle force d'autres choix.</p>
     <h3>⚒ Forge</h3><p>Chaque action consomme un orbe spécifique. Transmute, augmente, reroll… pour améliorer tes objets. <button class="btn-ghost" data-overlay="forgeGuide">📖 Guide forge & orbes</button></p>
     <h3>🌟 Ascension & 🌳 Talents</h3><p>À T5 + étage 50, ascensionne pour repartir plus puissant (+prestige permanent). Gagne des points de talent par paliers d'étage.</p>
+    <h3>🔮 Mémo</h3><p>L'esprit libéré de ton premier coffre t'accompagne : il commente tes trouvailles, te prévient des dangers et retrouve ses souvenirs au fil de la Chronique (à relire dans le Codex). Tape-le sur l'écran Coffre pour un conseil contextuel. Sa voix se règle dans Paramètres (Bavard / Discret / Muet).</p>
     <h3>💡 Raccourcis</h3><p>Espace : ouvrir/combattre · Échap : fermer.</p>
     <button class="btn-ghost" data-intro-replay="1">🎬 Revoir la cinématique</button>
     <button class="btn-ghost" data-action="replay-welcome">🎓 Revoir le tutoriel</button>`, { wide: true });
