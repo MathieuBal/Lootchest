@@ -431,19 +431,46 @@ export function startMemoIntro({ onDone, replay = false } = {}) {
   }
   document.addEventListener('keydown', onKey);
 
-  // Parallaxe souris + touch
+  // Parallaxe. Trois sources qui se relayent :
+  //   - souris (PC, prioritaire dès qu'un mousemove arrive)
+  //   - touch (mobile, prioritaire 3 s après le dernier glisser)
+  //   - auto (mobile par défaut, oscille en Lissajous lent : la fresque
+  //     reste vivante sans demander à l'utilisateur de faire un geste,
+  //     et sans permission DeviceOrientation iOS)
   let px = 0, py = 0, tx = 0, ty = 0;
-  function setTarget(nx, ny) { tx = nx; ty = ny; }
+  let mouseSeen = false;
+  let manualUntil = 0; // tant que > now : on respecte tx/ty manuels
+  function setTarget(nx, ny, holdMs) {
+    tx = nx; ty = ny;
+    if (holdMs) manualUntil = performance.now() + holdMs;
+  }
   root.addEventListener('mousemove', (e) => {
+    mouseSeen = true;
     setTarget(e.clientX / innerWidth - 0.5, e.clientY / innerHeight - 0.5);
   });
   root.addEventListener('touchmove', (e) => {
     const t = e.touches[0];
-    setTarget((t.clientX / innerWidth - 0.5) * 0.7, (t.clientY / innerHeight - 0.5) * 0.7);
+    setTarget((t.clientX / innerWidth - 0.5) * 0.7, (t.clientY / innerHeight - 0.5) * 0.7, 3000);
   }, { passive: true });
+
+  const t0 = performance.now();
   let raf = 0;
   function loop() {
     if (done) return;
+    const now = performance.now();
+    // Mode auto : tant que la souris ne s'est pas exprimée (PC) et qu'on
+    // n'est pas dans la fenêtre post-touch (mobile), la fresque oscille
+    // toute seule. Sur PC, la première mousemove la coupe pour de bon.
+    const auto = !mouseSeen && now > manualUntil;
+    if (auto) {
+      const t = (now - t0) * 0.001; // secondes
+      // Lissajous lent (~28 s + ~42 s). Les périodes sont premières entre
+      // elles pour éviter une boucle visible. Amplitude 0.42 / 0.28 sur
+      // l'échelle -0.5..0.5 du curseur normalisé : ça pousse les couches
+      // profondes à ~11 px / ~5 px de débattement, très subtil.
+      tx = 0.42 * Math.sin(t * 0.224);
+      ty = 0.28 * Math.cos(t * 0.149 + 1.2);
+    }
     px += (tx - px) * 0.06;
     py += (ty - py) * 0.06;
     const MAX = 26;
