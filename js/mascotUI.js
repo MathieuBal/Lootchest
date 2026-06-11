@@ -6,7 +6,6 @@
 // ambiante via memoSay(line) (tap sur Mémo perché au hub).
 
 import { Mascot, MASCOT_SPRITES, MASCOT_EMOJI } from './mascot.js';
-import { spriteImg } from './spriteMap.js';
 
 const css = `
 .memo-layer { position: fixed; inset: 0; z-index: 1500; pointer-events: none; }
@@ -18,8 +17,9 @@ const css = `
   animation: memoFade .35s ease;
 }
 .memo-fullscreen .memo-sprite { width: min(46vw, 240px); min-height: 130px; margin-bottom: 14px; animation: memoHover 3.2s ease-in-out infinite; text-align: center; display: flex; align-items: center; justify-content: center; }
-.memo-fullscreen .memo-sprite img { width: 100%; filter: drop-shadow(0 0 24px rgba(150, 130, 255, .4)); }
+.memo-fullscreen .memo-sprite .memo-img { width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; filter: drop-shadow(0 0 24px rgba(150, 130, 255, .4)); }
 .memo-emoji { display: inline-block; line-height: 1; font-size: 32px; }
+.memo-img { display: block; }
 .memo-fullscreen .memo-sprite .memo-emoji { font-size: min(28vw, 120px); filter: drop-shadow(0 0 24px rgba(150, 130, 255, .55)); }
 .memo-box {
   width: min(560px, 100%); background: linear-gradient(160deg, #1c1530, #120d20);
@@ -34,7 +34,7 @@ const css = `
   animation: memoRise .3s ease;
 }
 .memo-bubble .memo-mini { width: 56px; height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.memo-bubble .memo-mini img { width: 100%; filter: drop-shadow(0 0 10px rgba(150, 130, 255, .4)); }
+.memo-bubble .memo-mini .memo-img { width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; filter: drop-shadow(0 0 10px rgba(150, 130, 255, .4)); }
 .memo-bubble .memo-mini .memo-emoji { font-size: 40px; filter: drop-shadow(0 0 10px rgba(150, 130, 255, .55)); }
 .memo-bubble .memo-box { flex: 1; border-radius: 14px 14px 14px 4px; }
 .memo-ping {
@@ -43,7 +43,7 @@ const css = `
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   animation: memoPulse 2.6s ease-in-out infinite;
 }
-.memo-ping img { width: 32px; }
+.memo-ping .memo-img { width: 32px; height: 32px; image-rendering: pixelated; }
 .memo-ping .memo-emoji { font-size: 26px; }
 /* Mémo perché sur le hub, flottant à droite du coffre (.chest-hero est relative) */
 .memo-perch {
@@ -52,7 +52,7 @@ const css = `
   padding: 0; display: flex; align-items: center; justify-content: center;
   animation: memoHover 3.6s ease-in-out infinite; z-index: 3;
 }
-.memo-perch img { width: 100%; filter: drop-shadow(0 0 12px rgba(150, 130, 255, .45)); }
+.memo-perch .memo-img { width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; filter: drop-shadow(0 0 12px rgba(150, 130, 255, .45)); }
 .memo-perch .memo-emoji { font-size: 44px; filter: drop-shadow(0 0 12px rgba(150, 130, 255, .6)); }
 .memo-perch:active { transform: scale(.92); }
 @keyframes memoFade { from { opacity: 0 } }
@@ -77,12 +77,27 @@ function ensureLayer() {
   return layer;
 }
 
-// Sprite avec fallback emoji tant que les PNG n'existent pas.
+// Sprite Mémo. Rend toujours un <img> direct + un <span> emoji de secours
+// caché en frère. Si l'image échoue à charger, onerror la masque et révèle
+// l'emoji. Pas de probe asynchrone (qui aurait besoin d'un re-render du
+// .memo-layer pour mettre à jour le sprite — et ce layer est piloté par
+// nous, pas par UI.renderAll).
 export function memoSprite(key, { size = null } = {}) {
   const src = MASCOT_SPRITES[key] || MASCOT_SPRITES.idle;
-  const emoji = `<span class="memo-emoji">${MASCOT_EMOJI[key] || '🔮'}</span>`;
-  return spriteImg(src, emoji, { size, title: 'Mémo' });
+  const fallback = MASCOT_EMOJI[key] || '🔮';
+  const sizeAttr = size ? ` width="${size}" height="${size}"` : '';
+  return `<img class="memo-img" src="${src}" alt=""${sizeAttr} onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'"><span class="memo-emoji" style="display:none">${fallback}</span>`;
 }
+
+// Précharge tous les sprites Mémo une fois pour toutes au premier import.
+// Court-circuite le délai du tout premier <img> qui sinon s'affiche vide
+// quelques frames le temps que la requête revienne.
+(function preloadMemoSprites() {
+  for (const src of Object.values(MASCOT_SPRITES)) {
+    const i = new Image();
+    i.src = src;
+  }
+})();
 
 // lvl 1 : dialogue plein écran, le texte avance au tap
 function showFullscreen(line) {

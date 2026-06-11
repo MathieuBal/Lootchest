@@ -770,7 +770,10 @@ function dtHub() {
     <div class="dt-stage">
       <div class="stage-tier smallcap gold-text">Tier ${tier.tier} · ${tier.name}</div>
       <div class="stage-title display">Coffre ${tier.name}</div>
-      <div class="chest-hero${enoughKeys ? ' has-key' : ''}"><div class="chest-sprite pixel" id="chest-sprite">${spriteImg(chestSpriteSrc(tier.tier, { hires: true }), chestSpriteSVG(tier.tier, 220), { size: 220, title: tier.name })}</div></div>
+      <div class="chest-hero${enoughKeys ? ' has-key' : ''}">
+        <div class="chest-sprite pixel" id="chest-sprite">${spriteImg(chestSpriteSrc(tier.tier, { hires: true }), chestSpriteSVG(tier.tier, 220), { size: 220, title: tier.name })}</div>
+        ${Mascot.isFreed() ? `<button class="memo-perch" data-memo-tap title="Mémo, tape-moi !">${memoSprite('idle')}</button>` : ''}
+      </div>
       <div class="open-bar">
         <button class="btn-key" data-nav="dungeon"><span class="cur-glyph">🗝</span><span class="mono">${fmt(state.keys)}</span></button>
         <button class="btn-gold btn-open ${enoughKeys ? '' : 'is-disabled'}" id="btn-open"><span class="open-ico">⬢</span> Ouvrir <span class="open-cost">· 1 clé</span></button>
