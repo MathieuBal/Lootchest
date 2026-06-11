@@ -591,6 +591,15 @@ input, select { font-family: inherit; }
 .codex-cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 26px; border-radius: var(--r-sm);
   border: 1px solid var(--border-soft); background: var(--surface-sunken); }
 .codex-cell.unknown { color: var(--ink-500); font-family: var(--f-display); }
+/* Souvenirs de Mémo */
+.memo-mems { display: flex; flex-direction: column; gap: 8px; }
+.memo-mem { padding: 10px 12px; border-radius: var(--r-sm); border: 1px solid #4a3a6e; background: linear-gradient(160deg, #1c1530, #120d20); }
+.memo-mem.locked { opacity: .5; border-style: dashed; }
+.memo-mem-title { font-weight: 600; color: #b39ddb; margin-bottom: 4px; }
+.memo-mem-text { line-height: 1.45; color: var(--ink-300, #cfc6e0); }
+/* Réglage voix de Mémo (Paramètres) */
+.set-memo { justify-content: space-between; }
+.set-memo .as-seg button.on { color: #b39ddb; }
 
 /* Achievements */
 .ach-grid { display: flex; flex-direction: column; gap: 6px; }

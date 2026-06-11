@@ -2,9 +2,9 @@
 // All DOM is built by ui.js; this file owns interactions (event delegation on
 // document so handlers survive full re-renders) and the combat sequence.
 import { state, subscribe, resetState, notify } from './state.js';
-import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS, CURRENCY_BY_ID } from './data.js';
+import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS, CURRENCY_BY_ID, PITY_THRESHOLD } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
-import { openChest, openChests, upgradeChest, canOpen } from './chest.js';
+import { openChest, openChests, upgradeChest, canOpen, canUpgrade } from './chest.js';
 import { attemptCurrentFloor, prepareCurrentFloor, applyCombatOutcome, setCurrentFloor, attemptDiveFight, generateMonster, generateDiveMonster, predictDifficulty } from './combat.js';
 import { createBattle, executeTurn, canUseAction, autoChoice, ACTIONS as COMBAT_ACTIONS } from './combatTurn.js';
 import {
@@ -13,7 +13,7 @@ import {
 } from './dive.js';
 import { checkAchievements, onAchievementUnlocked } from './achievements.js';
 import { FORGE_ACTIONS, applyMasterCraft, applyExchange, toggleAffixLock } from './forge.js';
-import { upgradeTalent, respecTalents } from './talents.js';
+import { upgradeTalent, respecTalents, pityReduction } from './talents.js';
 import { refreshBoardIfEmpty, rerollBounty, onBountyComplete } from './bounties.js';
 import { canAscend, ascend } from './prestige.js';
 import { chooseRelic, rerollRelicChoice } from './relics.js';
@@ -42,7 +42,7 @@ import {
 } from './inventory.js';
 import * as UI from './ui.js';
 import { Mascot } from './mascot.js';
-import './mascotUI.js'; // s'abonne à Mascot.onSpeak au chargement
+import { memoSay } from './mascotUI.js'; // s'abonne à Mascot.onSpeak au chargement
 
 // ── Init ─────────────────────────────────────────────────────
 loadFromLocal();
@@ -178,6 +178,29 @@ document.body.addEventListener('click', async (e) => {
     submitAction(actBtn.dataset.combatAction);
     soundClick();
     return;
+  }
+
+  // Mémo perché sur le hub : réplique ambiante contextuelle
+  if (t.closest('[data-memo-tap]')) {
+    const pityMax = Math.max(1, PITY_THRESHOLD - pityReduction());
+    memoSay(Mascot.ambient({
+      keys: state.keys || 0,
+      gold: state.gold || 0,
+      pityLeft: Math.max(0, pityMax - (state.pity?.sinceLegendary || 0)),
+      canUpgrade: canUpgrade(),
+      floor: state.combat?.currentFloor || 1,
+      streak: state.combat?.winStreak || 0,
+      hour: new Date().getHours(),
+    }));
+    soundClick();
+    return;
+  }
+  // Mémo : mode de voix (Paramètres — overlay statique, on met à jour en place)
+  const memoMode = t.closest('[data-memo-mode]');
+  if (memoMode) {
+    Mascot.setMode(memoMode.dataset.memoMode);
+    memoMode.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === memoMode));
+    soundClick(); notify(); return;
   }
 
   // Tab / rail navigation
@@ -375,6 +398,7 @@ document.body.addEventListener('change', (e) => {
     const on = setEl.checked;
     if (key === 'mute') { setMuted(on); state.ui.muted = on; }
     else state.settings[key] = on;
+    if (key === 'hardMode' && on) Mascot.fire('hardmode:on');
     notify();
     return;
   }
@@ -397,10 +421,17 @@ document.body.addEventListener('mousemove', (e) => {
 // Flows
 // ═════════════════════════════════════════════════════════════
 // Mémo : déclenchements de la mascotte aux changements d'onglet.
-// village:idle est lvl 3 (rejouable), les autres sont once.
 function fireTabMascot(tab) {
-  if (tab === 'village') { Mascot.fire('village:firstVisit'); Mascot.fire('village:idle'); }
+  if (tab === 'village') Mascot.fire('village:firstVisit');
   else if (tab === 'forge') Mascot.fire('forge:firstVisit');
+}
+
+// Réaction de Mémo à un drop marquant (coffre, donjon, bulk).
+function fireMascotDrop(item) {
+  if (!item) return;
+  if (item.uniqueId) Mascot.fire('loot:unique');
+  else if (item.rarity === 'ancestral') Mascot.fire('loot:ancestral');
+  else if (item.rarity === 'legendary') Mascot.fire('loot:legendary');
 }
 
 function openChestFlow() {
@@ -418,6 +449,7 @@ function openChestFlow() {
   const { items, orbs } = result;
   if (orbs && orbs.length) Mascot.fire('orb:firstDrop');
   if (items.some(it => it.rarity !== 'common')) Mascot.fire('loot:firstMagic');
+  fireMascotDrop(items[0]);
   const item = items[0];                   // primary item drives the reveal
   const extras = items.slice(1);
   UI.playChestOpen();
@@ -470,6 +502,7 @@ function openBulkFlow(n) {
   }
   for (const oid of orbs) summary.orbs[oid] = (summary.orbs[oid] || 0) + 1;
   soundCoin();
+  if (summary.notable.length) fireMascotDrop(summary.notable[summary.notable.length - 1]);
   UI.showBulkResult(summary);
 }
 
@@ -610,6 +643,7 @@ async function fightFlow() {
       const streak = state.combat.winStreak || 0;
       if (streak > 0 && streak % 10 === 0) {
         UI.showToast('🔥', `Série de ${streak} victoires !`, `+${Math.min(50, streak * 2)} % or · +${Math.min(15, Math.round(streak * 0.5))} % drops`);
+        Mascot.fire('streak:milestone', { streak });
       }
       const c = UI.getMonsterEmojiCenter();
       spawnParticles(monster.isBoss ? '#ff7a1a' : '#ffe14a', c.x, c.y, monster.isBoss ? 40 : 20);
@@ -638,6 +672,7 @@ async function fightFlow() {
 
     let drop = null;
     if (droppedItem) {
+      fireMascotDrop(droppedItem);
       soundDrop(droppedItem.rarity);
       const action = autoActionFor(droppedItem.rarity);
       if (action === 'sell') { sellDrop(droppedItem); soundCoin(); summary.push(`🎁 ${droppedItem.name} → vendu`); }
@@ -676,6 +711,7 @@ function beginDive() {
   _diveGaugeCarry = 0;
   soundAscension();
   UI.showToast('🌊', 'Plongée lancée', 'Descends aussi profond que possible !');
+  Mascot.fire('dive:start');
   diveFlow();
 }
 
@@ -739,6 +775,7 @@ async function diveFlow() {
       _currentBattle = null;
       UI.closeCombat();
       if (rec.checkpoint) {
+        if (rec.depth >= 10) Mascot.fire('dive:deep', { depth: rec.depth });
         openBoonChoice();
         UI.navOverlay('diveBoon');     // pauses the loop until the player picks/exits
       } else if (isDiving()) {
@@ -944,6 +981,7 @@ function ascendFlow() {
     ok = confirm(`🌟 Ascension Niv ${newLevel} ?\n\nTu repars de zéro (or, items, coffre T1, étage 1).\nTu gardes succès, prestige, stats.\nBonus permanent : +${6 * newLevel}% dégâts & PV, +${15 * newLevel}% drops & or.\n\nConfirmer ?`);
   }
   if (ok && ascend()) {
+    Mascot.fire('prestige:ascend', { level: newLevel });
     soundAscension(); screenShake(8, 600);
     spawnParticles('#f5c842', innerWidth / 2, innerHeight / 2, 80, { minSpeed: 200, maxSpeed: 500, size: 10 });
     UI.navTab('hub');
