@@ -64,7 +64,6 @@ const CSS = `
   font-family:"JetBrains Mono",monospace; font-size:13px; letter-spacing:.22em;
   text-transform:uppercase; color:#f0c463; }
 .im-key-row img { width:30px; image-rendering:pixelated; }
-.im-key-row .im-key-fallback { font-size:24px; }
 .im-chest-hint { font-size:clamp(17px,2.4vmin,21px); font-style:italic; color:#8c8470;
   animation:imPulse 2.8s ease-in-out infinite; text-align:center; padding:0 20px; }
 .im-chest.shaking .im-chest-wrap { animation:imShake .65s ease; }
@@ -123,13 +122,14 @@ const CSS = `
   right:max(14px,env(safe-area-inset-right)); z-index:30;
   font-family:"JetBrains Mono",monospace; font-size:12px; letter-spacing:.18em; text-transform:uppercase;
   color:#8c8470; background:rgba(15,10,28,.55); border:1px solid rgba(74,58,110,.6);
-  border-radius:999px; padding:9px 16px; cursor:pointer; min-height:38px; transition:.2s; }
+  border-radius:999px; padding:11px 18px; cursor:pointer; min-height:44px; transition:.2s; }
 .im-skip:hover { color:#f0c463; border-color:#d4a13a; }
 .im-skip.hidden { opacity:0; pointer-events:none; }
 .im-back { position:absolute; left:max(14px,env(safe-area-inset-left));
-  top:calc(env(safe-area-inset-top,0px) + 14px); z-index:30; width:38px; height:38px;
+  top:calc(env(safe-area-inset-top,0px) + 14px); z-index:30; width:44px; height:44px;
   border-radius:50%; background:rgba(15,10,28,.55); border:1px solid rgba(74,58,110,.6);
-  color:#8c8470; font-size:17px; cursor:pointer; transition:.2s; }
+  color:#8c8470; font-size:19px; cursor:pointer; transition:.2s;
+  display:flex; align-items:center; justify-content:center; }
 .im-back:hover { color:#f0c463; }
 .im-back.hidden { opacity:0; pointer-events:none; }
 .im-begin { position:absolute; left:50%; bottom:calc(env(safe-area-inset-bottom,0px) + 120px);
@@ -144,6 +144,8 @@ const CSS = `
   from { opacity:0; transform:translate(-50%,16px) }
   to { opacity:1; transform:translateX(-50%) }
 }
+/* Dernière réplique : on remonte le dialogue pour libérer la place du bouton */
+.intro-memo-overlay.is-last .im-dlg { transform:translateY(-72px); transition:transform .5s ease; }
 @media (prefers-reduced-motion:reduce) {
   .intro-memo-overlay *, .intro-memo-overlay *::before, .intro-memo-overlay *::after {
     animation:none !important; transition:none !important;
@@ -231,6 +233,33 @@ function injectCss() {
   cssInjected = true;
 }
 
+// Précharge les planches en arrière-plan dès que l'intro démarre. Sur mobile
+// (3G/4G), chaque PNG fait ~1 Mo ; en lançant la précharge pendant la phase
+// coffre, les premières scènes sont déjà en cache au moment de la transition.
+let preloaded = false;
+function preloadCinematic() {
+  if (preloaded) return;
+  preloaded = true;
+  // On extrait les URLs `assets/cinematic/scene*.png` depuis le SVG des layers.
+  const urls = new Set();
+  for (const scene of CINEMATIC_SCENES) {
+    for (const layer of scene.layers) {
+      const matches = (layer.svg || '').match(/assets\/cinematic\/[a-z0-9_-]+\.png/gi) || [];
+      matches.forEach(u => urls.add(u));
+    }
+  }
+  // On lance les chargements en série pour ne pas saturer la bande mobile.
+  const list = [...urls];
+  let i = 0;
+  const next = () => {
+    if (i >= list.length) return;
+    const img = new Image();
+    img.onload = img.onerror = () => { i++; next(); };
+    img.src = list[i];
+  };
+  next();
+}
+
 // Sprite Mémo avec fallback emoji (mêmes règles que mascotUI).
 function memoIntroSprite(key) {
   const src = MASCOT_SPRITES[key] || MASCOT_SPRITES.idle;
@@ -242,21 +271,20 @@ function memoIntroSprite(key) {
 // false si skip ou Escape avant la fin.
 export function startMemoIntro({ onDone, replay = false } = {}) {
   injectCss();
+  preloadCinematic();
   const root = document.createElement('div');
   root.className = 'intro-memo-overlay';
-  const chestFallback = `<span class="im-key-fallback">📦</span>`;
-  const keyFallback = `<span class="im-key-fallback">🗝</span>`;
   root.innerHTML = `
     <div class="im-camera" id="im-camera"></div>
     <div class="im-shade"></div>
     <div class="im-chest" id="im-chest">
       <div class="im-key-row">
-        ${spriteImg('assets/treasures/cle.png', keyFallback, { size: 30, title: '1 clé' })}
+        <img src="assets/treasures/cle.png" alt="🗝" width="30" height="30">
         <span>1 clé</span>
       </div>
       <div class="im-chest-wrap" id="im-chest-wrap">
         <div class="im-chest-glow"></div>
-        ${spriteImg('assets/chests/t1_bois.png', chestFallback, { title: 'Coffre en bois' })}
+        <img src="assets/chests/t1_bois.png" alt="Coffre" class="im-chest-img">
       </div>
       <div class="im-chest-hint">Touche le coffre pour l'ouvrir</div>
     </div>
@@ -325,7 +353,8 @@ export function startMemoIntro({ onDone, replay = false } = {}) {
     dlg.classList.remove('pop');
     void dlg.offsetWidth;
     dlg.classList.add('pop');
-    if (last) beginBtn.classList.add('show');
+    if (last) { beginBtn.classList.add('show'); root.classList.add('is-last'); }
+    else { beginBtn.classList.remove('show'); root.classList.remove('is-last'); }
   }
 
   function goChapter(n, dir) {
@@ -402,19 +431,46 @@ export function startMemoIntro({ onDone, replay = false } = {}) {
   }
   document.addEventListener('keydown', onKey);
 
-  // Parallaxe souris + touch
+  // Parallaxe. Trois sources qui se relayent :
+  //   - souris (PC, prioritaire dès qu'un mousemove arrive)
+  //   - touch (mobile, prioritaire 3 s après le dernier glisser)
+  //   - auto (mobile par défaut, oscille en Lissajous lent : la fresque
+  //     reste vivante sans demander à l'utilisateur de faire un geste,
+  //     et sans permission DeviceOrientation iOS)
   let px = 0, py = 0, tx = 0, ty = 0;
-  function setTarget(nx, ny) { tx = nx; ty = ny; }
+  let mouseSeen = false;
+  let manualUntil = 0; // tant que > now : on respecte tx/ty manuels
+  function setTarget(nx, ny, holdMs) {
+    tx = nx; ty = ny;
+    if (holdMs) manualUntil = performance.now() + holdMs;
+  }
   root.addEventListener('mousemove', (e) => {
+    mouseSeen = true;
     setTarget(e.clientX / innerWidth - 0.5, e.clientY / innerHeight - 0.5);
   });
   root.addEventListener('touchmove', (e) => {
     const t = e.touches[0];
-    setTarget((t.clientX / innerWidth - 0.5) * 0.7, (t.clientY / innerHeight - 0.5) * 0.7);
+    setTarget((t.clientX / innerWidth - 0.5) * 0.7, (t.clientY / innerHeight - 0.5) * 0.7, 3000);
   }, { passive: true });
+
+  const t0 = performance.now();
   let raf = 0;
   function loop() {
     if (done) return;
+    const now = performance.now();
+    // Mode auto : tant que la souris ne s'est pas exprimée (PC) et qu'on
+    // n'est pas dans la fenêtre post-touch (mobile), la fresque oscille
+    // toute seule. Sur PC, la première mousemove la coupe pour de bon.
+    const auto = !mouseSeen && now > manualUntil;
+    if (auto) {
+      const t = (now - t0) * 0.001; // secondes
+      // Lissajous lent (~28 s + ~42 s). Les périodes sont premières entre
+      // elles pour éviter une boucle visible. Amplitude 0.42 / 0.28 sur
+      // l'échelle -0.5..0.5 du curseur normalisé : ça pousse les couches
+      // profondes à ~11 px / ~5 px de débattement, très subtil.
+      tx = 0.42 * Math.sin(t * 0.224);
+      ty = 0.28 * Math.cos(t * 0.149 + 1.2);
+    }
     px += (tx - px) * 0.06;
     py += (ty - py) * 0.06;
     const MAX = 26;
