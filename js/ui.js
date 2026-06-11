@@ -1803,7 +1803,8 @@ function ovCodex() {
     grid = `<div class="memo-mems">${mems.map(m => m.unlocked
       ? `<div class="memo-mem"><div class="memo-mem-title">🔮 ${m.title}</div><div class="memo-mem-text smallcap">« ${m.text.join(' ')} »</div></div>`
       : `<div class="memo-mem locked"><div class="memo-mem-title">❔ Souvenir scellé</div><div class="memo-mem-text smallcap">Avance dans la Chronique pour aider Mémo à se souvenir.</div></div>`
-    ).join('')}</div>`;
+    ).join('')}</div>
+    <button class="btn-ghost" data-intro-replay="1" style="margin-top:14px;width:100%">🎬 Revoir l'histoire (les 7 tableaux)</button>`;
     const tabs2 = [['uniques', 'Uniques'], ['sets', 'Sets'], ['bosses', 'Boss'], ['memo', '🔮 Mémo']];
     return overlayShell('Codex', `
       <div class="codex-tabs">${tabs2.map(([id, lbl]) => `<button class="codex-tab${codexTab === id ? ' active' : ''}" data-codex-tab="${id}">${lbl}</button>`).join('')}</div>

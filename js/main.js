@@ -43,6 +43,7 @@ import {
 import * as UI from './ui.js';
 import { Mascot } from './mascot.js';
 import { memoSay } from './mascotUI.js'; // s'abonne à Mascot.onSpeak au chargement
+import { startMemoIntro } from './introMemo.js';
 
 // ── Init ─────────────────────────────────────────────────────
 loadFromLocal();
@@ -115,8 +116,20 @@ setInterval(() => {
   if (UI.getActiveTab() === 'village' && (villageIsBusy() || accrued)) notify();
 }, 1000);
 
-if (!state.ui.hasSeenIntro) UI.startIntro();
-else if (!state.ui.hasSeenWelcome) UI.navOverlay('onboarding');
+// Nouvelle intro : la séquence coffre + Mémo + 7 tableaux. La rencontre
+// avec Mémo se fait ICI. On marque donc first_chest comme déjà vu pour
+// qu'il ne se présente pas une deuxième fois au premier vrai coffre.
+if (!state.ui.hasSeenIntro) {
+  startMemoIntro({
+    onDone: () => {
+      state.ui.hasSeenIntro = true;
+      state.ui.hasSeenWelcome = true; // la séquence remplace l'ancien welcome
+      if (state.mascot) state.mascot.seen.first_chest = true;
+      notify();
+      if (state.prestige?.pendingRelicChoice?.length) UI.navOverlay('relicChoice');
+    },
+  });
+} else if (!state.ui.hasSeenWelcome) UI.navOverlay('onboarding');
 else if (state.prestige?.pendingRelicChoice?.length) UI.navOverlay('relicChoice');
 
 document.addEventListener('click', unlockAudio, { once: true });
@@ -159,7 +172,7 @@ document.body.addEventListener('click', async (e) => {
   // Intro cinematic
   const introBtn = t.closest('[data-intro]');
   if (introBtn) { if (introBtn.dataset.intro === 'skip') UI.endIntro(); else { soundClick(); UI.advanceIntro(); } return; }
-  if (t.closest('[data-intro-replay]')) { UI.startIntro(); soundClick(); return; }
+  if (t.closest('[data-intro-replay]')) { startMemoIntro({ replay: true }); soundClick(); return; }
 
   // Close overlay (backdrop / ✕)
   if (t.closest('[data-close-overlay]')) { UI.closeOverlay(); return; }
