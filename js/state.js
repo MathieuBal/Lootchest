@@ -107,6 +107,10 @@ export const state = {
     step: 0,
     claimed: {},
   },
+  mascot: {           // Mémo, l'Esprit de Reliquaire — seen flags + voice mode
+    seen: {},
+    mode: 'normal',   // 'normal' | 'discret' | 'muet'
+  },
 };
 
 // Init empty equipment slots
@@ -205,6 +209,9 @@ export function replaceState(newState) {
   if (!state.story) state.story = { step: 0, claimed: {} };
   if (typeof state.story.step !== 'number') state.story.step = 0;
   if (!state.story.claimed) state.story.claimed = {};
+  if (!state.mascot) state.mascot = { seen: {}, mode: 'normal' };
+  if (!state.mascot.seen) state.mascot.seen = {};
+  if (!state.mascot.mode) state.mascot.mode = 'normal';
   if (state.keys === undefined) state.keys = 10;
   notify();
 }
@@ -237,5 +244,6 @@ export function resetState() {
   state.bounties = { active: [], completed: 0 };
   state.village = { townhall: 1, resources: { wood: 60, stone: 40, metal: 0, essence: 0 }, buildings: { houses: 0, sawmill: 0, quarry: 0, locksmith: 0 }, workers: { sawmill: 0, quarry: 0, locksmith: 0 }, lastTick: 0, _keyBuf: 0, construction: null };
   state.story = { step: 0, claimed: {} };
+  state.mascot = { seen: {}, mode: 'normal' };
   notify();
 }

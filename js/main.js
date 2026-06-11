@@ -41,9 +41,12 @@ import {
   unlockAutoSell, toggleAutoSell, setAutoMode, isAutoSellOn,
 } from './inventory.js';
 import * as UI from './ui.js';
+import { Mascot } from './mascot.js';
+import './mascotUI.js'; // s'abonne à Mascot.onSpeak au chargement
 
 // ── Init ─────────────────────────────────────────────────────
 loadFromLocal();
+Mascot.init(state.mascot);
 startAutosave();
 subscribe(checkAchievements);
 subscribe(UI.renderAll);
@@ -136,7 +139,12 @@ document.body.addEventListener('click', async (e) => {
   // Chronicle (story)
   if (t.closest('[data-story-claim]')) {
     const c = claimChapter();
-    if (c) { soundAchievement(); UI.showToast('📜', 'Chapitre accompli', c.title); spawnParticles('#c79bff', innerWidth / 2, innerHeight / 3, 28); }
+    if (c) {
+      soundAchievement();
+      UI.showToast('📜', 'Chapitre accompli', c.title);
+      spawnParticles('#c79bff', innerWidth / 2, innerHeight / 3, 28);
+      Mascot.fire('story:chapterDone', { chapter: state.story?.step || 0 });
+    }
     return;
   }
 
@@ -174,9 +182,9 @@ document.body.addEventListener('click', async (e) => {
 
   // Tab / rail navigation
   const tabBtn = t.closest('[data-tab]');
-  if (tabBtn) { UI.navTab(tabBtn.dataset.tab); soundClick(); return; }
+  if (tabBtn) { UI.navTab(tabBtn.dataset.tab); soundClick(); fireTabMascot(tabBtn.dataset.tab); return; }
   const navBtn = t.closest('[data-nav]');
-  if (navBtn) { UI.navTab(navBtn.dataset.nav); soundClick(); return; }
+  if (navBtn) { UI.navTab(navBtn.dataset.nav); soundClick(); fireTabMascot(navBtn.dataset.nav); return; }
 
   // Open an overlay
   const ovBtn = t.closest('[data-overlay]');
@@ -388,17 +396,28 @@ document.body.addEventListener('mousemove', (e) => {
 // ═════════════════════════════════════════════════════════════
 // Flows
 // ═════════════════════════════════════════════════════════════
+// Mémo : déclenchements de la mascotte aux changements d'onglet.
+// village:idle est lvl 3 (rejouable), les autres sont once.
+function fireTabMascot(tab) {
+  if (tab === 'village') { Mascot.fire('village:firstVisit'); Mascot.fire('village:idle'); }
+  else if (tab === 'forge') Mascot.fire('forge:firstVisit');
+}
+
 function openChestFlow() {
   if (!canOpen()) { if (!state.keys) UI.showToast('🗝', 'Pas de clé', 'Farme des clés au donjon'); return; }
   soundChestOpen();
   const result = openChest();
   if (!result) return;
+  Mascot.fire('chest:opened');
   if (result.mimic) {
     UI.playChestOpen();
     UI.showMimicEncounter(result.mimic);
+    Mascot.fire('mimic:reveal');
     return;
   }
   const { items, orbs } = result;
+  if (orbs && orbs.length) Mascot.fire('orb:firstDrop');
+  if (items.some(it => it.rarity !== 'common')) Mascot.fire('loot:firstMagic');
   const item = items[0];                   // primary item drives the reveal
   const extras = items.slice(1);
   UI.playChestOpen();
@@ -544,6 +563,7 @@ async function fightFlow() {
         ? `Un ${monster.name} apparaît !`
         : `Tu engages le combat contre ${monster.name}.`);
     }
+    if (monster.isBoss) Mascot.fire('boss:encounter');
 
     // Boucle tour-par-tour : on attend une action joueur (ou Auto), on exécute,
     // on anime les events, on rebouche jusqu'à fin de combat.
@@ -601,9 +621,11 @@ async function fightFlow() {
       }
       const res = grantDungeonResources(monster.floor, monster.isBoss, monster.isElite);
       if (res) summary.push(`+${res.wood} 🪵 · +${res.stone} 🪨`);
+      if (res && res.essence > 0) Mascot.fire('crystal:firstDrop');
       if (monster.isBoss) screenShake(8, 350);
     } else {
       soundLose(); UI.setCombatCall('DÉFAITE', '#ff5050'); screenShake(10, 400);
+      Mascot.fire('player:death');
     }
     if (advanced) summary.push(`🆙 Étage ${state.combat.highestUnlocked} débloqué`);
     if (milestone) {
@@ -935,6 +957,7 @@ function chooseRelicFlow(id) {
   if (chooseRelic(id)) {
     soundAscension();
     spawnParticles('#c9a3ff', innerWidth / 2, innerHeight / 2, 50, { minSpeed: 150, maxSpeed: 400, size: 8 });
+    Mascot.fire('relic:firstDrop');
     UI.closeOverlay();
     notify();
   }
