@@ -65,6 +65,13 @@ onBountyComplete(b => {
 });
 setMuted(!!state.ui?.muted);
 UI.mountApp();
+// Mémo : surveille les périodes d'inactivité et le tas d'or qui dort.
+// Différé en microtâche : _memo et ses helpers sont déclarés plus bas
+// (const ne hoiste pas — temporal dead zone).
+queueMicrotask(() => {
+  memoStartIdleWatch();
+  ['click', 'touchstart', 'keydown'].forEach(ev => document.addEventListener(ev, memoTrackInteraction, { passive: true }));
+});
 
 // When a sprite finishes probing as "ok", schedule a single coalesced
 // re-render so the PNG swaps in cleanly without flicker. Multiple probes
@@ -165,6 +172,7 @@ document.body.addEventListener('click', async (e) => {
     else if (a === 'auto') {
       _autoMode = !_autoMode;
       cbAct.classList.toggle('on', _autoMode);
+      _memo.autoStartedAt = _autoMode ? Date.now() : 0;
       soundClick();
       // Si on attend une action joueur et qu'on vient d'activer l'Auto, on
       // déclenche immédiatement le choix automatique pour ne pas rester figé.
@@ -183,6 +191,8 @@ document.body.addEventListener('click', async (e) => {
   // Mémo perché sur le hub : réplique ambiante contextuelle
   if (t.closest('[data-memo-tap]')) {
     const pityMax = Math.max(1, PITY_THRESHOLD - pityReduction());
+    const justDied = _memo.recentDeaths.length > 0
+      && (Date.now() - _memo.recentDeaths[_memo.recentDeaths.length - 1]) < 60000;
     memoSay(Mascot.ambient({
       keys: state.keys || 0,
       gold: state.gold || 0,
@@ -191,6 +201,9 @@ document.body.addEventListener('click', async (e) => {
       floor: state.combat?.currentFloor || 1,
       streak: state.combat?.winStreak || 0,
       hour: new Date().getHours(),
+      invSize: state.inventory?.length || 0,
+      prestige: state.prestige?.level || 0,
+      justDied,
     }));
     soundClick();
     return;
@@ -420,18 +433,64 @@ document.body.addEventListener('mousemove', (e) => {
 // ═════════════════════════════════════════════════════════════
 // Flows
 // ═════════════════════════════════════════════════════════════
-// Mémo : déclenchements de la mascotte aux changements d'onglet.
-function fireTabMascot(tab) {
-  if (tab === 'village') Mascot.fire('village:firstVisit');
-  else if (tab === 'forge') Mascot.fire('forge:firstVisit');
-}
-
 // Réaction de Mémo à un drop marquant (coffre, donjon, bulk).
 function fireMascotDrop(item) {
   if (!item) return;
   if (item.uniqueId) Mascot.fire('loot:unique');
   else if (item.rarity === 'ancestral') Mascot.fire('loot:ancestral');
   else if (item.rarity === 'legendary') Mascot.fire('loot:legendary');
+}
+
+// Compteurs de session pour Mémo : il réagit aux séries (morts, communs, AFK).
+const _memo = {
+  recentDeaths: [],   // timestamps des dernières morts
+  commonRunCount: 0,  // ouvertures consécutives qui ne donnent QUE du commun
+  autoStartedAt: 0,   // début de la session Auto en cours (0 = off)
+  lastInteraction: Date.now(),
+  idleTimer: null,
+};
+
+function memoTrackChestDrop(items) {
+  // Strict : que des communs purs. 8 d'affilée et Mémo s'en mêle.
+  if (items.every(it => it.rarity === 'common')) {
+    _memo.commonRunCount += 1;
+    if (_memo.commonRunCount === 8) Mascot.fire('loot:commonStreak');
+  } else {
+    _memo.commonRunCount = 0;
+  }
+}
+
+function memoTrackDeath() {
+  const now = Date.now();
+  _memo.recentDeaths = _memo.recentDeaths.filter(t => now - t < 300000); // 5 min
+  _memo.recentDeaths.push(now);
+  if (_memo.recentDeaths.length >= 3) Mascot.fire('player:deathStreak');
+}
+
+function memoTrackInteraction() {
+  _memo.lastInteraction = Date.now();
+}
+function memoStartIdleWatch() {
+  if (_memo.idleTimer) return;
+  _memo.idleTimer = setInterval(() => {
+    const idle = Date.now() - _memo.lastInteraction;
+    // 2 min sans toucher au hub (et hub uniquement) → Mémo s'inquiète.
+    if (idle > 120000 && UI.getActiveTab() === 'hub' && !UI.getCurrentDrop() && Mascot.isFreed()) {
+      Mascot.fire('player:idle');
+      _memo.lastInteraction = Date.now(); // évite la rafale
+    }
+    // Hoarder : 1M+ d'or qui dormirait.
+    if ((state.gold || 0) >= 1e6 && idle > 60000 && UI.getActiveTab() === 'hub') {
+      Mascot.fire('wealth:hoarder');
+    }
+  }, 30000);
+}
+
+// Mémo : déclenchements de la mascotte aux changements d'onglet.
+function fireTabMascot(tab) {
+  if (tab === 'village') Mascot.fire('village:firstVisit');
+  else if (tab === 'forge') Mascot.fire('forge:firstVisit');
+  memoTrackInteraction();
 }
 
 function openChestFlow() {
@@ -450,6 +509,8 @@ function openChestFlow() {
   if (orbs && orbs.length) Mascot.fire('orb:firstDrop');
   if (items.some(it => it.rarity !== 'common')) Mascot.fire('loot:firstMagic');
   fireMascotDrop(items[0]);
+  memoTrackChestDrop(items);
+  memoTrackInteraction();
   const item = items[0];                   // primary item drives the reveal
   const extras = items.slice(1);
   UI.playChestOpen();
@@ -601,6 +662,14 @@ async function fightFlow() {
     // Boucle tour-par-tour : on attend une action joueur (ou Auto), on exécute,
     // on anime les events, on rebouche jusqu'à fin de combat.
     refreshActionButtons(battle);
+    // Mémo : si Auto/Boucle roule depuis longtemps, il finit par le commenter.
+    if ((_autoMode || state.combat.loopMode) && _memo.autoStartedAt
+        && Date.now() - _memo.autoStartedAt > 300000) {
+      Mascot.fire('combat:autoLong');
+      _memo.autoStartedAt = Date.now();
+    } else if ((_autoMode || state.combat.loopMode) && !_memo.autoStartedAt) {
+      _memo.autoStartedAt = Date.now();
+    }
     while (!battle.ended) {
       let action;
       if (_autoMode || state.combat.loopMode) {
@@ -660,6 +729,7 @@ async function fightFlow() {
     } else {
       soundLose(); UI.setCombatCall('DÉFAITE', '#ff5050'); screenShake(10, 400);
       Mascot.fire('player:death');
+      memoTrackDeath();
     }
     if (advanced) summary.push(`🆙 Étage ${state.combat.highestUnlocked} débloqué`);
     if (milestone) {
@@ -953,9 +1023,13 @@ function itemAction(action) {
     if (equipped) unequipSlot(item.slot); else { equipItem(item); soundClick(); }
     UI.closeOverlay();
   } else if (action === 'sell') {
-    if (sellItem(item) > 0) soundCoin(); UI.closeOverlay();
+    const wasPrecious = item.uniqueId || item.rarity === 'ancestral' || item.rarity === 'legendary';
+    if (sellItem(item) > 0) { soundCoin(); if (wasPrecious) Mascot.fire('sell:precious'); }
+    UI.closeOverlay();
   } else if (action === 'salvage') {
-    if (salvageItem(item) > 0) soundForge(); UI.closeOverlay();
+    const wasUnique = !!item.uniqueId;
+    if (salvageItem(item) > 0) { soundForge(); if (wasUnique) Mascot.fire('salvage:unique'); }
+    UI.closeOverlay();
   } else if (action === 'lock') {
     toggleLockItem(item.id); soundClick();
     // Mobile: refresh the open sheet. Desktop: the inline panel re-renders via notify().
