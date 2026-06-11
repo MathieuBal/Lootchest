@@ -10,8 +10,7 @@
 // puis démonté à la fin. Le CSS est injecté une seule fois.
 
 import { CINEMATIC_SCENES } from './cinematicScenes.js';
-import { Mascot, MASCOT_SPRITES, MASCOT_EMOJI } from './mascot.js';
-import { spriteImg } from './spriteMap.js';
+import { MASCOT_SPRITES, MASCOT_EMOJI } from './mascot.js';
 
 const CSS = `
 .intro-memo-overlay { position:fixed; inset:0; z-index:2000; background:#05030a;
@@ -98,12 +97,13 @@ const CSS = `
 .im-dlg.hidden { opacity:0; pointer-events:none; }
 .im-memo-sprite { flex-shrink:0; width:clamp(96px,17vmin,160px); position:relative;
   margin-bottom:-6px; display:flex; align-items:flex-end; justify-content:center; min-height:96px; }
-.im-memo-sprite img { width:100%; display:block;
+.im-memo-sprite .im-memo-img { width:100%; display:block;
   filter:drop-shadow(0 0 22px rgba(150,130,255,.5));
-  animation:imBob 4s ease-in-out infinite; }
+  animation:imBob 4s ease-in-out infinite;
+  image-rendering:pixelated; image-rendering:crisp-edges; }
 .im-memo-sprite .memo-emoji-im { font-size:clamp(72px,14vmin,128px); line-height:1;
   filter:drop-shadow(0 0 22px rgba(150,130,255,.55));
-  animation:imBob 4s ease-in-out infinite; display:inline-block; }
+  animation:imBob 4s ease-in-out infinite; }
 .im-box { flex:1; background:linear-gradient(160deg, rgba(28,21,48,.94), rgba(15,10,28,.96));
   border:1px solid #4a3a6e; border-radius:16px 16px 16px 5px;
   padding:clamp(11px,1.8vmin,16px) clamp(13px,2vmin,20px);
@@ -260,11 +260,30 @@ function preloadCinematic() {
   next();
 }
 
-// Sprite Mémo avec fallback emoji (mêmes règles que mascotUI).
+// Sprite Mémo. On rend toujours un <img> direct et on garde un emoji de
+// secours en frère, masqué par défaut, qu'on révèle si l'image échoue à
+// charger. Pas de probe async, donc pas de "parfois sprite parfois emoji"
+// au gré du timing.
 function memoIntroSprite(key) {
   const src = MASCOT_SPRITES[key] || MASCOT_SPRITES.idle;
-  const emoji = `<span class="memo-emoji-im">${MASCOT_EMOJI[key] || '🔮'}</span>`;
-  return spriteImg(src, emoji, { size: null, title: 'Mémo' });
+  const fallback = MASCOT_EMOJI[key] || '🔮';
+  return `
+    <img class="im-memo-img" src="${src}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'">
+    <span class="memo-emoji-im" style="display:none">${fallback}</span>
+  `;
+}
+
+// Précharge tous les sprites Mémo une fois pour toutes. Permet de
+// court-circuiter le délai du tout premier <img> qui sinon s'affiche
+// vide ~150 ms le temps que la requête revienne.
+let memoSpritesPreloaded = false;
+function preloadMemoSprites() {
+  if (memoSpritesPreloaded) return;
+  memoSpritesPreloaded = true;
+  for (const src of Object.values(MASCOT_SPRITES)) {
+    const i = new Image();
+    i.src = src;
+  }
 }
 
 // API publique. onDone est appelé avec true si "Entrer dans l'Abîme",
@@ -272,6 +291,7 @@ function memoIntroSprite(key) {
 export function startMemoIntro({ onDone, replay = false } = {}) {
   injectCss();
   preloadCinematic();
+  preloadMemoSprites();
   const root = document.createElement('div');
   root.className = 'intro-memo-overlay';
   root.innerHTML = `
