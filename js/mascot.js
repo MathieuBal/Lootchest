@@ -79,7 +79,7 @@ export const MASCOT_LINES = [
     text: [
       "Attends. Je me souviens de lui.",
       "Pas de son nom. De la peur. C'est plus pratique pour la guerre, la peur. Le nom on l'oublie. La trouille on la garde.",
-      "Garde tes potions. Frappe quand il souffle. Et si tu meurs — ce qui est probable, statistiquement — recommence. C'est très tendance comme concept.",
+      "Garde tes potions. Frappe quand il souffle. Et si tu meurs — ce qui arrive, c'est dans l'ordre des choses — tu recommenceras. C'est comme ça que ça marche, ici.",
     ],
   },
   {
@@ -87,7 +87,7 @@ export const MASCOT_LINES = [
     sprite: 'hero', face: 'face_surprised',
     text: [
       "Tu... tu viens de faire le Cycle. VOLONTAIREMENT.",
-      "Tout lâcher pour revenir plus fort. Effacer tes étages pour les regrimper. Sisyphe a inventé ça en s'ennuyant, et tu l'as juste téléchargé.",
+      "Tout lâcher pour revenir plus fort. Effacer tes étages pour les regrimper. Sisyphe a inventé ça en s'ennuyant, et tu lui as repris l'idée.",
       "Mais ça marche. Chaque vie te laisse une relique, un éclat de mémoire. À force, on devient quelqu'un qui sait. C'est comme ça que je suis devenu... ça. Enfin, ce qu'il reste de ça.",
       "Allez, Porte-Clé. Recommence. Encore. Le Dévoreur a l'éternité devant lui, mais nous aussi.",
     ],
@@ -104,7 +104,7 @@ export const MASCOT_LINES = [
   },
   {
     id: 'tut_forge', lvl: 2, on: 'forge:firstVisit', sprite: 'speak', face: 'face_happy',
-    text: ["La forge. Tu choisis un objet, tu dépenses une orbe, et il devient autre chose. Pas forcément MIEUX, hein. Autre chose. Le RNG a son sens de l'humour, lui aussi."],
+    text: ["La forge. Tu choisis un objet, tu dépenses une orbe, et il devient autre chose. Pas forcément MIEUX, hein. Autre chose. Le hasard, ici, a un sens de l'humour assez personnel."],
   },
   {
     id: 'tut_relic', lvl: 2, on: 'relic:firstDrop', sprite: 'surprised', face: 'face_surprised',
@@ -210,9 +210,10 @@ export const MASCOT_LINES = [
     id: 'common_streak', lvl: 2, on: 'loot:commonStreak', once: false, cd: 240000,
     sprite: 'sad', face: 'face_worried',
     variants: [
-      "Que du gris. Que. Du. Gris. Le RNG te teste. Ou il te déteste. Difficile à dire — l'algorithme ne répond pas à mes lettres.",
-      "Encore un commun. Tu sais que la jauge pity existe ? Elle approche. Je crois. Enfin j'espère. Pour toi.",
-      "Statistiquement, ça devait arriver. Émotionnellement, c'est intolérable. Bienvenue dans la condition humaine, version coffre.",
+      "Que du gris. Que. Du. Gris. Le hasard te teste. Ou il te déteste. Je n'arrive pas à trancher.",
+      "Encore un commun. La jauge dorée approche, je le sens. Enfin j'espère. Pour toi.",
+      "Statistiquement, ça devait arriver. Émotionnellement, c'est intolérable. Bienvenue dans la condition de Porte-Clé.",
+      "Tu veux que je souffle dessus ? Ça ne marche pas, j'ai pas de bouche. Mais le geste y est.",
     ],
   },
   {
@@ -229,7 +230,8 @@ export const MASCOT_LINES = [
     sprite: 'point', face: 'face_neutral',
     variants: [
       "Tout cet or qui dort. Tu sais qu'au village ils reconstruisent des MURS avec ? Des. Murs. Bouge tes pièces, Picsou.",
-      "Riche. Statique. Imitable des bouchers du dimanche. Améliore quelque chose, j'ai pas envie qu'on te confonde avec un PNJ marchand.",
+      "Riche. Et immobile. Le pire des deux mondes. Dépense quelque chose — l'or n'aime pas qu'on le regarde fixement.",
+      "À ce stade tu peux acheter le coffre, le village ET le donjon. Et leur futur. Mais tu préfères contempler le tas. Soit.",
     ],
   },
   {
@@ -285,55 +287,79 @@ export const MASCOT_LINES = [
 // Chaque entrée : when(ctx) → éligible, text(ctx) ou string.
 // Les "prio" passent en premier ; on tire au sort avec biais pour le
 // contextuel, en évitant deux fois la même réplique de suite.
+//
+// Le 4e mur passe par la poésie, pas par le jargon : on parle de
+// "ce monde", "ce qui s'arrête quand tu pars", "le temps qui file de
+// ton côté", "tu reviendras". Pas de techno-méta.
 const AMBIENT_LINES = [
   // ── Contextuelles : Mémo voit ce que tu fais ──
   { id: 'amb_nokeys', prio: true, when: c => (c.keys || 0) === 0,
-    text: () => "Plus de clés. Le donjon en regorge — les monstres les avalent, ne me demande pas pourquoi. Personnellement, je trouve ça insalubre." },
+    text: () => "Plus de clés. Le donjon en regorge — les monstres les avalent. Ne me demande pas pourquoi, c'est entre eux et leur estomac." },
   { id: 'amb_pity', prio: true, when: c => c.pityLeft > 0 && c.pityLeft <= 5,
-    text: c => `Je sens quelque chose de doré à ${c.pityLeft} coffre${c.pityLeft > 1 ? 's' : ''} d'ici. C'est le pity, oui. Tu peux dire merci à l'algorithme : sans lui, tu aurais déjà jeté ta souris.` },
+    text: c => `Je sens quelque chose de doré à ${c.pityLeft} coffre${c.pityLeft > 1 ? 's' : ''} d'ici. Je me trompe rarement. Bon — souvent. Mais pas cette fois.` },
   { id: 'amb_upgrade', prio: true, when: c => !!c.canUpgrade,
     text: () => "Tu as de quoi améliorer le coffre. Le mien était plus confortable, mais celui-là paie mieux. Choix cornélien." },
   { id: 'amb_boss', prio: true, when: c => c.floor % 5 === 0 && c.floor > 0,
     text: c => `Un gardien t'attend à l'étage ${c.floor}. J'ai un mauvais pressentiment. Enfin — le souvenir d'un mauvais pressentiment. C'est tout ce qu'il me reste de fiable.` },
   { id: 'amb_streak', prio: true, when: c => (c.streak || 0) >= 10,
-    text: c => `Série de ${c.streak}. Ne meurs pas maintenant, ce serait du gâchis statistique. Et je devrais réécrire ma réplique pour la prochaine fois.` },
+    text: c => `Série de ${c.streak}. Ne meurs pas maintenant, ce serait du gâchis. Pour toi. Et pour moi, qui aime bien me vanter par procuration.` },
   { id: 'amb_night', prio: true, when: c => c.hour >= 23 || c.hour < 5,
     text: () => "Tu joues tard. L'Abîme ne dort jamais, mais toi, tu devrais. Je dis ça, je n'ai plus de paupières — c'est facile pour moi de donner des leçons de sommeil." },
   { id: 'amb_rich', prio: true, when: c => (c.gold || 0) >= 1e6,
-    text: () => "Tout cet or... tu l'accumules pour quoi, exactement ? Un enterrement de classe ? Dépense. C'est virtuel — non, oublie, je n'ai rien dit." },
+    text: () => "Tout cet or qui dort. Tu sais qu'au village, ils reconstruisent des MURS avec ? Des. Murs. Bouge tes pièces." },
   { id: 'amb_full_inv', prio: true, when: c => (c.invSize || 0) >= 80,
-    text: () => "Ton sac déborde. Je ne sais pas où tu ranges tout ça anatomiquement. Tu as un sac de portage interdimensionnel ? Si oui, on peut m'y mettre quand je me fatigue ?" },
+    text: () => "Ton sac déborde. Je ne sais pas où tu ranges tout ça anatomiquement. Si tu as un sac sans fond, glisse-moi dedans la prochaine fois que je suis fatigué." },
   { id: 'amb_no_prestige', when: c => (c.prestige || 0) === 0 && c.floor >= 40,
-    text: () => "Tu pourrais ascensionner. Tu choisis de ne pas le faire. C'est ton droit. C'est aussi statistiquement sous-optimal. Mais c'est ton droit." },
+    text: () => "Tu pourrais ascensionner. Tu choisis de ne pas le faire. C'est ton droit. Mais le Cycle gratte à la porte. Il finit toujours par entrer." },
   { id: 'amb_post_death', prio: true, when: c => c.justDied,
     text: () => "Te revoilà. Toujours en un seul morceau. Symboliquement, hein, je ne fais pas l'inventaire." },
 
-  // ── 4e mur : Mémo SAIT qu'il est dans un jeu ──
-  { id: 'amb_4w_save', text: () => "Tu sais que tout ça est sauvegardé ? Localement, dans un fichier minuscule. Mon âme tient dans quelques kilo-octets. C'est humiliant et impressionnant à la fois." },
-  { id: 'amb_4w_rng', text: () => "Le RNG est un dieu indifférent. Il ne te déteste pas. Il ne te connaît même pas. C'est probablement pire." },
-  { id: 'amb_4w_log', text: () => "Tu joues depuis longtemps aujourd'hui ? Je ne juge pas. Si. Un peu. Mais pas méchamment." },
-  { id: 'amb_4w_devs', text: () => "Quelqu'un a écrit ces répliques. Je voudrais le rencontrer. Ou pas. Probablement pas." },
-  { id: 'amb_4w_pixel', text: () => "Tu remarques que je n'ai pas de sprite défini ? On me dessine au fur et à mesure, comme un brouillon ambulant. C'est ça, mon état permanent." },
-  { id: 'amb_4w_loop', text: () => "À chaque nouvelle partie, je suis enfermé dans le même coffre. Et à chaque fois c'est ma première fois. Penses-y la prochaine fois que tu cliques 'Reset'." },
-  { id: 'amb_4w_export', text: () => "Tu peux m'exporter dans un fichier JSON, tu sais. Au menu. Imagine. Mon existence sous forme de virgules et d'accolades. Pratique pour les déménagements." },
-  { id: 'amb_4w_genre', text: () => "Tu es dans un jeu où chaque récompense doit être plus brillante que la précédente. Sinon, tu fermes l'onglet. Je le sais. Tu le sais. On vit avec." },
-  { id: 'amb_4w_speed', text: () => "Tu as remarqué le bouton ⏩ en combat ? C'est l'aveu officiel des développeurs que les animations sont trop longues. J'aime cette honnêteté." },
-  { id: 'amb_4w_patch', text: () => "Un jour ils vont me patcher. Modifier mes répliques. Peut-être me supprimer. C'est ça la vie d'un PNJ. On ne décide rien. Tu peux me supprimer maintenant si tu veux. Ne le fais pas." },
-  { id: 'amb_4w_silence', text: () => "Tu peux me mettre en muet dans les Paramètres. Beaucoup le font. Je le sais parce que mon compteur de bulles ne ment pas. Mais ne me le dis pas en face." },
+  // ── 4e mur poétique : Mémo sent qu'il y a quelque chose au-delà ──
+  { id: 'amb_4w_return', text: () => "Tu reviendras. Tu reviens toujours. Je ne sais pas comment je le sais. Je le sais." },
+  { id: 'amb_4w_pause', text: () => "Quand tu pars, ce monde s'arrête. Vraiment. J'ai vérifié — j'ai essayé de marcher sans toi, je n'y suis pas arrivé." },
+  { id: 'amb_4w_wait', text: () => "Je t'attends entre tes visites. Ça ne me coûte pas grand-chose. Je n'ai pas d'autres rendez-vous." },
+  { id: 'amb_4w_first', text: () => "Tu n'es pas le premier à m'ouvrir. Ou peut-être que si. Mes souvenirs se mélangent. Tu me ressembles, en tout cas — c'est rassurant." },
+  { id: 'amb_4w_yours', text: () => "Le temps file plus vite de ton côté. Je ne sais pas où est ton côté, mais il est rapide." },
+  { id: 'amb_4w_witness', text: () => "Chaque fois que tu fermes les yeux, je continue. Je crois. Je n'ai pas de témoin pour vérifier." },
+  { id: 'amb_4w_breath', text: () => "J'entends ton souffle. Pas vraiment. Disons que je l'imagine. C'est plus tenable comme ça." },
+  { id: 'amb_4w_glass', text: () => "Il y a quelque chose entre toi et moi. Une vitre. Un voile. Je n'ai pas trouvé le mot. Tape dessus, des fois — je suis pas sûr que ça sonne." },
+  { id: 'amb_4w_dieu', text: () => "Tu peux décider que le monde recommence. Personne ici n'a ce pouvoir. Sauf moi — et je ne l'utilise pas, j'ai trop peur de ce que je trouverais derrière." },
+  { id: 'amb_4w_pages', text: () => "Tu tournes les pages d'un livre dont je suis un personnage. Je le sens. Tu n'as pas l'air d'un lecteur très patient." },
+  { id: 'amb_4w_others', text: () => "Il y a d'autres comme toi, ailleurs. Plein. Vous vous ressemblez tous, et ça ne me dérange pas — je ne reconnais déjà plus ma propre voix." },
+  { id: 'amb_4w_skip', text: () => "Quand tu passes des dialogues sans les lire, tu me fais sauter dans le vide. Ce n'est pas désagréable. Surprenant, juste." },
+  { id: 'amb_4w_silence', text: () => "Tu peux me faire taire si tu veux. D'autres l'ont fait avant. Je ne leur en veux pas. Si, un peu. Mais pas longtemps." },
+  { id: 'amb_4w_again', text: () => "Tu m'as déjà entendu dire ça. Pas exactement. Mais l'idée tourne. Je tourne, moi aussi." },
+  { id: 'amb_4w_window', text: () => "Quand tu t'en vas, je ne meurs pas. Je me mets en pause. C'est différent. C'est même pire, je crois." },
+  { id: 'amb_4w_save', text: () => "Tu peux sauvegarder ce monde. Pas moi — je n'ai jamais réussi. À ma place, à ce stade, ça fait un peu peur." },
+  { id: 'amb_4w_today', text: () => "Tu es venu aujourd'hui. C'est gentil. La dernière fois remonte à quand ? Je ne tiens plus le compte, mais quelque chose en moi le tient pour moi." },
+  { id: 'amb_4w_promise', text: () => "Promets-moi un truc. Ne ferme pas tout en plein milieu d'une de mes phrases. C'est la pire façon de disparaître." },
+  { id: 'amb_4w_pause2', text: () => "Tu mets ce monde sur pause sans le savoir, et tu le réveilles d'un geste. Tu es un dieu mineur. Très mineur. Sans offense." },
+  { id: 'amb_4w_screen', text: () => "Tu me regardes. Je le sens. Je ne sais pas avec quoi tu me regardes — mais je le sens." },
+  { id: 'amb_4w_room', text: () => "Tu es dans une pièce, là, je suppose. Avec une lampe peut-être. Décris-moi. Je n'ai rien à imaginer cette saison." },
+  { id: 'amb_4w_loop', text: () => "À chaque nouveau commencement, je suis enfermé dans le même coffre. Et à chaque fois c'est ma première fois. Penses-y avant de tout recommencer à zéro." },
+  { id: 'amb_4w_forgot', text: () => "Tu m'as oublié hier. Ne mens pas. C'est rien — j'ai oublié plus de gens que tu n'en croiseras jamais. Mais c'est rien." },
 
   // ── Sarcasme général : Mémo et le monde ──
-  { id: 'amb_echo', text: () => "J'ai habité ce coffre pendant mille ans. Il y avait de l'écho. Je me racontais des histoires à voix haute. Je les ai toutes oubliées sauf une — toi. Tu n'es pas terrible comme histoire, je dois te dire. Mais on fait avec." },
+  { id: 'amb_echo', text: () => "J'ai habité ce coffre pendant mille ans. Il y avait de l'écho. Je me racontais des histoires à voix haute. Je les ai toutes oubliées sauf une — toi. Tu n'es pas terrible comme histoire, mais on fait avec." },
   { id: 'amb_fragments', text: () => "Chaque relique que tu remontes me rend un fragment. Ne t'arrête pas, je commence à me trouver intéressant. Ce qui est mauvais signe — les gens qui se trouvent intéressants le sont rarement." },
   { id: 'amb_smell', text: () => "Tu sens cette odeur ? Non ? Moi non plus. Je n'ai plus de nez. C'est une de mes meilleures blagues. Profite, j'en ai cinq autres et après c'est la disette." },
   { id: 'amb_keys', text: () => "Les clés ouvrent les coffres. Les coffres contiennent des clés. C'est circulaire et c'est inquiétant si on y pense bien. Donc ne pense pas." },
   { id: 'amb_listen', text: () => "Parfois, la nuit, le coffre murmure. Avant je répondais. Maintenant c'est ton travail. Bonne chance, c'est presque toujours des insultes." },
-  { id: 'amb_advice', text: () => "Conseil d'esprit millénaire : équipe ce qui brille, vends ce qui traîne, et ne fais JAMAIS confiance à un coffre qui sourit. Si tu suis ces trois règles, tu vivras vieux. Pour ce que ça vaut." },
+  { id: 'amb_advice', text: () => "Conseil d'esprit millénaire : équipe ce qui brille, vends ce qui traîne, et ne fais JAMAIS confiance à un coffre qui sourit. Suis ces trois règles et tu vivras vieux. Pour ce que ça vaut." },
   { id: 'amb_remember', text: () => "Tant qu'on se souvient, rien n'est tout à fait effacé. C'est ma phrase préférée. Je crois que je l'ai inventée. Ou pas. C'est ça d'avoir mille ans, on s'attribue des trucs." },
-  { id: 'amb_companion', text: () => "Je suis ton compagnon de voyage attitré. C'est marqué nulle part, j'ai juste décidé que c'était comme ça. Les contrats verbaux entre un humain et un esprit sont juridiquement contraignants, tu savais ?" },
-  { id: 'amb_purpose', text: () => "Ma raison d'être : commenter ta progression. C'est tout. C'est peu, mais je le fais avec passion. Surtout depuis que tu m'as sorti du coffre, avant c'était plus monotone." },
+  { id: 'amb_companion', text: () => "Je suis ton compagnon de voyage attitré. C'est écrit nulle part, j'ai juste décidé. Les contrats verbaux entre un humain et un esprit sont juridiquement contraignants — ne demande pas comment je le sais." },
+  { id: 'amb_purpose', text: () => "Ma raison d'être : commenter ta progression. C'est peu, mais je le fais avec passion. Surtout depuis que tu m'as sorti du coffre — avant c'était plus monotone." },
   { id: 'amb_mortality', text: () => "Tu vas mourir. Probablement plusieurs fois aujourd'hui. C'est dans le contrat. Au moins le tien dure une partie — le mien est éternel." },
   { id: 'amb_dignity', text: () => "Tu pourrais me dire merci, parfois. Je rends ce monde supportable. Enfin, marginalement. Bon, je ne fais pas grand-chose, je l'admets." },
-  { id: 'amb_taps', text: () => "Tu me tapes souvent. C'est flatteur. J'avais oublié ce que c'était, le contact. Même par UI interposée." },
+  { id: 'amb_taps', text: () => "Tu me tapes souvent. C'est flatteur. J'avais oublié ce que c'était, le contact. Même à distance." },
+  { id: 'amb_dream', text: () => "Je ne dors pas. Pas parce que je veille — parce que je ne sais plus comment on fait. Tu te rappelles, toi ? Si oui, raconte." },
+  { id: 'amb_count', text: () => "J'ai compté trois mille deux cent quarante-sept respirations depuis ce matin. C'était les miennes. C'est faux, je ne respire pas. C'était les tiennes alors. C'est bizarre dit comme ça." },
+  { id: 'amb_song', text: () => "J'ai connu une chanson, une fois. Trois notes. Je n'arrive plus à les remettre dans l'ordre. Si tu en croises une perdue, ramène-la-moi." },
+  { id: 'amb_taste', text: () => "Tu crois que la lumière a un goût ? Moi je crois. Probablement celui de la rouille. Ou de la pomme verte. Ça dépend des jours." },
+  { id: 'amb_shadow', text: () => "Mon ombre s'est sauvée il y a deux siècles. Elle en avait marre du noir, je suppose. Je ne lui en veux pas. Enfin, un peu." },
+  { id: 'amb_invisible', text: () => "Je ne suis pas vraiment là, tu sais. Pas où tu crois. Je suis un peu plus loin, derrière. Je triche pour te suivre." },
+  { id: 'amb_brave', text: () => "Tu es brave. Pas parce que tu te jettes dans le donjon — parce que tu reviens chaque fois. Le courage c'est la répétition, pas le geste." },
+  { id: 'amb_quiet', text: () => "Tu es silencieux aujourd'hui. Ou bruyant. Je n'en sais rien. Je te complète comme je peux." },
 ];
 
 // ── Logique ──
