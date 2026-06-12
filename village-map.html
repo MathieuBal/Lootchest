@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Lootchest — Village illustré</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --gold:#f0c463; --gold-dim:#a07424; --ink:#ece4f5; --ink2:#9a8fb8;
+    --panel:#171028; --bd:#3a2c52;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;background:#07050c;font-family:Inter,system-ui;color:var(--ink);overflow:hidden;}
+
+  /* ── Scene: the illustration keeps its 1672:941 ratio, covers viewport ── */
+  #scene{position:fixed;inset:0;overflow:hidden;}
+  #world{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    /* sized by JS to cover viewport while keeping ratio */}
+  #world img.lyr{position:absolute;inset:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-drag:none;}
+  #fx{animation:fxGlow 4.5s ease-in-out infinite;pointer-events:none;}
+  @keyframes fxGlow{0%,100%{opacity:.85}50%{opacity:1}}
+
+  /* ── Hotspots ── */
+  .spot{position:absolute;transform:translate(-50%,-50%);cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:2px;
+    -webkit-tap-highlight-color:transparent;}
+  .spot .ring{width:clamp(34px,4.5vw,52px);height:clamp(34px,4.5vw,52px);border-radius:50%;
+    border:2px solid rgba(240,196,99,0);background:radial-gradient(circle,rgba(240,196,99,.0) 55%,rgba(240,196,99,.10));
+    transition:.25s;display:flex;align-items:center;justify-content:center;}
+  .spot .lvl{font-family:"JetBrains Mono",monospace;font-size:11px;font-weight:600;color:var(--gold);
+    background:rgba(10,7,18,.78);border:1px solid var(--gold-dim);border-radius:999px;
+    min-width:24px;height:22px;padding:0 6px;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 8px rgba(0,0,0,.6);}
+  .spot .name{font-size:11.5px;font-weight:600;color:var(--ink);text-shadow:0 1px 4px #000,0 0 8px #000;
+    background:rgba(10,7,18,.55);padding:2px 8px;border-radius:6px;opacity:0;transform:translateY(-3px);transition:.25s;white-space:nowrap;}
+  .spot:hover .ring,.spot.active .ring{border-color:rgba(240,196,99,.85);box-shadow:0 0 18px rgba(240,196,99,.35);}
+  .spot:hover .name,.spot.active .name{opacity:1;transform:none;}
+  .spot.locked .lvl{color:#6a5f88;border-color:#3a2c52;}
+  .spot.locked .ring{filter:grayscale(1);}
+  .spot.constructing .lvl::after{content:"⏳";margin-left:3px;font-size:10px;}
+  .spot.upgradable .lvl{border-color:var(--gold);animation:spotPulse 2.4s ease-in-out infinite;}
+  @keyframes spotPulse{0%,100%{box-shadow:0 0 0 0 rgba(240,196,99,.45)}50%{box-shadow:0 0 0 7px rgba(240,196,99,0)}}
+
+  /* ── Top bar (resources) ── */
+  #topbar{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;gap:8px;align-items:center;
+    padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;
+    background:linear-gradient(180deg,rgba(7,5,12,.92),rgba(7,5,12,0));pointer-events:none;}
+  .res{font-family:"JetBrains Mono",monospace;font-size:12.5px;font-weight:600;color:var(--ink);
+    background:rgba(23,16,40,.85);border:1px solid var(--bd);border-radius:999px;padding:5px 12px;
+    display:flex;align-items:center;gap:6px;}
+  .res .ic{font-size:13px;}
+  #age{margin-left:auto;font-family:Cinzel,serif;font-size:13px;color:var(--gold);
+    background:rgba(23,16,40,.85);border:1px solid var(--gold-dim);border-radius:999px;padding:5px 14px;}
+
+  /* ── Building sheet (bottom card) ── */
+  #sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;transform:translateY(110%);transition:transform .32s cubic-bezier(.3,1.2,.4,1);
+    background:linear-gradient(165deg,#1c1530,#120d20);border-top:1px solid var(--bd);
+    border-radius:18px 18px 0 0;padding:16px 18px calc(env(safe-area-inset-bottom,0px) + 18px);
+    max-width:560px;margin:0 auto;box-shadow:0 -12px 40px rgba(0,0,0,.6);}
+  #sheet.open{transform:none;}
+  #sheet .shead{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+  #sheet .portrait{width:96px;height:96px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 60%,#241b3c,#120d20 75%);border:1px solid var(--bd);border-radius:12px;overflow:hidden;}
+  #sheet .portrait img{max-width:88%;max-height:88%;filter:drop-shadow(0 4px 10px rgba(0,0,0,.5));}
+  #sheet .portrait .emo{font-size:34px;}
+  #sheet .sname{font-family:Cinzel,serif;font-size:19px;color:var(--gold);}
+  #sheet .slvl{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--ink2);}
+  #sheet .sdesc{font-size:13.5px;line-height:1.55;color:var(--ink2);margin-bottom:14px;}
+  #sheet .sactions{display:flex;gap:10px;}
+  #sheet button{flex:1;height:46px;border-radius:10px;border:1px solid var(--bd);background:#241b3c;color:var(--ink);
+    font-family:Inter,system-ui;font-size:14px;font-weight:600;cursor:pointer;}
+  #sheet button.primary{background:linear-gradient(180deg,#f5c970,#d4a13a 55%,#a07424);color:#2a1a08;border:none;
+    box-shadow:inset 0 1px 0 rgba(255,240,200,.6),0 4px 14px rgba(0,0,0,.4);}
+  #sheet button:disabled{opacity:.45;cursor:default;}
+  #closeSheet{position:absolute;top:10px;right:12px;width:32px;height:32px;border-radius:50%;
+    background:#241b3c;border:1px solid var(--bd);color:var(--ink2);font-size:15px;cursor:pointer;}
+
+  /* ── Calibration mode ── */
+  #calib{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);left:12px;z-index:40;
+    font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--ink2);
+    background:rgba(23,16,40,.85);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;cursor:pointer;}
+  body.calib .spot .name{opacity:1;}
+  body.calib .spot .ring{border-color:rgba(122,208,255,.7);}
+</style>
+</head>
+<body>
+<div id="scene">
+  <div id="world">
+    <img class="lyr" src="assets/village/village_bg.png" alt="">
+    <div id="spots"></div>
+  </div>
+</div>
+
+<div id="topbar">
+  <div class="res"><span class="ic">🪙</span><span>12 480</span></div>
+  <div class="res"><span class="ic">🪵</span><span>1 250</span></div>
+  <div class="res"><span class="ic">🪨</span><span>840</span></div>
+  <div class="res"><span class="ic">👷</span><span>9/12</span></div>
+  <div id="age">Âge de la Pierre</div>
+</div>
+
+<div id="sheet">
+  <button id="closeSheet">✕</button>
+  <div class="shead"><div class="portrait" id="shPortrait"></div><div><div class="sname" id="shName">—</div><div class="slvl" id="shLvl"></div></div></div>
+  <div class="sdesc" id="shDesc"></div>
+  <div class="sactions">
+    <button id="shWorkers">Ouvriers −/+</button>
+    <button class="primary" id="shUpgrade">Améliorer · 🪵 300</button>
+  </div>
+</div>
+
+<button id="calib">⌖ calibrer</button>
+
+<script>
+(function(){
+  // ── Hotspots: % of the 1672×941 illustration. Ids = BUILDINGS de village.js ──
+  // état de démo : lvl 0 = verrouillé/non construit
+  const SPOTS = [
+    { id:'townhall',  name:'Mairie',          x:48.5, y:36,   lvl:3, state:'upgradable',
+      desc:"Le cœur du village. Son niveau débloque les autres bâtiments et fait avancer les Âges." },
+    { id:'houses',    name:'Maisons',         x:22,   y:21,   lvl:2, state:'',
+      desc:"+3 ouvriers par niveau." },
+    { id:'sawmill',   name:'Scierie',         x:61,   y:19,   lvl:2, state:'',
+      desc:"Produit du bois (par ouvrier/min)." },
+    { id:'quarry',    name:'Carrière',        x:11,   y:38,   lvl:1, state:'',
+      desc:"Produit de la pierre (par ouvrier/min)." },
+    { id:'locksmith', name:'Serrurerie',      x:55.5, y:82,   lvl:1, state:'',
+      desc:"Forge des clés de coffre (par ouvrier/min)." },
+    { id:'market',    name:'Marché',          x:73,   y:46,   lvl:1, state:'constructing',
+      desc:"+6% prix de vente par niveau et débloque la vente auto." },
+    { id:'forge',     name:'Forge',           x:82,   y:79,   lvl:0, state:'locked',
+      desc:"Forge tes propres armes et armures (niveau = tier max). Requiert Mairie niv 3." },
+    { id:'observatory',name:'Observatoire',   x:88.5, y:9,    lvl:0, state:'locked',
+      desc:"+3% de chance d'objets rares ou mieux par niveau. Requiert Mairie niv 3." },
+    { id:'barracks',  name:'Caserne',         x:88,   y:42,   lvl:0, state:'locked',
+      desc:"+4% dégâts et +4% PV max par niveau. Requiert Mairie niv 4." },
+    { id:'guild',     name:'Guilde',          x:70,   y:64,   lvl:0, state:'locked',
+      desc:"+1 contrat actif et relances moins chères. Requiert Mairie niv 4." },
+    { id:'foundry',   name:'Fonderie',        x:12,   y:72,   lvl:0, state:'locked',
+      desc:"Produit du métal (par ouvrier/min). Requiert Mairie niv 5." },
+    { id:'vault',     name:'Trésorerie',      x:31,   y:55,   lvl:0, state:'locked',
+      desc:"+5% d'or gagné en donjon par niveau. Requiert Mairie niv 5." },
+    { id:'orbworks',  name:"Atelier d'orbes", x:37,   y:77,   lvl:0, state:'locked',
+      desc:"Produit des orbes de forge (par ouvrier/min). Requiert Mairie niv 6." },
+    { id:'sanctuary', name:'Sanctuaire',      x:69.5, y:8.5,  lvl:0, state:'locked',
+      desc:"Distille de l'essence, requise pour forger l'ancestral. Requiert Mairie niv 8." },
+  ];
+
+  // portraits dispo (assets/village/buildings/<id>.png) ; les autres affichent l'emoji
+  const PORTRAITS={townhall:1,houses:1,sawmill:1,quarry:1,locksmith:1,market:1,forge:1,observatory:1,barracks:1,guild:1,foundry:1,vault:1,orbworks:1,sanctuary:1};
+  const EMOJI={townhall:'🏛️',houses:'🏠',sawmill:'🪓',quarry:'⛏️',locksmith:'🗝️',market:'🏪',forge:'⚒️',observatory:'🔭',barracks:'⚔️',guild:'📜',foundry:'🏭',vault:'🏦',orbworks:'🔮',sanctuary:'💠'};
+
+  const world=document.getElementById('world'), spotsRoot=document.getElementById('spots');
+  const RATIO=1672/941;
+
+  // cover-fit the world in the viewport
+  function fit(){
+    const vw=innerWidth, vh=innerHeight;
+    let w,h;
+    if(vw/vh>RATIO){ w=vw; h=vw/RATIO; } else { h=vh; w=vh*RATIO; }
+    // allow slight overzoom on phones so buildings stay tappable
+    if(vw<700){ w*=1.45; h*=1.45; }
+    world.style.width=w+'px'; world.style.height=h+'px';
+  }
+  addEventListener('resize',fit); fit();
+
+  // drag/pan on mobile (when overzoomed)
+  let ox=0, oy=0, dragging=false, sx=0, sy=0;
+  function clampPan(){
+    const mw=Math.max(0,(world.offsetWidth-innerWidth)/2);
+    const mh=Math.max(0,(world.offsetHeight-innerHeight)/2);
+    ox=Math.max(-mw,Math.min(mw,ox)); oy=Math.max(-mh,Math.min(mh,oy));
+    world.style.transform=`translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px))`;
+  }
+  const scene=document.getElementById('scene');
+  scene.addEventListener('pointerdown',e=>{dragging=true;sx=e.clientX-ox;sy=e.clientY-oy;});
+  addEventListener('pointermove',e=>{if(!dragging)return;ox=e.clientX-sx;oy=e.clientY-sy;clampPan();});
+  addEventListener('pointerup',()=>dragging=false);
+
+  // spots
+  const sheet=document.getElementById('sheet');
+  let activeSpot=null;
+  SPOTS.forEach(s=>{
+    const el=document.createElement('div');
+    el.className='spot '+s.state; el.style.left=s.x+'%'; el.style.top=s.y+'%';
+    el.dataset.id=s.id;
+    el.innerHTML=`<div class="ring"><div class="lvl">${s.state==='locked'?'🔒':'Nv '+s.lvl}</div></div><div class="name">${s.name}</div>`;
+    el.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      document.querySelectorAll('.spot.active').forEach(x=>x.classList.remove('active'));
+      el.classList.add('active'); activeSpot=el;
+      document.getElementById('shName').textContent=s.name;
+      document.getElementById('shPortrait').innerHTML=PORTRAITS[s.id]
+        ?`<img src="assets/village/buildings/${s.id}.png" alt="">`
+        :`<span class="emo">${EMOJI[s.id]||'🏗️'}</span>`;
+      document.getElementById('shLvl').textContent=s.state==='locked'?'Verrouillé':'Niveau '+s.lvl;
+      document.getElementById('shDesc').textContent=s.desc;
+      const up=document.getElementById('shUpgrade');
+      up.disabled=s.state==='locked'||s.state==='constructing';
+      up.textContent=s.state==='constructing'?'En construction…':s.state==='locked'?'Verrouillé':'Améliorer · 🪵 300';
+      document.getElementById('shWorkers').style.display=['houses','sawmill','quarry','locksmith','foundry','orbworks','sanctuary'].includes(s.id)&&s.state!=='locked'?'':'none';
+      sheet.classList.add('open');
+    });
+    spotsRoot.appendChild(el);
+  });
+  document.getElementById('closeSheet').onclick=()=>{sheet.classList.remove('open');document.querySelectorAll('.spot.active').forEach(x=>x.classList.remove('active'));};
+  scene.addEventListener('click',()=>{sheet.classList.remove('open');document.querySelectorAll('.spot.active').forEach(x=>x.classList.remove('active'));});
+
+  // calibration helper: click toggles, then click anywhere prints %
+  const calBtn=document.getElementById('calib');
+  let cal=false;
+  calBtn.onclick=()=>{cal=!cal;document.body.classList.toggle('calib',cal);calBtn.textContent=cal?'⌖ calibrage ON (clic = % en console)':'⌖ calibrer';};
+  world.addEventListener('click',e=>{
+    if(!cal)return;
+    const r=world.getBoundingClientRect();
+    const x=((e.clientX-r.left)/r.width*100).toFixed(1), y=((e.clientY-r.top)/r.height*100).toFixed(1);
+    console.log(`x:${x}, y:${y}`);
+    calBtn.textContent=`⌖ x:${x} y:${y}`;
+  });
+})();
+</script>
+</body>
+</html>

@@ -27,6 +27,7 @@ import { affinitySummary } from './affinities.js';
 import { canDive, getSession, DIVE_BOON_BY_ID } from './dive.js';
 import * as Village from './village.js';
 import { buildingArtSVG } from './villageArt.js';
+import { renderVillageMap } from './villageMap.js';
 import { introSlides } from './cinematic.js';
 import * as Story from './story.js';
 import { rerollCost as bountyRerollCost } from './bounties.js';
@@ -257,7 +258,7 @@ function renderMobile() {
   const screen = SCREENS[nav.tab] ? SCREENS[nav.tab]() : `<div class="screen-pad">Écran inconnu</div>`;
   appEl.innerHTML = `
     ${topHUD()}
-    <main class="screen scroll" data-screen="${nav.tab}">${screen}</main>
+    <main class="screen ${nav.tab === 'village' ? 'screen-fill' : 'scroll'}" data-screen="${nav.tab}">${screen}</main>
     ${tabBar()}`;
 }
 
@@ -268,7 +269,7 @@ function renderDesktop() {
       ${railNav()}
       <div class="desktop-main">
         ${topHUD()}
-        <main class="screen scroll" data-screen="${nav.tab}">${builder()}</main>
+        <main class="screen ${nav.tab === 'village' ? 'screen-fill' : 'scroll'}" data-screen="${nav.tab}">${builder()}</main>
       </div>
     </div>`;
 }
@@ -748,6 +749,7 @@ const DESKTOP_SCREENS = {
   hub: dtHub,
   dungeon: dtDungeon,
   inventory: dtInventory,
+  village: () => renderVillageMap(),
 };
 
 // ⑮ Hub desktop — center chest · right info panel
@@ -1565,115 +1567,7 @@ function ovIntro() {
 
 // ── Village = a visual scene (prominent top-level tab) ───────
 function screenVillage() {
-  const { wood, stone, metal, essence } = Village.woodStone();
-  const r = Village.rates();
-  const age = Village.currentAge();
-  const banner = `<div class="vlg-banner">
-      <div class="vlg-banner-title">
-        <span class="vlg-crest">${age.emoji}</span>
-        <span><span class="display vlg-bn">Village</span>
-        <span class="smallcap vlg-bs">${age.name} · prospérité ${Village.prosperity()}</span></span>
-      </div>
-      <div class="vlg-resbar">
-        <span class="vlg-r" title="Bois">🪵 ${fmt(wood)}<em>+${r.wood.toFixed(0)}</em></span>
-        <span class="vlg-r" title="Pierre">🪨 ${fmt(stone)}<em>+${r.stone.toFixed(0)}</em></span>
-        <span class="vlg-r" title="Métal">⚙️ ${fmt(metal)}<em>+${r.metal.toFixed(1)}</em></span>
-        ${(essence > 0 || r.essence > 0) ? `<span class="vlg-r" title="Essence">💠 ${fmt(essence)}<em>+${r.essence.toFixed(1)}</em></span>` : ''}
-        ${r.orbs > 0 ? `<span class="vlg-r" title="Orbes/min">🔮<em>+${r.orbs.toFixed(2)}</em></span>` : ''}
-        <span class="vlg-r" title="Ouvriers">👷 ${Village.workersUsed()}/${Village.workerCap()}</span>
-      </div>
-    </div>`;
-
-  // Town hall is the centerpiece plot.
-  const thLvl = Village.townhall();
-  const thReady = Village.canUpgradeTownhall();
-  const thCs = Village.constructionState();
-  let mairie;
-  if (thCs && thCs.id === 'townhall') {
-    const elapsed = thCs.durationMs - thCs.remainingMs;
-    mairie = `<button class="vp vp-mairie vp-building" data-village-open="townhall">
-      <span class="vp-badge">→ niv ${thCs.level}</span>
-      <span class="vp-art vp-tile vp-ghost">${buildingArtSVG('mairie', thCs.level, 72)}<span class="vp-scaffold">🏗️</span></span>
-      <span class="vp-name">Mairie</span>
-      <div class="vp-buildbar"><div class="vp-buildbar-fill" style="animation: vp-build ${thCs.durationMs}ms linear ${-elapsed}ms forwards"></div></div>
-      <span class="vp-sub smallcap">⏳ ${Math.ceil(thCs.remainingMs / 1000)}s</span></button>`;
-  } else {
-    mairie = `<button class="vp vp-mairie${thReady ? ' vp-ready' : ''}" data-village-open="townhall">
-      <span class="vp-badge">niv ${thLvl}</span>
-      <span class="vp-art vp-tile">${buildingArtSVG('mairie', thLvl, 72)}</span>
-      <span class="vp-name">Mairie</span>
-      <span class="vp-sub smallcap">${Village.producersBuilt()}/${Village.buildingSlots()} emplacements${thReady ? ' · ⬆ prête' : ''}</span>
-    </button>`;
-  }
-
-  const cs = Village.constructionState();
-  const plots = Village.BUILDINGS.map(b => {
-    const lvl = Village.levelOf(b.id);
-    const unlocked = Village.isUnlocked(b.id);
-    // Under construction: scaffolding + progress bar (smooth via negative-delay anim).
-    if (cs && cs.id === b.id) {
-      const elapsed = cs.durationMs - cs.remainingMs;
-      const secs = Math.ceil(cs.remainingMs / 1000);
-      return `<button class="vp vp-building" data-village-open="${b.id}">
-        <span class="vp-badge">→ niv ${cs.level}</span>
-        <span class="vp-art vp-tile vp-ghost">${buildingArtSVG(b.id, cs.level, 56)}<span class="vp-scaffold">🏗️</span></span>
-        <span class="vp-name">${b.name}</span>
-        <div class="vp-buildbar"><div class="vp-buildbar-fill" style="animation: vp-build ${cs.durationMs}ms linear ${-elapsed}ms forwards"></div></div>
-        <span class="vp-sub smallcap">⏳ ${secs}s</span></button>`;
-    }
-    if (!unlocked) {
-      return `<div class="vp vp-locked" title="Mairie niv ${b.townhallReq}">
-        <span class="vp-art">🔒</span><span class="vp-name">${b.name}</span>
-        <span class="vp-sub smallcap">Mairie niv ${b.townhallReq}</span></div>`;
-    }
-    if (lvl === 0) {
-      const can = Village.canBuild(b.id);
-      return `<button class="vp vp-empty${can ? ' vp-can' : ''}" data-village-open="${b.id}">
-        <span class="vp-art vp-tile vp-ghost">${buildingArtSVG(b.id, 1, 56)}</span>
-        <span class="vp-name">${b.name}</span>
-        <span class="vp-sub smallcap">${can ? '🔨 Construire' : 'Construire'}</span></button>`;
-    }
-    // Built: show activity at a glance.
-    let activity = '';
-    if (b.kind === 'producer') { const rn = Village.ratePerMin(b.id); activity = `${workerDots(b.id)}<span class="vp-sub smallcap">${rn ? `+${rn.toFixed(1)}/min` : '⚠ sans ouvrier'}</span>`; }
-    else if (b.kind === 'houses') activity = `<span class="vp-sub smallcap">👷 ${Village.workerCap()} ouvriers</span>`;
-    else if (b.id === 'forge') activity = `<span class="vp-sub smallcap">⚒️ tier ${Village.maxCraftTier()}</span>`;
-    else if (b.id === 'barracks') activity = `<span class="vp-sub smallcap gold-text">+${lvl * 4}% dmg/PV</span>`;
-    else if (b.id === 'market') activity = `<span class="vp-sub smallcap gold-text">+${lvl * 6}% vente</span>`;
-    else if (b.id === 'guild') activity = `<span class="vp-sub smallcap gold-text">+${lvl} contrat</span>`;
-    else if (b.id === 'vault') activity = `<span class="vp-sub smallcap gold-text">+${lvl * 5}% or</span>`;
-    else if (b.id === 'observatory') activity = `<span class="vp-sub smallcap gold-text">+${lvl * 3}% rares</span>`;
-    const ready = Village.canBuild(b.id);
-    return `<button class="vp vp-built${ready ? ' vp-ready' : ''}" data-village-open="${b.id}">
-        <span class="vp-badge">niv ${lvl}</span>
-        <span class="vp-art vp-tile">${buildingArtSVG(b.id, lvl, 56)}</span>
-        <span class="vp-name">${b.name}</span>
-        ${activity}
-      </button>`;
-  }).join('');
-
-  const fireflies = Array.from({ length: 7 }, (_, i) => `<span class="vlg-fly vlg-fly${i % 4}"></span>`).join('');
-  return `<div class="vlg-screen">
-    ${banner}
-    <div class="vlg-scene">
-      <div class="vlg-sky">
-        <div class="vlg-sun"></div>
-        <div class="vlg-cloud vlg-cloud1"></div>
-        <div class="vlg-cloud vlg-cloud2"></div>
-        <div class="vlg-cloud vlg-cloud3"></div>
-      </div>
-      <svg class="vlg-hills" viewBox="0 0 100 20" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M0,20 L0,12 Q15,4 30,10 T60,8 T100,11 L100,20 Z" fill="#243a1c"/>
-        <path d="M0,20 L0,15 Q20,9 42,13 T80,12 T100,14 L100,20 Z" fill="#2f4a23"/>
-      </svg>
-      <div class="vlg-ground">
-        <div class="vlg-flies">${fireflies}</div>
-        <div class="vlg-mairie-row">${mairie}</div>
-        <div class="vlg-plots">${plots}</div>
-      </div>
-    </div>
-    <p class="vlg-hint smallcap">Touche un bâtiment pour le gérer. Le donjon est ton robinet principal de ressources ; les bâtiments produisent en continu (hors-ligne plafonné 8h).</p>
-  </div>`;
+  return renderVillageMap();
 }
 
 // Construction status line for the detail overlay.
@@ -1692,7 +1586,7 @@ function ovVillageBuilding({ id } = {}) {
     const floorMet = Village.townhallFloorMet();
     const thCan = Village.canUpgradeTownhall();
     const inner = `<div class="vb-detail">
-        <div class="vb-art vp-tile">${buildingArtSVG('mairie', thLvl, 96)}</div>
+        <div class="vb-portrait"><img src="assets/village/buildings/townhall.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'vb-portrait-emoji',textContent:'🏛️'}))"></div>
         <div class="vb-info">
           <div class="display">Mairie · niv ${thLvl}</div>
           <p class="smallcap">Plafonne le niveau des bâtiments (max ${thLvl}) et le nombre d'emplacements de production (${Village.producersBuilt()}/${Village.buildingSlots()}). Faire monter la Mairie ouvre les Âges et de nouveaux bâtiments.</p>
@@ -1729,7 +1623,7 @@ function ovVillageBuilding({ id } = {}) {
   else if (b.id === 'observatory') body = lvl ? `<div class="smallcap gold-text">+${lvl * 3}% de chance d'objets rares+</div>` : '';
   const btnLabel = lvl === 0 ? 'Construire' : (capped ? `Niveau max (Mairie ${Village.townhall()})` : `Améliorer → niv ${lvl + 1}`);
   const inner = `<div class="vb-detail">
-      <div class="vb-art vp-tile">${buildingArtSVG(b.id, lvl || 1, 96)}</div>
+      <div class="vb-portrait"><img src="assets/village/buildings/${b.id}.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'vb-portrait-emoji',textContent:'${b.emoji}'}))"></div>
       <div class="vb-info">
         <div class="display">${b.name}${lvl ? ` · niv ${lvl}` : ''}</div>
         <p class="smallcap">${b.desc}</p>
