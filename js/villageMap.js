@@ -124,17 +124,24 @@ function applyDims(screen) {
   const r = scene.getBoundingClientRect();
   const vw = r.width, vh = r.height;
   if (vw < 100 || vh < 100) return; // pas encore monté
-  let w, h;
-  if (vw / vh > RATIO) { w = vw; h = vw / RATIO; }
-  else { h = vh; w = vh * RATIO; }
-  // Sur-zoom mobile : la carte reste lisible et chaque bâtiment tappable.
   const overzoom = vw < 700;
-  if (overzoom) { w *= 1.45; h *= 1.45; scene.classList.add('vmap-pan'); }
-  else { scene.classList.remove('vmap-pan'); }
+  let w, h;
+  if (overzoom) {
+    // Mobile : on couvre toute la zone (cover), puis sur-zoom 1.45 pour
+    // garder les bâtiments tappables. Le pan natif gère le débordement.
+    if (vw / vh > RATIO) { w = vw; h = vw / RATIO; }
+    else { h = vh; w = vh * RATIO; }
+    w *= 1.45; h *= 1.45;
+    scene.classList.add('vmap-pan');
+  } else {
+    // PC : on s'assure que la carte tient en entier (contain). Léger
+    // lettrebox toléré, mais aucun bâtiment ne sort de l'écran.
+    if (vw / vh > RATIO) { h = vh; w = vh * RATIO; }
+    else { w = vw; h = vw / RATIO; }
+    scene.classList.remove('vmap-pan');
+  }
   world.style.width = w + 'px';
   world.style.height = h + 'px';
-  // Centrage. En mode pan natif (overflow:auto), on restaure la position
-  // antérieure si on en a une, sinon on centre.
   if (overzoom) {
     scene.scrollLeft = (savedScrollX != null) ? savedScrollX : Math.max(0, (w - vw) / 2);
     scene.scrollTop = (savedScrollY != null) ? savedScrollY : Math.max(0, (h - vh) / 2);
