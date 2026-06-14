@@ -74,11 +74,12 @@ function build() {
   canvas = document.createElement('canvas');
   canvas.className = 'vmap-fxcanvas';
   ctx = canvas.getContext('2d');
-  smokeDot = dot('rgba(196,190,206,0.55)');
+  // Fumée plus dense et un peu plus sombre : lisible sur la peinture claire.
+  smokeDot = dot('rgba(210,206,218,0.8)');
   emberDot = dot('rgba(255,168,60,1)');
   flyDot   = dot('rgba(255,238,150,1)');
   sparkDot = dot('rgba(215,238,255,1)');
-  flies = Array.from({ length: 14 }, (_, i) => ({
+  flies = Array.from({ length: 18 }, (_, i) => ({
     cx: [8, 16, 30, 55, 77, 88, 12, 40][i % 8] + Math.random() * 6,
     cy: [90, 60, 90, 92, 90, 70, 80, 88][i % 8] + Math.random() * 4 - 2,
     rx: 1.2 + Math.random() * 1.8, ry: 0.8 + Math.random() * 1.2,
@@ -162,20 +163,20 @@ function frame(now) {
     acc.set(key, a);
   };
 
-  SMOKE.forEach((e, i) => emit('s' + i, 1.9, () => P.push({
+  SMOKE.forEach((e, i) => emit('s' + i, 2.6, () => P.push({
     k: 'smoke', x: e[0] + (Math.random() - 0.5) * 0.5, y: e[1],
-    vx: wind * 0.6 + (Math.random() - 0.5) * 0.3, vy: -(1.3 + Math.random() * 1.1),
-    life: 3.2 + Math.random() * 1.8, age: 0, s: 0.5 + Math.random() * 0.25, ph: Math.random() * 7,
+    vx: wind * 0.6 + (Math.random() - 0.5) * 0.3, vy: -(1.6 + Math.random() * 1.2),
+    life: 3.4 + Math.random() * 2.0, age: 0, s: 1.1 + Math.random() * 0.7, ph: Math.random() * 7,
   })));
-  EMBERS.forEach((e, i) => emit('e' + i, 5, () => P.push({
+  EMBERS.forEach((e, i) => emit('e' + i, 7, () => P.push({
     k: 'ember', x: e[0] + (Math.random() - 0.5) * 0.8, y: e[1],
     vx: (Math.random() - 0.5) * 1.2, vy: -(2.5 + Math.random() * 3),
-    life: 0.7 + Math.random() * 0.9, age: 0, s: 0.12 + Math.random() * 0.14, ph: Math.random() * 7,
+    life: 0.8 + Math.random() * 1.0, age: 0, s: 0.22 + Math.random() * 0.20, ph: Math.random() * 7,
   })));
-  emit('pond', 1.4, () => P.push({
+  emit('pond', 2.0, () => P.push({
     k: 'spark', x: POND[0] + Math.random() * (POND[1] - POND[0]),
     y: POND[2] + Math.random() * (POND[3] - POND[2]), vx: 0, vy: 0,
-    life: 0.9, age: 0, s: 0.16 + Math.random() * 0.1, ph: 0,
+    life: 1.0, age: 0, s: 0.30 + Math.random() * 0.16, ph: 0,
   }));
 
   nextBirds -= dt;
@@ -194,7 +195,9 @@ function frame(now) {
     p.x += p.vx * dt; p.y += p.vy * dt;
     if (p.k === 'smoke') {
       p.x += Math.sin(t * 0.8 + p.ph) * 0.12 * dt * 8;
-      const a = 0.55 * Math.min(f * 4, 1) * (1 - f);
+      // Montée à ~0.8 d'alpha en début de vie puis fondu : les panaches de
+      // cheminée doivent vraiment se voir, y compris en plein jour.
+      const a = 0.8 * Math.min(f * 4, 1) * (1 - f);
       const s = S(p.s * (1 + f * 2.2));
       ctx.globalAlpha = a; ctx.drawImage(smokeDot, X(p.x) - s, Y(p.y) - s, s * 2, s * 2);
     } else if (p.k === 'ember') {
@@ -218,9 +221,9 @@ function frame(now) {
   for (const fl of flies) {
     const x = fl.cx + Math.sin(t * fl.sp + fl.p1) * fl.rx;
     const y = fl.cy + Math.sin(t * fl.sp * 1.37 + fl.p2) * fl.ry;
-    const a = Math.pow(Math.max(0, Math.sin(t * fl.bl + fl.p1)), 3) * 0.85;
+    const a = Math.pow(Math.max(0, Math.sin(t * fl.bl + fl.p1)), 3) * 1.0;
     if (a < 0.02) continue;
-    const s = S(0.14);
+    const s = S(0.26);
     ctx.globalAlpha = a; ctx.drawImage(flyDot, X(x) - s, Y(y) - s, s * 2, s * 2);
   }
   ctx.globalCompositeOperation = 'source-over';
