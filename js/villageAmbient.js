@@ -113,22 +113,27 @@ function sizeCanvas(world) {
 }
 
 // Cycle jour/nuit branché sur l'heure réelle. nightness 0 = soir (l'art
-// d'origine), 1 = nuit profonde. Le jour, la teinte disparaît : on revoit
-// la peinture telle quelle.
+// d'origine), 1 = nuit profonde. Plancher à 0.2 pour qu'en plein jour la
+// scène garde un peu d'atmosphère (sinon halos à 0.4 d'opacité = invisibles
+// sur la peinture déjà lumineuse, et le PC y reste plus longtemps sans
+// changement perceptible).
 function nightnessNow() {
   const d = new Date();
   const hr = d.getHours() + d.getMinutes() / 60;
-  if (hr < 5)  return 1;
-  if (hr < 8)  return 1 - (hr - 5) / 3;   // aube 5→8
-  if (hr < 18) return 0;                   // jour
-  if (hr < 21) return (hr - 18) / 3;       // crépuscule 18→21
-  return 1;                                // nuit 21→24
+  let n;
+  if (hr < 5)  n = 1;
+  else if (hr < 8)  n = 1 - (hr - 5) / 3;   // aube 5→8
+  else if (hr < 18) n = 0;                  // jour
+  else if (hr < 21) n = (hr - 18) / 3;      // crépuscule 18→21
+  else n = 1;                               // nuit 21→24
+  return Math.max(0.2, n);                  // plancher : jamais complètement plat
 }
 
 function applyTod(n) {
   tintEl.style.opacity = (n * 0.55).toFixed(3);
   vigEl.style.opacity = (n * 0.7).toFixed(3);
-  ambientEl.style.opacity = (0.4 + n * 0.6).toFixed(3);
+  // Halos toujours visibles (min 0.7), saturent vraiment la nuit.
+  ambientEl.style.opacity = Math.min(1, 0.7 + n * 0.3).toFixed(3);
 }
 
 function frame(now) {
@@ -189,7 +194,7 @@ function frame(now) {
     p.x += p.vx * dt; p.y += p.vy * dt;
     if (p.k === 'smoke') {
       p.x += Math.sin(t * 0.8 + p.ph) * 0.12 * dt * 8;
-      const a = 0.34 * Math.min(f * 4, 1) * (1 - f);
+      const a = 0.55 * Math.min(f * 4, 1) * (1 - f);
       const s = S(p.s * (1 + f * 2.2));
       ctx.globalAlpha = a; ctx.drawImage(smokeDot, X(p.x) - s, Y(p.y) - s, s * 2, s * 2);
     } else if (p.k === 'ember') {
