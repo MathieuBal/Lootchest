@@ -923,7 +923,11 @@ function paramsKey(p) {
 // where DOM thrash actively breaks taps and animations.
 const STATIC_OVERLAYS = new Set([
   'help', 'forgeGuide', 'settings', 'menu', 'onboarding', 'intro',
-  'ascension', 'relicChoice', 'diveBoon', 'diveSummary', 'story',
+  'ascension', 'relicChoice', 'diveBoon', 'diveSummary',
+  // 'story' RETIRÉ : la Chronique doit se rafraîchir au notify() pour
+  // que le bouton "Accomplir ce chapitre" apparaisse dès que l'objectif
+  // est rempli, et que la liste avance après un claim. Pas de tap
+  // sensible dedans donc la reconstruction du DOM n'est pas gênante.
   'mimic',  // mimic is driven explicitly by refreshMimic()
   'bulkResult',
   // La fiche d'un bâtiment ne doit pas se reconstruire à chaque tick du
@@ -1112,16 +1116,24 @@ export function getCurrentDrop() { return currentDrop; }
 export function showDropPopup(item) { currentDrop = item; navOverlay('loot', {}); }
 export function hideDropPopup() { currentDrop = null; if (nav.overlay === 'loot') closeOverlay(); }
 
-// ── Sprite helper: picks PNG when present, falls back to boss SVG / emoji ──
+// ── Sprite helper: rend toujours un <img> direct (le combat overlay est
+// verrouillé contre les re-renders mid-animation, donc l'approche probe
+// async de spriteImg laisserait le fallback emoji en place pour toujours
+// au premier encounter d'un monstre. onerror swap vers le fallback si le
+// PNG manque vraiment).
+function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;'); }
 function monsterSpriteHTML(monster, size) {
-  if (monster.isBoss) {
-    const fallback = hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, size) : `<span style="font-size:${Math.round(size * 0.8)}px">${monster.emoji}</span>`;
-    return spriteImg(bossSpriteSrcByName(monster.name, { hires: true }), fallback, { size, title: monster.name });
-  }
-  const png = monsterSpriteSrc(monster.name, { hires: true });
-  const fallback = `<span style="font-size:${Math.round(size * 0.8)}px">${monster.emoji}</span>`;
-  if (png) return spriteImg(png, fallback, { size, title: monster.name });
-  return fallback;
+  const isBoss = !!monster.isBoss;
+  const png = isBoss ? bossSpriteSrcByName(monster.name, { hires: true })
+                     : monsterSpriteSrc(monster.name, { hires: true });
+  const fallback = isBoss
+    ? (hasBossSprite(monster.name) ? bossSpriteSVG(monster.name, size) : `<span style="font-size:${Math.round(size * 0.8)}px">${monster.emoji}</span>`)
+    : `<span style="font-size:${Math.round(size * 0.8)}px">${monster.emoji}</span>`;
+  if (!png) return fallback;
+  // outerHTML stocké en attribut data-fallback pour qu'onerror puisse le
+  // restituer sans interpolation JS (et survivre aux quotes du SVG).
+  const fb = escapeAttr(fallback);
+  return `<img src="${png}" alt="${escapeAttr(monster.name)}" title="${escapeAttr(monster.name)}" class="pixel-sprite" width="${size}" height="${size}" data-fb="${fb}" onerror="this.outerHTML = this.dataset.fb">`;
 }
 
 // ── Mimic encounter ──────────────────────────────────────────

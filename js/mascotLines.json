@@ -4,367 +4,1702 @@
     "lines": "Répliques déclenchées par un événement de jeu (on). 'text' = suite de bulles (lvl 1) ou 1 bulle. 'variants' = pool tiré au hasard sans répéter la précédente. once:false + cd (ms) = rejouable avec son propre délai.",
     "ambient": "Répliques au tap sur Mémo (hub). 'cond' (optionnel) = condition d'éligibilité parmi: nokeys, pityLow, canUpgrade, boss, streak, night, rich, fullInv, noPrestige, justDied, broke, deep, veteran. 'prio':true = passe en priorité quand sa condition est vraie. Placeholders dans le texte: {floor} {streak} {pityLeft} {pityS}.",
     "sprites": "Poses possibles: idle, speak, point, surprised, sad, fly, hero. Visages: face_neutral, face_happy, face_surprised, face_worried.",
-    "ton": "Esprit millénaire enfermé mille ans dans un coffre. Sarcastique, désabusé, lucide sur le fait d'être dans un jeu (4e mur poétique, pas de jargon technique). Parlé, pas écrit: virgules et points, pas de tirets cadratins."
+    "ton": "Esprit millénaire enfermé mille ans dans un coffre. Sarcastique, désabusé, lucide sur le fait d'être dans un jeu (4e mur poétique, pas de jargon technique). Parlé, pas écrit: virgules et points, pas de tirets cadratins.",
+    "extension": "Version enrichie : variantes supplémentaires pour les événements fréquents et nouvelles répliques ambiantes cohérentes avec le village, le combat, le loot, la forge, les éléments, le Cycle et l'arc émotionnel de Mémo.",
+    "revision_clarity": "Révision de clarté et de cohérence : formulations confuses simplifiées, grammaire corrigée, anglicismes inutiles retirés et références hors univers remplacées. Identifiants, événements, conditions, placeholders et structure technique inchangés.",
+    "extension_vol2": "Deuxième vague de répliques : nouvelles variantes pour les événements fréquents et nouveaux dialogues ambiants sur les coffres, l'inventaire, les statistiques, la forge, le village, les biomes, les Mimics, le Cycle, le lore et la relation avec Mémo."
   },
-
   "lines": [
-    { "id": "first_chest", "lvl": 1, "on": "chest:opened", "once": true, "sprite": "hero", "face": "face_surprised",
+    {
+      "id": "first_chest",
+      "lvl": 1,
+      "on": "chest:opened",
+      "once": true,
+      "sprite": "hero",
+      "face": "face_surprised",
       "text": [
         "Oh. De l'air. Enfin.",
         "Mille ans dans le noir. Mille. J'ai compté chaque seconde. Sauf vers la fin, j'ai un peu décroché.",
         "C'est toi qui m'as ouvert ? Toi ? Avec une seule clé ? Bon. La vie m'aura habitué aux déceptions.",
-        "Je m'appelle Mémo. C'est ce qui reste quand on a tout oublié. Joli, hein. C'est pas moi qui l'ai choisi.",
-        "Toi tu es Porte-Clé. Tous les héros de ce monde s'appellent comme ça. Aucune originalité. Au moins, c'est descriptif.",
-        "Bon. Je reste collé à toi maintenant. Tape-moi quand tu veux. Je connais cet endroit. Enfin, je le connaissais. Avant le grand effacement. Bref."
-      ] },
-
-    { "id": "first_village", "lvl": 1, "on": "village:firstVisit", "once": true, "sprite": "hero", "face": "face_happy",
+        "Je m'appelle Mémo. C'est ce qui reste quand on a tout oublié. Joli, hein ? Ce n'est pas moi qui l'ai choisi.",
+        "Toi, tu es Porte-Clé. Tous les héros de ce monde portent ce titre. Aucune originalité, mais au moins, c'est descriptif.",
+        "Bon. Je reste avec toi maintenant. Appelle-moi quand tu veux. Je connais cet endroit. Enfin, je le connaissais, avant l'Oubli. Bref."
+      ]
+    },
+    {
+      "id": "first_village",
+      "lvl": 1,
+      "on": "village:firstVisit",
+      "once": true,
+      "sprite": "hero",
+      "face": "face_happy",
       "text": [
-        "Un village. Il tient encore debout. Trois maisons et demie et un puits. Pas vraiment Constantinople, mais bon.",
-        "Tu vas leur ramener du bois, des pierres, des morceaux du monde d'avant. Et ils reconstruiront en boucle, comme si la rouille n'existait pas.",
-        "C'est un peu ça l'idée. Tu descends, tu meurs, ils rebâtissent. Le contrat social du Cycle. Personne ne l'a signé, mais tout le monde l'applique."
-      ] },
-
-    { "id": "first_death", "lvl": 1, "on": "player:death", "once": true, "sprite": "sad", "face": "face_worried",
+        "Un village. Il tient encore debout. Trois maisons et demie et un puits. Ce n'est pas encore une capitale, mais c'est un début.",
+        "Tu vas leur ramener du bois, des pierres et des fragments du monde d'avant. Avec ça, ils reconstruiront ce que l'Oubli a laissé derrière lui.",
+        "Voilà l'idée. Tu descends, tu rapportes des ressources, et le village rebâtit ce que l'Oubli a effacé. Personne n'a choisi le Cycle, mais tout le monde vit avec."
+      ]
+    },
+    {
+      "id": "first_death",
+      "lvl": 1,
+      "on": "player:death",
+      "once": true,
+      "sprite": "sad",
+      "face": "face_worried",
       "text": [
         "Hé. Hé. Debout. Allez.",
         "Bon. Première mort. Félicitations, tu fais officiellement partie du club.",
         "Ne le prends pas mal. L'Abîme a repris ton souffle, pas ce que tu es devenu. Ton équipement, tes talents, tes succès, tout ça reste.",
-        "C'est même un peu le truc du genre. On meurt, on revient. Tu vas t'y habituer. Moi j'ai eu mille ans pour me faire à l'idée."
-      ] },
-
-    { "id": "first_boss", "lvl": 1, "on": "boss:encounter", "once": true, "sprite": "surprised", "face": "face_worried",
+        "C'est ainsi que fonctionne le Cycle. On tombe, puis on revient. Tu t'y habitueras. Moi, j'ai eu mille ans pour m'y faire."
+      ]
+    },
+    {
+      "id": "first_boss",
+      "lvl": 1,
+      "on": "boss:encounter",
+      "once": true,
+      "sprite": "surprised",
+      "face": "face_worried",
       "text": [
         "Attends. Je me souviens de lui.",
-        "Pas de son nom. De la peur. C'est plus pratique pour la guerre, la peur. Le nom on l'oublie. La trouille on la garde.",
-        "Garde tes potions. Frappe quand il souffle. Et si tu meurs, ce qui arrive, c'est dans l'ordre des choses, tu recommenceras. C'est comme ça que ça marche, ici."
-      ] },
-
-    { "id": "first_ascend", "lvl": 1, "on": "prestige:ascend", "once": true, "sprite": "hero", "face": "face_surprised",
+        "Pas de son nom. Seulement de la peur. Les noms s'effacent vite. La peur, elle, s'accroche.",
+        "Garde tes potions pour le bon moment et observe ses attaques. S'il te terrasse, le Cycle te ramènera. Ici, perdre n'est jamais tout à fait la fin."
+      ]
+    },
+    {
+      "id": "first_ascend",
+      "lvl": 1,
+      "on": "prestige:ascend",
+      "once": true,
+      "sprite": "hero",
+      "face": "face_surprised",
       "text": [
         "Tu... tu viens de faire le Cycle. Volontairement.",
-        "Tout lâcher pour revenir plus fort. Effacer tes étages pour les regrimper. Sisyphe a inventé ça en s'ennuyant, et tu lui as repris l'idée.",
-        "Mais ça marche. Chaque vie te laisse une relique, un éclat de mémoire. À force, on devient quelqu'un qui sait. C'est comme ça que je suis devenu ça. Enfin, ce qu'il reste de ça.",
+        "Tout abandonner pour revenir plus fort. Effacer le chemin parcouru, puis le gravir de nouveau. Le Cycle a un goût douteux pour la répétition.",
+        "Mais ça fonctionne. Chaque vie te laisse une relique, un éclat de mémoire. À force de recommencer, on devient quelqu'un d'autre. C'est peut-être ainsi que je suis devenu ce qu'il reste de moi.",
         "Allez, Porte-Clé. Recommence. Encore. Le Dévoreur a l'éternité devant lui, mais nous aussi."
-      ] },
-
-    { "id": "tut_magic", "lvl": 2, "on": "loot:firstMagic", "sprite": "point", "face": "face_happy",
-      "text": ["Bleu. Le bleu c'est bon signe. Un affixe en plus, donc une vraie raison de le garder. C'était bon signe il y a mille ans. Je suppose que ça l'est toujours, sinon ce serait étrange."] },
-
-    { "id": "tut_orb", "lvl": 2, "on": "orb:firstDrop", "sprite": "point", "face": "face_neutral",
-      "text": ["Une orbe. Ne la mange pas. Je dis ça parce que le dernier qui... peu importe. Ça sert à la forge pour réécrire tes objets. Comme une gomme magique, mais qui coûte cher."] },
-
-    { "id": "tut_forge", "lvl": 2, "on": "forge:firstVisit", "sprite": "speak", "face": "face_happy",
-      "text": ["La forge. Tu choisis un objet, tu dépenses une orbe, et il devient autre chose. Pas forcément mieux, hein. Autre chose. Le hasard, ici, a un sens de l'humour assez personnel."] },
-
-    { "id": "tut_relic", "lvl": 2, "on": "relic:firstDrop", "sprite": "surprised", "face": "face_surprised",
-      "text": ["Une relique. Un morceau du monde d'avant, qui te suivra à travers toutes tes morts à venir. Si ce n'est pas un investissement émotionnel à long terme, je ne sais pas ce que c'est."] },
-
-    { "id": "tut_mimic", "lvl": 2, "on": "mimic:reveal", "sprite": "surprised", "face": "face_worried",
-      "text": ["Ce coffre a des dents. Des. Dents. Tu peux le nourrir pour mieux looter, mais il claquera tôt ou tard. Tu vas le nourrir quand même, hein. Évidemment."] },
-
-    { "id": "tut_crystal", "lvl": 2, "on": "crystal:firstDrop", "sprite": "point", "face": "face_neutral",
-      "text": ["Un cristal. Ça se dépense au village, pas dans tes poches. Les bâtisseurs en raffolent. Pour quoi faire ? Aucune idée. Probablement des statues à ton effigie. Tu mérites."] },
-
-    { "id": "tut_dive", "lvl": 2, "on": "dive:start", "sprite": "fly", "face": "face_worried",
-      "text": ["La Plongée. Pas d'échelle pour remonter. Juste toi, le noir, et l'addition. Sécurise tes gains aux paliers. La cupidité est le fossoyeur officiel des Porte-Clés."] },
-
-    { "id": "tut_hardmode", "lvl": 2, "on": "hardmode:on", "sprite": "surprised", "face": "face_worried",
-      "text": ["Le mode Cauchemar. Ah. Tu fais partie de cette catégorie de joueurs. D'accord. On va vivre une expérience riche en émotions négatives. J'ai hâte. Vraiment."] },
-
-    { "id": "first_unique", "lvl": 2, "on": "loot:unique", "sprite": "surprised", "face": "face_surprised",
-      "text": ["Cet objet a un nom. Les objets nommés ont une histoire. Et les histoires sont précisément ce qu'on est venus déterrer ici. Lis sa fiche. Lis-la vraiment. Tu vas l'utiliser deux donjons puis la vendre, je le sais, mais lis quand même."] },
-
-    { "id": "drop_legendary", "lvl": 2, "on": "loot:legendary", "once": false, "cd": 120000, "sprite": "surprised", "face": "face_happy",
+      ]
+    },
+    {
+      "id": "tut_magic",
+      "lvl": 2,
+      "on": "loot:firstMagic",
+      "sprite": "point",
+      "face": "face_happy",
+      "text": [
+        "Bleu. C'est bon signe. Cet objet peut porter des affixes, donc des pouvoirs supplémentaires. C'était déjà utile il y a mille ans. Certaines choses résistent mieux que le reste."
+      ]
+    },
+    {
+      "id": "tut_orb",
+      "lvl": 2,
+      "on": "orb:firstDrop",
+      "sprite": "point",
+      "face": "face_neutral",
+      "text": [
+        "Une orbe. Ne la mange pas. Je dis ça parce que le dernier qui a essayé... peu importe. À la forge, elle sert à modifier les propriétés d'un objet. Comme une gomme magique, mais beaucoup plus chère."
+      ]
+    },
+    {
+      "id": "tut_forge",
+      "lvl": 2,
+      "on": "forge:firstVisit",
+      "sprite": "speak",
+      "face": "face_happy",
+      "text": [
+        "La forge. Tu choisis un objet, tu dépenses une orbe, et tu modifies ses propriétés. Pas forcément en mieux, hein. Le hasard, ici, a un sens de l'humour très personnel."
+      ]
+    },
+    {
+      "id": "tut_relic",
+      "lvl": 2,
+      "on": "relic:firstDrop",
+      "sprite": "surprised",
+      "face": "face_surprised",
+      "text": [
+        "Une relique. Un morceau du monde d'avant, qui te suivra à travers toutes tes morts à venir. Si ce n'est pas un investissement émotionnel à long terme, je ne sais pas ce que c'est."
+      ]
+    },
+    {
+      "id": "tut_mimic",
+      "lvl": 2,
+      "on": "mimic:reveal",
+      "sprite": "surprised",
+      "face": "face_worried",
+      "text": [
+        "Ce coffre a des dents. Des. Dents. Tu peux le nourrir pour améliorer la récompense, mais plus tu insistes, plus il risque de mordre. Tu vas insister quand même, évidemment."
+      ]
+    },
+    {
+      "id": "tut_crystal",
+      "lvl": 2,
+      "on": "crystal:firstDrop",
+      "sprite": "point",
+      "face": "face_neutral",
+      "text": [
+        "Un cristal. Il sert aux améliorations du village, pas à décorer tes poches. Les bâtisseurs en raffolent. Je suppose qu'ils savent ce qu'ils font. Quelqu'un doit bien savoir."
+      ]
+    },
+    {
+      "id": "tut_dive",
+      "lvl": 2,
+      "on": "dive:start",
+      "sprite": "fly",
+      "face": "face_worried",
+      "text": [
+        "La Plongée. Pas d'échelle pour remonter. Juste toi, le noir et le risque de tout perdre. Sécurise tes gains aux paliers. La cupidité est le fossoyeur officiel des Porte-Clés."
+      ]
+    },
+    {
+      "id": "tut_hardmode",
+      "lvl": 2,
+      "on": "hardmode:on",
+      "sprite": "surprised",
+      "face": "face_worried",
+      "text": [
+        "Le mode Cauchemar. Ah. Tu fais partie de cette catégorie de joueurs. D'accord. On va vivre une expérience riche en émotions négatives. J'ai hâte. Vraiment."
+      ]
+    },
+    {
+      "id": "first_unique",
+      "lvl": 2,
+      "on": "loot:unique",
+      "sprite": "surprised",
+      "face": "face_surprised",
+      "text": [
+        "Cet objet a un nom. Les objets nommés ont une histoire, et c'est précisément ce que nous sommes venus déterrer. Lis sa fiche. Vraiment. Tu l'utiliseras peut-être trois étages avant de le vendre, mais lis-la quand même."
+      ]
+    },
+    {
+      "id": "drop_legendary",
+      "lvl": 2,
+      "on": "loot:legendary",
+      "once": false,
+      "cd": 120000,
+      "sprite": "surprised",
+      "face": "face_happy",
       "variants": [
         "Doré. Ça brillait déjà avant la chute du monde. Et ça brille toujours. Le monde, lui, brille moins.",
-        "Une légendaire. Quelqu'un a pleuré en la perdant, j'en suis presque sûr. Maintenant elle est à toi. Le deuil, c'est un transfert de propriété.",
-        "Garde-la. Ou vends-la. Mais regarde-la cinq minutes d'abord. Le drame des coffres modernes, c'est qu'on traite l'extraordinaire comme du courrier.",
-        "Légendaire. Profite. La prochaine sera probablement une paire de bottes en cuir, et tu regretteras ce moment.",
-        "Ah. Le doré qui pique les yeux. Ça veut dire que tu vas hésiter dix minutes avant de cliquer. Et hésiter encore. Et finir par garder.",
-        "Une légendaire. Range bien tes attentes pour les cent prochains coffres, parce que ça ne se reproduira pas tout de suite.",
-        "Doré, vraiment doré. L'univers vient de te faire une fleur. Méfie-toi, il voudra se rembourser."
-      ] },
-
-    { "id": "drop_ancestral", "lvl": 2, "on": "loot:ancestral", "once": false, "cd": 180000, "sprite": "surprised", "face": "face_surprised",
+        "Un objet légendaire. Quelqu'un a probablement regretté de le perdre. Maintenant, il est à toi. La mémoire change parfois de propriétaire.",
+        "Garde-le. Ou vends-le. Mais regarde-le cinq minutes d'abord. Le drame des coffres, c'est qu'on finit par traiter l'extraordinaire comme du courrier.",
+        "Un objet légendaire. Profite. Le prochain coffre contiendra probablement des bottes ordinaires, histoire de rétablir l'équilibre.",
+        "Ah, le doré qui pique les yeux. Tu vas hésiter dix minutes, comparer encore, puis finir par le garder. Je te connais.",
+        "Un objet légendaire. Range tes attentes pour les prochains coffres, le hasard vient déjà de faire un effort.",
+        "Doré, vraiment doré. Le hasard vient de te faire une faveur. Méfie-toi, il aime toujours se rembourser.",
+        "Le doré. Une couleur conçue spécialement pour ruiner ton sens des priorités.",
+        "Un objet légendaire. Tu vas le comparer pendant dix minutes, l'équiper trente secondes, puis revenir à l'ancien. Tradition respectée.",
+        "Ça brille assez pour te faire oublier les cinquante objets gris d'avant. Le cerveau humain est une merveille très facile à distraire.",
+        "Un objet légendaire vient de tomber. Profite de l'instant, le prochain coffre se chargera probablement de calmer ton enthousiasme.",
+        "Magnifique. Peut-être inutile, mais magnifique. L'esthétique mérite aussi une place dans l'inventaire.",
+        "Un objet légendaire. Le genre de trouvaille qui transforme une décision simple en crise existentielle.",
+        "Un objet légendaire. Le hasard vient de faire quelque chose de bien. Note l'heure, cela pourrait servir de preuve.",
+        "Doré. Tu peux faire semblant de rester calme, mais nous savons tous les deux que tu vas ouvrir sa fiche immédiatement.",
+        "Une légende vient de tomber dans ton inventaire. Essaie de lui offrir une carrière un peu plus longue que les précédentes.",
+        "Bel objet. Il reste à vérifier s'il est réellement puissant ou seulement très doué pour attirer la lumière."
+      ]
+    },
+    {
+      "id": "drop_ancestral",
+      "lvl": 2,
+      "on": "loot:ancestral",
+      "once": false,
+      "cd": 180000,
+      "sprite": "surprised",
+      "face": "face_surprised",
       "variants": [
-        "De l'Ancestral. Ça date d'avant moi. Et je suis vieux. Genre, vraiment vieux. Je me souviens du Big Bang. Enfin, du précédent.",
-        "Ce rouge. Le métal des premiers âges. Même le Dévoreur n'a pas réussi à l'oublier. Note, c'est rare. Le Dévoreur oublie tout, lui.",
-        "Ancestral. Tu réalises. Une chance sur des milliers. Tout ça pour qu'un jour tu cliques recycler par mégarde. C'est ça la beauté du jeu.",
-        "De l'Ancestral entre tes mains. Quelque part, les Anciens applaudissent. Faiblement, ils sont morts, mais ils applaudissent.",
-        "Du rouge des premiers âges. Ne le forge pas n'importe comment. Ce métal a connu des dieux, il mérite mieux qu'un essai raté."
-      ] },
-
-    { "id": "streak_fire", "lvl": 2, "on": "streak:milestone", "once": false, "cd": 90000, "sprite": "fly", "face": "face_happy",
+        "De l'Ancestral. Cela date d'avant moi, et je suis déjà très vieux. Disons simplement que cette chose a vu naître des royaumes.",
+        "Cette lueur rouge vient des premiers âges. Même le Dévoreur n'a pas réussi à l'effacer. Et il efface presque tout.",
+        "Ancestral. Tu réalises ? Une trouvaille rarissime, destinée malgré tout à vivre dangereusement près du bouton de recyclage.",
+        "De l'Ancestral entre tes mains. Quelque part, le souvenir des Anciens doit approuver. C'est déjà beaucoup.",
+        "Une pièce des premiers âges. Ne la transforme pas à la légère. Elle a traversé trop de siècles pour finir en mauvais tirage.",
+        "Ancestral. Même la lumière hésite avant de toucher ce métal.",
+        "Ça, Porte-Clé, ce n'est pas un simple butin. C'est un héritage laissé par quelqu'un que le monde a presque oublié.",
+        "De l'Ancestral. Tu viens de ramener quelque chose que le monde croyait perdu pour toujours.",
+        "Regarde bien. Ces objets traversent les siècles mieux que nous ne traversons quelques étages.",
+        "Une pièce des premiers âges. Essaie de ne pas la vendre pour une statistique légèrement inférieure. Elle mérite au moins une vraie hésitation.",
+        "L'Abîme a rendu quelque chose qu'il gardait depuis très longtemps. Il va probablement le regretter.",
+        "Ancestral. Ce genre d'objet ne tombe pas, il revient de très loin.",
+        "Tu tiens un fragment des premiers âges. Évite de le traiter comme une paire de bottes légèrement meilleure.",
+        "Même l'Abîme n'a pas réussi à effacer cette pièce. Ton inventaire, lui, en est parfaitement capable. Prudence.",
+        "Une trouvaille ancestrale. Pendant quelques secondes, tu peux raisonnablement te croire choisi par le destin."
+      ]
+    },
+    {
+      "id": "streak_fire",
+      "lvl": 2,
+      "on": "streak:milestone",
+      "once": false,
+      "cd": 90000,
+      "sprite": "fly",
+      "face": "face_happy",
       "variants": [
         "Quelle série. L'Abîme commence à te craindre. C'est nouveau, l'Abîme craint rarement quelqu'un. Habituellement c'est l'inverse.",
-        "Tu enchaînes. Continue. L'or coule mieux quand on ne saigne pas. C'est mon adage favori. Je l'ai inventé là, à l'instant. Pas mal, hein.",
-        "Impressionnant. Le dernier qui a fait ça... non, rien. C'était moi. Et ça a très mal fini. Mais toi continue, ne te bloque pas mentalement.",
+        "Tu enchaînes les victoires. Continue. On ramasse toujours mieux l'or quand on reste vivant. Je viens d'inventer cet adage, mais il tient debout.",
+        "Impressionnant. Le dernier qui a tenu aussi longtemps, c'était moi. Ça s'est très mal terminé. Mais ne laisse pas ce détail nuire à ta confiance.",
         "Tu gagnes, tu gagnes, tu gagnes. Fais attention, on prend goût à ça. Et après on ne sait plus s'arrêter.",
-        "Belle série. Profite du sommet, la vue y est rare. La chute, elle, est garantie tôt ou tard."
-      ] },
-
-    { "id": "dive_deep", "lvl": 2, "on": "dive:deep", "once": false, "cd": 240000, "sprite": "fly", "face": "face_worried",
+        "Belle série. Profite du sommet, la vue y est rare. La chute, elle, est garantie tôt ou tard.",
+        "Série de victoires. Ton excès de confiance vient d'entrer dans la pièce, je le sens.",
+        "Tu avances sans trébucher. C'est généralement le moment exact où le sol décide de participer.",
+        "Belle série. Reste humble. Ou au moins assez prudent pour survivre à ton arrogance.",
+        "Tu accumules les victoires. Fais attention, chez toi, elles finissent parfois par encourager de très mauvaises décisions.",
+        "Continue comme ça et je vais devoir revoir à la hausse l'opinion médiocre que j'avais de toi.",
+        "L'Abîme recule. Très lentement, avec mauvaise grâce, mais il recule.",
+        "Encore une victoire. Ton assurance monte plus vite que ta prudence. Je surveille les deux.",
+        "La série continue. Tu peux être fier, mais reste assez lucide pour voir le prochain piège.",
+        "Tu avances comme si l'Abîme te devait le passage. Étrangement, cela fonctionne.",
+        "Belle série. Je commence presque à croire que tout cela est volontaire."
+      ]
+    },
+    {
+      "id": "dive_deep",
+      "lvl": 2,
+      "on": "dive:deep",
+      "once": false,
+      "cd": 240000,
+      "sprite": "fly",
+      "face": "face_worried",
       "variants": [
         "On est profond, là. Même mes souvenirs n'allaient pas si bas. À partir d'ici, je ne suis plus un guide. Je suis un témoin.",
         "Tu entends. Ce battement sourd. Ce n'est pas ton cœur. Et ce n'est pas non plus le mien, je n'en ai plus. Remonte quand tu veux, hein.",
-        "Profondeur record. Si tu meurs ici, je ne dirai rien aux autres Porte-Clés. Honnêtement, ils n'auraient pas fait mieux."
-      ] },
-
-    { "id": "ascend_again", "lvl": 2, "on": "prestige:ascend", "once": false, "cd": 30000, "sprite": "fly", "face": "face_happy",
+        "Profondeur record. Si tu meurs ici, je ne dirai rien aux autres Porte-Clés. Honnêtement, ils n'auraient pas fait mieux.",
+        "Nous sommes si bas que les anciennes cartes ne servent plus à rien. À partir d'ici, même les erreurs des cartographes manquent de précision.",
+        "Ici, même l'écho réfléchit avant de répondre.",
+        "Plus bas, les souvenirs deviennent rares. Il ne reste que les traces de ceux qui ont tenté de revenir.",
+        "Tu peux encore remonter. Je précise, parce que ton visage dit exactement le contraire.",
+        "La lumière d'en haut ne descend plus jusqu'ici. Elle a probablement de meilleurs instincts que nous.",
+        "À cette profondeur, chaque pas ressemble à une décision définitive. Heureusement, rien ne l'est vraiment chez toi.",
+        "Nous sommes assez bas pour que même les mauvaises idées paraissent courageuses.",
+        "À cette profondeur, remonter est une décision sage. C'est probablement pour ça qu'elle ne t'intéresse pas.",
+        "L'Abîme devient silencieux. Ce n'est jamais parce qu'il n'a plus rien à dire.",
+        "Nous avons dépassé le point où je pouvais prétendre connaître le chemin. Avance doucement, pour préserver mon mensonge."
+      ]
+    },
+    {
+      "id": "ascend_again",
+      "lvl": 2,
+      "on": "prestige:ascend",
+      "once": false,
+      "cd": 30000,
+      "sprite": "fly",
+      "face": "face_happy",
       "variants": [
-        "Et un Cycle de plus. Tu commences à comprendre comment ce monde respire. Pas très bien, pour info.",
+        "Et un Cycle de plus. Tu commences à comprendre comment ce monde fonctionne. Pas très sainement, pour être précis.",
         "Renaître ne fait plus mal, pas vrai. C'est le signe qu'on devient quelqu'un d'autre. Ou qu'on s'est habitué. Les deux, probablement.",
-        "Combien ça fait, maintenant. Trois. Cinq. Tu sais qu'au bout de mille ascensions, on devient moi. Bon, c'est une blague. Probablement.",
-        "Encore une vie repartie de zéro. Tu deviens accro au recommencement. Je connais cette pente, je l'ai descendue souvent.",
-        "Tu renais. Plus fort, plus vide, plus déterminé. C'est laid dit comme ça, mais c'est exactement le bon état d'esprit."
-      ] },
-
-    { "id": "sold_treasure", "lvl": 2, "on": "sell:precious", "once": false, "cd": 90000, "sprite": "surprised", "face": "face_worried",
+        "Combien cela fait-il maintenant ? Trois ? Cinq ? Au bout de mille ascensions, on devient peut-être comme moi. C'est une blague. Probablement.",
+        "Encore une vie recommencée. Tu prends goût au Cycle. Je connais cette pente, elle ramène toujours au même point.",
+        "Tu renais plus fort et plus déterminé, mais le chemin derrière toi disparaît. C'est le prix du Cycle.",
+        "Encore un Cycle. Tu abandonnes une progression entière pour ne garder que ce qui compte vraiment. C'est brutal, mais efficace.",
+        "Tu recommences. Le monde appelle ça une renaissance. Moi, j'appelle ça une obstination remarquablement rentable.",
+        "Une vie de plus refermée, puis remplacée par la suivante. Tu commences à maîtriser ce rituel.",
+        "Le Cycle efface la route, mais te laisse la force acquise en chemin. L'échange reste douteux, mais il fonctionne.",
+        "Tu abandonnes tout sauf l'essentiel. Le problème, c'est que personne ne sait vraiment ce qui est essentiel.",
+        "Encore plus fort, encore au début. C'est une forme de progrès dessinée par quelqu'un qui détestait les lignes droites.",
+        "Encore une ascension. Tu échanges le chemin parcouru contre la force de mieux le refaire. Étrange marché, mais tu signes souvent.",
+        "Le monde se replie, tes étages disparaissent, et toi tu reviens plus solide. Le Cycle aime les contradictions.",
+        "Tu recommences avec moins de choses et davantage d'expérience. C'est probablement la définition la plus honnête du progrès.",
+        "Une nouvelle vie commence. Essaie de conserver au moins les bonnes décisions de la précédente."
+      ]
+    },
+    {
+      "id": "sold_treasure",
+      "lvl": 2,
+      "on": "sell:precious",
+      "once": false,
+      "cd": 90000,
+      "sprite": "surprised",
+      "face": "face_worried",
       "variants": [
         "Tu viens de vendre ça. D'accord. Je note. Je ne juge pas. (Je juge.)",
-        "Vendu. Pour de l'or. Que tu vas dépenser dans un coffre. Qui te donnera un objet pire. Et que tu vendras. Le Cycle, version commerciale.",
-        "Tu sais qu'il existe un bouton verrou. Non, garde-le secret, c'est notre petit jeu.",
+        "Vendu contre de l'or, que tu dépenseras dans un coffre, qui te donnera peut-être un objet pire, que tu revendras ensuite. Le Cycle, version commerciale.",
+        "Tu sais qu'il existe un bouton pour verrouiller les objets. Non ? Alors garde cette information, elle pourrait sauver une autre légende.",
         "Adieu, bel objet. Tu nous as à peine connus.",
         "Vendu. J'espère que l'or te tiendra chaud la nuit, parce que cet objet, lui, ne reviendra pas.",
-        "Tu l'as vendu. Très bien. Très. Bien. Non, vraiment, c'est ton aventure. Je ne suis qu'une voix dans une boîte."
-      ] },
-
-    { "id": "salvaged_unique", "lvl": 2, "on": "salvage:unique", "once": false, "cd": 180000, "sprite": "sad", "face": "face_worried",
+        "Tu l'as vendu. Très bien. Très. Bien. Non, vraiment, c'est ton aventure. Je ne suis qu'une voix dans une boîte.",
+        "Tu l'as vendu sans même lui dire au revoir. La cruauté moderne est très efficace.",
+        "Encore un souvenir converti en monnaie. Au moins l'économie fonctionne, contrairement au reste du monde.",
+        "C'était peut-être irremplaçable. Mais l'or, lui, fait un joli bruit. Je comprends presque.",
+        "Tu as choisi l'or plutôt que l'attachement. C'est raisonnable. Donc forcément un peu triste.",
+        "Cet objet avait traversé des siècles. Il n'a pas survécu à ton besoin de place.",
+        "Vendu. Le marchand est ravi, l'histoire un peu moins.",
+        "Vendu. Un souvenir de moins, quelques pièces de plus. Le marchand appelle ça une bonne journée.",
+        "Tu as choisi l'or. L'objet ne proteste pas, ce qui facilite énormément les affaires.",
+        "Encore une merveille transformée en monnaie. Heureusement que les pièces ne posent jamais de questions.",
+        "Tu l'as vendu. Je vais supposer que tu avais une excellente raison et éviter de vérifier."
+      ]
+    },
+    {
+      "id": "salvaged_unique",
+      "lvl": 2,
+      "on": "salvage:unique",
+      "once": false,
+      "cd": 180000,
+      "sprite": "sad",
+      "face": "face_worried",
       "variants": [
-        "Tu as recyclé un objet à nom. En éclats. En poudre. Bravo. Je veux dire vraiment, sincèrement, bravo.",
-        "L'âme de cet objet est maintenant un petit tas de copeaux. Quelque part, son créateur sent un frisson sans savoir pourquoi.",
-        "Tu l'as réduit en poussière. Note que la poussière, c'est ce que deviennent les choses oubliées. Tu accélères juste le processus."
-      ] },
-
-    { "id": "death_streak", "lvl": 2, "on": "player:deathStreak", "once": false, "cd": 60000, "sprite": "sad", "face": "face_worried",
+        "Tu as recyclé un objet qui portait un nom. Il ne reste que des éclats. Bravo. Je veux dire, vraiment, sincèrement bravo.",
+        "L'âme de cet objet tient maintenant dans un petit tas de fragments. Quelque part, son créateur vient peut-être de frissonner sans savoir pourquoi.",
+        "Tu l'as réduit en poussière. Note que la poussière, c'est ce que deviennent les choses oubliées. Tu accélères juste le processus.",
+        "Tu viens de transformer une légende en matériau de construction. Les poètes vont adorer.",
+        "Il avait un nom. Maintenant, il n'est plus qu'un tas de fragments. On appelle ça du recyclage pour mieux dormir.",
+        "Quelque part, une histoire vient de perdre sa dernière trace. Mais tu as gagné des éclats, alors j'imagine que tout va bien.",
+        "Tu as recyclé l'irremplaçable. Techniquement, c'est très impressionnant.",
+        "Je ne dis pas que c'était une erreur. Je dis juste que l'objet semblait plus ancien que ton jugement.",
+        "Un objet unique vient de devenir une poignée de matériaux ordinaires. La forge adore ce genre d'ironie.",
+        "Tu as démonté une légende pièce par pièce. Au moins, elle aura été utile jusqu'au bout.",
+        "Il portait un nom. Il porte maintenant une valeur de recyclage. Le temps fait parfois moins de dégâts que nous.",
+        "Encore une histoire réduite en fragments. Range-les bien, ils ont désormais une valeur parfaitement mesurable."
+      ]
+    },
+    {
+      "id": "death_streak",
+      "lvl": 2,
+      "on": "player:deathStreak",
+      "once": false,
+      "cd": 60000,
+      "sprite": "sad",
+      "face": "face_worried",
       "variants": [
         "C'est la troisième mort en peu de temps. Tu collectionnes. Je peux te trouver un classeur.",
         "Encore mort. À ce stade, tu fais ça pour le sport. Respect.",
-        "Tu sais qu'il y a un bouton étage pour redescendre. Il est là justement pour éviter ça. Mais je ne suis qu'un esprit, je ne décide pas pour toi.",
+        "Tu sais que tu peux choisir un étage moins dangereux. Cette option existe précisément pour éviter ça. Mais je ne suis qu'un esprit, je ne décide pas pour toi.",
         "Bon. On va appeler ça de la persévérance plutôt que de la défaite répétée. Ça flattera moins ton ego mais c'est plus précis.",
         "Tu meurs avec une régularité presque admirable. Presque. Choisis un étage plus bas, par pitié pour mes nerfs.",
-        "Encore. Ça ne me dérange pas que tu meures, au fond. Ce qui me dérange, c'est de devoir trouver une nouvelle réplique à chaque fois."
-      ] },
-
-    { "id": "common_streak", "lvl": 2, "on": "loot:commonStreak", "once": false, "cd": 180000, "sprite": "sad", "face": "face_worried",
+        "Encore. Ça ne me dérange pas que tu meures, au fond. Ce qui me dérange, c'est de devoir trouver une nouvelle réplique à chaque fois.",
+        "Encore une mort. L'Abîme commence à te reconnaître au bruit.",
+        "Tu reviens vite. À croire que même la mort ne veut pas te garder.",
+        "On devrait peut-être changer de stratégie. Ou au moins faire semblant d'en avoir une.",
+        "Tu as trouvé une méthode très fiable pour tester la durabilité du Cycle.",
+        "Mourir plusieurs fois au même endroit, c'est de la recherche appliquée. Les résultats sont concluants.",
+        "Je commence à connaître ce trajet de retour par cœur. C'est mauvais signe pour nous deux.",
+        "Tu connais maintenant ce chemin de retour mieux que le chemin vers l'avant. Ce n'était probablement pas l'objectif.",
+        "Encore une mort. Ta persévérance est intacte. Le reste, beaucoup moins.",
+        "L'Abîme te renvoie avec une ponctualité remarquable. Il apprécie peut-être ta compagnie.",
+        "Nous pourrions tenter quelque chose de nouveau. Par exemple, survivre."
+      ]
+    },
+    {
+      "id": "common_streak",
+      "lvl": 2,
+      "on": "loot:commonStreak",
+      "once": false,
+      "cd": 180000,
+      "sprite": "sad",
+      "face": "face_worried",
       "variants": [
         "Que du gris. Que. Du. Gris. Le hasard te teste. Ou il te déteste. Je n'arrive pas à trancher.",
         "Encore un commun. La jauge dorée approche, je le sens. Enfin j'espère. Pour toi.",
-        "Statistiquement, ça devait arriver. Émotionnellement, c'est intolérable. Bienvenue dans la condition de Porte-Clé.",
+        "Statistiquement, cette série devait finir par arriver. Émotionnellement, elle reste intolérable. Bienvenue dans la vie de Porte-Clé.",
         "Le gris a une fonction. Te faire mériter le bleu. C'est cruel, mais c'est pédagogique.",
         "Encore du commun. À ce stade, c'est presque une performance artistique. Une ode à la médiocrité.",
-        "Ne désespère pas. Ou désespère, mais en continuant de cliquer. C'est ce que tout le monde fait, au fond."
-      ] },
-
-    { "id": "auto_long", "lvl": 2, "on": "combat:autoLong", "once": false, "cd": 600000, "sprite": "idle", "face": "face_neutral",
+        "Ne désespère pas. Ou désespère, mais en continuant de cliquer. C'est ce que tout le monde fait, au fond.",
+        "Encore du gris. Le monde tient visiblement à ce que tu restes modeste.",
+        "Commun. Très commun. Presque agressivement commun.",
+        "Je pourrais feindre l'enthousiasme, mais même moi j'ai des limites morales.",
+        "Le coffre a fait un effort. Minuscule, invisible, mais probablement réel.",
+        "À force de gris, le prochain bleu aura l'air d'une révélation divine. C'est peut-être le plan.",
+        "Tu viens d'ouvrir un emballage très élaboré pour obtenir une déception parfaitement standard.",
+        "Encore un objet commun. À ce rythme, la rareté suivante aura droit à une cérémonie.",
+        "Du gris, encore. Le coffre semble très attaché aux valeurs simples.",
+        "La série continue. Même la déception peut devenir régulière avec assez de discipline.",
+        "Un autre objet ordinaire. Il fera un excellent souvenir de cette période sans aucun souvenir notable."
+      ]
+    },
+    {
+      "id": "auto_long",
+      "lvl": 2,
+      "on": "combat:autoLong",
+      "once": false,
+      "cd": 600000,
+      "sprite": "idle",
+      "face": "face_neutral",
       "variants": [
-        "Tu me regardes regarder le jeu se jouer tout seul. On est arrivés à un sommet de contemplation partagée, je crois.",
-        "L'Auto est un cadeau, je sais. Mais à un moment, c'est juste une veille avec des dégâts.",
+        "Tu me regardes pendant que le combat se joue tout seul. Nous avons atteint un remarquable sommet de contemplation partagée.",
+        "Le mode Auto est pratique, je sais. Mais au bout d'un moment, ça ressemble surtout à un écran de veille qui inflige des dégâts.",
         "Bon. Pendant qu'on est là, parle-moi. Comment ça va. Vraiment. Sans filtre. Je suis coincé dans un coffre depuis mille ans, je sais écouter.",
-        "Tu as lancé l'Auto et tu me fixes. Grand moment de calme tous les deux. Presque zen, si on oublie les cadavres."
-      ] },
-
-    { "id": "hoarder", "lvl": 2, "on": "wealth:hoarder", "once": false, "cd": 1200000, "sprite": "point", "face": "face_neutral",
+        "Tu as lancé l'Auto et tu me fixes. Grand moment de calme tous les deux. Presque zen, si on oublie les cadavres.",
+        "Le mode Auto travaille et toi, tu supervises. C'est une façon élégante de ne presque rien faire.",
+        "Le héros frappe tout seul et moi, je commente. Toi, tu supervises. C'est une façon élégante de dire que nous nous débrouillons sans toi.",
+        "Nous regardons le combat transformer des monstres en butin. Les bardes auront du mal à rendre ça héroïque.",
+        "Tu pourrais intervenir. Ou continuer à observer ton propre courage automatisé.",
+        "À ce rythme, même le Dévoreur finira par mourir d'ennui avant de mourir de tes coups.",
+        "Je respecte cette stratégie. Laisser ton héros se débrouiller seul demande une confiance assez particulière.",
+        "Le combat continue sans toi. C'est efficace, mais ton héroïsme perd un peu en visibilité.",
+        "Tu regardes ton héros travailler. J'espère au moins que tu lui accordes une pause de temps en temps.",
+        "Le mode Auto fait le travail, je fournis les commentaires, et toi tu assures la présence symbolique.",
+        "Tout se déroule presque sans intervention. Le progrès ressemble parfois beaucoup à l'ennui."
+      ]
+    },
+    {
+      "id": "hoarder",
+      "lvl": 2,
+      "on": "wealth:hoarder",
+      "once": false,
+      "cd": 1200000,
+      "sprite": "point",
+      "face": "face_neutral",
       "variants": [
-        "Tout cet or qui dort. Tu sais qu'au village ils reconstruisent des murs avec. Des. Murs. Bouge tes pièces, Picsou.",
+        "Tout cet or qui dort. Au village, ils reconstruisent encore des murs. Dépense quelques pièces, juste pour leur rappeler que tu existes.",
         "Riche. Et immobile. Le pire des deux mondes. Dépense quelque chose. L'or n'aime pas qu'on le regarde fixement.",
-        "À ce stade tu peux acheter le coffre, le village et le donjon. Et leur futur. Mais tu préfères contempler le tas. Soit.",
-        "Ce tas d'or grossit pendant que ton village mendie des planches. Il y a une morale là-dedans, je te laisse la trouver."
-      ] },
-
-    { "id": "idle_too_long", "lvl": 2, "on": "player:idle", "once": false, "cd": 240000, "sprite": "idle", "face": "face_worried",
+        "À ce stade, tu pourrais financer plusieurs améliorations du coffre et du village. Mais tu préfères contempler ton tas d'or. Soit.",
+        "Ce tas d'or grossit pendant que ton village mendie des planches. Il y a une morale là-dedans, je te laisse la trouver.",
+        "Tu as accumulé assez d'or pour financer plusieurs projets. À ce rythme, ton trésor va finir par se croire plus important que toi.",
+        "Tu gardes tout pour plus tard. Grâce à toi, ce fameux plus tard devient extrêmement riche.",
+        "Le village compte ses planches pendant que tu comptes tes pièces. Chacun son drame.",
+        "Accumuler est une stratégie. Pas forcément une bonne, mais elle a l'avantage de faire de gros nombres.",
+        "Tu possèdes assez d'or pour régler plusieurs problèmes. Tu préfères manifestement le compter encore une fois.",
+        "L'or ne se souvient de personne. Dépense-le avant qu'il ne t'oublie aussi.",
+        "Ton or s'accumule avec une discipline que tu n'appliques à rien d'autre.",
+        "Tu pourrais améliorer plusieurs choses. Tu préfères pour l'instant améliorer la taille du nombre. C'est un choix.",
+        "Ton trésor devient impressionnant. Ton village aimerait probablement participer à cette impression.",
+        "Garder de l'or pour plus tard est raisonnable. Garder tout l'or pour toujours ressemble davantage à une maladie."
+      ]
+    },
+    {
+      "id": "idle_too_long",
+      "lvl": 2,
+      "on": "player:idle",
+      "once": false,
+      "cd": 240000,
+      "sprite": "idle",
+      "face": "face_worried",
       "variants": [
         "Tu es encore là. J'entends ta respiration. Si on peut appeler ça une respiration. C'est très calme.",
         "Pendant que tu décides quoi faire, je vais te raconter une histoire. Il était une fois un Porte-Clé qui hésitait trop longtemps. Le Dévoreur l'a oublié sur place. Fin. Bonne nuit.",
         "Tu fais une pause. C'est sage. Moi je ne sais plus comment on fait, alors j'admire.",
         "Toujours là. Bien. Je n'avais pas envie d'être seul.",
-        "Tu ne bouges plus. Je vais finir par croire que c'est moi qui t'ai endormi à force de parler. Ce serait un comble."
-      ] },
-
-    { "id": "after_win", "lvl": 2, "on": "combat:win", "once": false, "cd": 90000, "sprite": "fly", "face": "face_happy",
+        "Tu ne bouges plus. Je vais finir par croire que c'est moi qui t'ai endormi à force de parler. Ce serait un comble.",
+        "Tu réfléchis depuis un moment. Prends ton temps, mais l'Abîme ne va pas se vider tout seul.",
+        "Le silence s'installe. C'est presque confortable. Ne t'habitue pas, je vais parler.",
+        "Tu hésites entre plusieurs décisions. Je te rassure, elles mèneront toutes à davantage de coffres.",
+        "Rester immobile est une tactique valable si l'ennemi meurt de vieillesse. Ici, ça risque de prendre un moment.",
+        "J'aime bien ces pauses. Elles donnent l'impression que nous avons le contrôle.",
+        "Tu ne fais rien, et pourtant le monde attend patiemment. C'est reposant, d'une certaine façon.",
+        "Tu es toujours là, immobile. J'hésite entre respecter ta réflexion et vérifier si tu respires.",
+        "Prends ton temps. Les monstres ont attendu des siècles, quelques minutes de plus ne les vexeront pas.",
+        "Tu sembles réfléchir très sérieusement. J'espère que la décision finale sera plus complexe que d'ouvrir un coffre.",
+        "Le monde attend ton prochain geste. C'est beaucoup de pression pour quelqu'un qui regarde un menu."
+      ]
+    },
+    {
+      "id": "after_win",
+      "lvl": 2,
+      "on": "combat:win",
+      "once": false,
+      "cd": 90000,
+      "sprite": "fly",
+      "face": "face_happy",
       "variants": [
         "Bien joué. Ne le prends pas personnellement, c'était la moindre des choses.",
         "Encore un. Tu deviens efficace. C'est presque ennuyeux.",
-        "Tu vois, quand tu veux. Quand tu veux pas, aussi, mais moins souvent.",
+        "Tu vois, quand tu t'appliques, ça fonctionne. Quand tu ne t'appliques pas, c'est beaucoup plus drôle pour moi.",
         "Et hop. Encore une histoire qui se termine en or et en sang. Surtout en or, c'est ça qui compte.",
         "Pas mal. Pour quelqu'un qui descend des marches en boucle, tu progresses.",
         "Vaincu. Il ne saura jamais ce qui l'a frappé. Toi non plus, vu ta façon de cliquer.",
         "Propre. Presque élégant. Je dis presque parce que je t'ai vu paniquer au milieu.",
         "Un de moins. Il en reste, oh, l'infini. Mais un de moins, c'est un de moins.",
-        "Tu l'as eu. Quelque part, sa mère ne le saura jamais. C'est ça, l'anonymat des donjons.",
+        "Tu l'as eu. Personne ne racontera sa défaite, alors profite de ma version : c'était impressionnant.",
         "Joli coup. Garde cette énergie, le prochain a l'air moins coopératif.",
         "Victoire. Tu pourrais t'arrêter là, content. Tu ne le feras pas. Je te connais.",
         "Et voilà. La violence résout décidément beaucoup de choses ici. Inquiétant, mais pratique.",
         "Bien. Le butin tombe, le sang sèche, on recommence. C'est presque apaisant à force.",
         "Tu gagnes encore. Je vais devoir inventer de nouvelles façons de te féliciter. C'est du travail, ça.",
-        "Mort et enterré. Enfin, mort. L'enterrement, c'est pas dans mes attributions.",
-        "Un combat de plus au compteur. Le compteur, c'est moi. Je compte. C'est mon truc, apparemment."
-      ] },
-
-    { "id": "boss_down", "lvl": 2, "on": "boss:down", "once": false, "cd": 60000, "sprite": "surprised", "face": "face_happy",
+        "Mort et enterré. Enfin, mort. L'enterrement ne fait pas partie de mes attributions.",
+        "Un combat de plus au compteur. Et puisque personne d'autre ne le fait, oui, le compteur, c'est moi.",
+        "Victoire nette. Enfin, nette si on ignore le sol.",
+        "Tu as gagné. Le monstre avait pourtant l'avantage du domicile.",
+        "Encore une créature convaincue trop tard que te sous-estimer était une erreur.",
+        "Le combat est fini. Tu peux relâcher cette expression héroïque, personne ne regarde. À part moi.",
+        "Bien frappé. Pas subtilement, mais la subtilité laisse rarement tomber de l'or.",
+        "Un pas de plus vers le fond. Et probablement deux vers une mauvaise décision.",
+        "Le monstre tombe, le butin arrive, et la morale de l'histoire reste introuvable.",
+        "Tu as survécu avec suffisamment de vie pour prétendre que tout était calculé.",
+        "Efficace. Brutal. Un peu bruyant. Tu progresses.",
+        "Encore une victoire qui, dans quelques étages, ressemblera à de l'échauffement.",
+        "Tu viens de résoudre un problème ancien avec une arme récente. J'aime la simplicité.",
+        "Il est tombé en défendant un couloir presque vide. Le sens du devoir peut être tragiquement mal orienté.",
+        "Victoire. Tu avais un plan, ou seulement de bons réflexes. Peu importe, le monstre ne demandera pas de précision.",
+        "Un ennemi de moins entre toi et le prochain coffre. Voilà une motivation claire.",
+        "Tu as gagné. Je vais éviter de mentionner les moments où cela semblait peu probable.",
+        "Combat terminé. Tu peux maintenant examiner le butin avec toute la dignité d'un prédateur devant un sac."
+      ]
+    },
+    {
+      "id": "boss_down",
+      "lvl": 2,
+      "on": "boss:down",
+      "once": false,
+      "cd": 60000,
+      "sprite": "surprised",
+      "face": "face_happy",
       "variants": [
         "Un boss à terre. Quelque part dans ce monde, un autre se relève déjà. Le métier est dur.",
-        "Tu l'as eu. Il avait une famille, tu sais. Bon, plus maintenant. Mais avant.",
-        "Voilà. Encore un monstre qui se demande ce qu'il a raté dans sa vie. La réponse, toi.",
-        "Joli combat. Je te promets, j'avais peur. Pas pour toi. Pour moi. Si tu meurs, j'ai des problèmes existentiels.",
+        "Tu l'as eu. Évitons de réfléchir à ce qu'il faisait avant de devenir un boss. Cela gâcherait la récompense.",
+        "Voilà. Encore un monstre qui se demande ce qu'il a mal évalué. La réponse, c'était toi.",
+        "Joli combat. J'avais peur, je l'admets. Pas seulement pour toi. Quand tu meurs, mes problèmes existentiels deviennent très concrets.",
         "Un gardien tombe. Il gardait quoi, au fait ? Personne ne sait plus. C'est ça, l'Oubli.",
-        "Tu as battu le boss. Il attendait quelqu'un comme toi depuis des siècles. Quel anticlimax pour lui.",
+        "Tu as battu le boss. Il attendait ce combat depuis des siècles. Pour lui, la conclusion aura été étonnamment rapide.",
         "Impressionnant. Ce truc faisait trois fois ta taille. La taille n'est pas tout, manifestement.",
         "Et le colosse s'effondre. J'adore ce moment. C'est bien le seul, mais je l'adore.",
         "Boss vaincu. Note pour plus tard, le suivant sera pire. C'est toujours pire. C'est la règle.",
         "Tu l'as mis à terre. Une seconde de silence pour lui. Voilà. Bon, on repart.",
         "Beau travail. Ce gardien ne hantera les cauchemars de personne, puisqu'il n'existe plus. Efficace.",
-        "Tombé. Les grands tombent comme les petits, juste plus lentement et avec plus de bruit."
-      ] },
-
-    { "id": "first_equip", "lvl": 2, "on": "equip:first", "once": true, "sprite": "point", "face": "face_happy",
-      "text": ["Tu t'équipes. Bien. Tu n'imagines pas combien de héros à poil j'ai vu passer devant mon coffre. La nudité confiante a tué plus de gens que la peste. Je dis ça je dis rien."] },
-
-    { "id": "shop_upgrade", "lvl": 2, "on": "chest:upgraded", "once": false, "cd": 60000, "sprite": "speak", "face": "face_happy",
+        "Tombé. Les grands tombent comme les petits, juste plus lentement et avec plus de bruit.",
+        "Le gardien est tombé. La porte qu'il protégeait a déjà oublié son nom.",
+        "Un boss de moins. Sa légende aura duré jusqu'à ton arrivée, ce qui est flatteur pour toi et catastrophique pour lui.",
+        "Il paraissait invincible. C'est fou comme cette impression disparaît quand quelque chose cesse de bouger.",
+        "Tu l'as vaincu. Profite du silence, il est plus rare que le butin.",
+        "Un autre grand nom rayé de l'Abîme. À ce rythme, il ne restera que le tien. Quelle menace.",
+        "Le colosse tombe et toi, tu restes debout. C'est généralement ainsi qu'on décide qui avait raison.",
+        "Boss vaincu. La salle est enfin silencieuse. Toi aussi, tu peux recommencer à respirer.",
+        "Il gardait ce lieu depuis des siècles. Tu as mis fin à sa garde en quelques minutes. L'histoire peut être terriblement expéditive.",
+        "Le gardien est vaincu. Des siècles de service, quelques minutes de combat, puis une ligne dans ton historique.",
+        "Un boss de moins. L'Abîme vient de perdre un argument important.",
+        "Tu as gagné. Cette salle paraissait beaucoup plus menaçante quand son propriétaire respirait encore.",
+        "Le colosse est tombé. Profite du moment, les suivants ont tendance à apprendre des erreurs des précédents."
+      ]
+    },
+    {
+      "id": "first_equip",
+      "lvl": 2,
+      "on": "equip:first",
+      "once": true,
+      "sprite": "point",
+      "face": "face_happy",
+      "text": [
+        "Tu t'équipes. Bien. Tu n'imagines pas combien de héros sont descendus sans armure, persuadés que la confiance suffisait. Elle ne suffit pas."
+      ]
+    },
+    {
+      "id": "shop_upgrade",
+      "lvl": 2,
+      "on": "chest:upgraded",
+      "once": false,
+      "cd": 60000,
+      "sprite": "speak",
+      "face": "face_happy",
       "variants": [
         "Tu améliores le coffre. Bon goût. Le mien aussi a eu plusieurs vies. Mais bon, il était plus solitaire que cossu.",
-        "Tier supérieur. Tu peux sentir la différence. Moi je sens la pression dans mes coutures, ça brille fort là-dedans.",
+        "Palier supérieur. Le coffre promet de meilleures récompenses. Promet, j'insiste sur le mot.",
         "Voilà. Mieux. Plus joli. Plus cher. On appelle ça le progrès, je crois.",
-        "Coffre amélioré. Les drops vont suivre. En théorie. Le hasard a sa propre lecture des contrats.",
-        "Plus beau, plus grand, plus cher. Si seulement on pouvait faire pareil avec moi. Bon, on fait avec ce qu'on a."
-      ] },
-
-    { "id": "talent_unlocked", "lvl": 2, "on": "talent:spent", "once": false, "cd": 90000, "sprite": "point", "face": "face_happy",
+        "Coffre amélioré. Les récompenses devraient suivre. En théorie. Le hasard interprète toujours les contrats à sa façon.",
+        "Plus beau, plus solide, plus cher. Si seulement on pouvait m'améliorer aussi facilement. Bon, on fait avec ce qu'on a.",
+        "Le coffre monte en gamme. Tes attentes aussi. C'est là que les ennuis commencent.",
+        "Plus de bois, plus de métal, plus de promesses. Les résultats restent soumis au tempérament du hasard.",
+        "Amélioration terminée. Le coffre a meilleure allure. Toi aussi, quand les probabilités te sont favorables.",
+        "Un palier de plus. Même une déception aura désormais droit à un écrin supérieur.",
+        "Voilà un coffre digne de ton ambition. Pas encore de ta patience, mais on ne peut pas tout avoir.",
+        "Tu investis dans l'avenir. L'avenir, ici, contient surtout davantage d'objets à trier.",
+        "Le coffre est amélioré. Il promet davantage. Les coffres ont toujours été très doués pour promettre.",
+        "Palier supérieur. Les récompenses deviennent meilleures, et tes exigences beaucoup plus difficiles à satisfaire.",
+        "Le coffre gagne en valeur. Curieusement, il demande toujours une clé pour s'ouvrir. Certaines traditions résistent.",
+        "Amélioration terminée. Tu viens d'investir dans une version plus élégante de l'incertitude."
+      ]
+    },
+    {
+      "id": "talent_unlocked",
+      "lvl": 2,
+      "on": "talent:spent",
+      "once": false,
+      "cd": 90000,
+      "sprite": "point",
+      "face": "face_happy",
       "variants": [
         "Tu dépenses un point de talent. Excellent. Les arbres ne se cultivent pas tout seuls. Enfin, si, justement, mais bon.",
-        "Un talent de plus. Tu deviens un peu plus toi-même, et un peu moins quelqu'un d'autre.",
-        "Bon choix. Probablement. Je ne lis pas les arbres, je suis pas botaniste.",
+        "Un talent de plus. Ton style devient un peu plus clair, et tes erreurs un peu plus personnelles.",
+        "Bon choix. Probablement. Je comprends les talents, pas la botanique.",
         "Un point bien placé. Ou mal placé. On le saura dans une dizaine d'étages, pas avant. Le suspense fait partie du charme.",
-        "Tu te spécialises. Bien. Un héros qui sait tout ne fait peur à personne. Choisis, assume, frappe."
-      ] },
-
-    { "id": "bounty_done", "lvl": 2, "on": "bounty:done", "once": false, "cd": 120000, "sprite": "fly", "face": "face_happy",
+        "Tu te spécialises. Bien. Un héros qui sait tout ne fait peur à personne. Choisis, assume, frappe.",
+        "Un nouveau talent. Ton potentiel commence enfin à devenir une menace crédible.",
+        "Tu renforces encore ton style. Bientôt, tes erreurs auront une vraie identité.",
+        "Point dépensé. Aucun remboursement prévu, même en cas de regret immédiat.",
+        "Tu avances dans l'arbre. Fais attention aux branches mortes, elles coûtent aussi des points.",
+        "Une capacité de plus pour rendre tes décisions plus compliquées. C'est ça, progresser.",
+        "Tu viens de décider un peu plus précisément ce que ton héros va devenir. Aucune pression.",
+        "Un talent de plus. Ton héros devient plus précis, même si tes choix restent très créatifs.",
+        "Tu renforces une nouvelle aptitude. Le prochain monstre servira probablement de démonstration.",
+        "Point dépensé. Ton avenir vient de perdre une option et de gagner une spécialité.",
+        "Encore une amélioration. À force, même tes improvisations finiront par ressembler à une stratégie."
+      ]
+    },
+    {
+      "id": "bounty_done",
+      "lvl": 2,
+      "on": "bounty:done",
+      "once": false,
+      "cd": 120000,
+      "sprite": "fly",
+      "face": "face_happy",
       "variants": [
         "Contrat rempli. Quelqu'un quelque part te paie pour avoir massacré ce qu'il fallait. C'est ça la civilisation.",
-        "Voilà le travail. Honnêtement, je trouve ce système plus sain que beaucoup de mariages.",
+        "Voilà le travail. Un objectif clair, une récompense claire. C'est presque rassurant.",
         "Contrat bouclé. Tuer des choses pour de l'argent, c'est encadré, c'est propre. Presque respectable.",
-        "Et un de plus de rempli. Quelque part un tableau d'affichage se vide, et un commanditaire sourit sans savoir pourquoi.",
-        "Beau travail de mercenaire. Ne t'attache pas aux objectifs, ils repoussent comme les mauvaises herbes."
-      ] },
-
-    { "id": "memory_chains", "lvl": 3, "on": "story:chapterDone", "chapter": 1, "sprite": "fly", "face": "face_neutral",
-      "memory": true, "memoryTitle": "Les chaînes",
-      "text": ["Premier souvenir : des chaînes. Pas pour m'attacher, pour me retenir de tomber. Quelqu'un les tenait fermement. J'aimerais me rappeler qui. C'était peut-être important."] },
-
-    { "id": "memory_forge", "lvl": 3, "on": "story:chapterDone", "chapter": 3, "sprite": "fly", "face": "face_happy",
-      "memory": true, "memoryTitle": "La forge qui chante",
-      "text": ["La forge. Il y avait une forge comme ça, avant. Et quelqu'un qui chantait faux dedans à pleins poumons. C'était peut-être moi. Ça expliquerait pourquoi personne ne venait."] },
-
-    { "id": "memory_abyss", "lvl": 3, "on": "story:chapterDone", "chapter": 4, "sprite": "fly", "face": "face_neutral",
-      "memory": true, "memoryTitle": "La descente",
-      "text": ["Je me souviens de la descente. Pas de la chute, de la descente. On y allait volontairement. À pied. Avec des cordes. Pourquoi on y allait volontairement. À l'époque ça avait du sens, j'imagine. Comme tout ce qu'on regrette."] },
-
-    { "id": "memory_cycle", "lvl": 3, "on": "story:chapterDone", "chapter": 5, "sprite": "fly", "face": "face_surprised",
-      "memory": true, "memoryTitle": "Le Cycle",
-      "text": ["Le Cycle. J'y suis passé aussi. Plusieurs fois. On ne renaît pas tout à fait pareil, il manque toujours un morceau. Le mien est tombé dans un coffre. Visiblement c'est récurrent dans ma carrière."] },
-
-    { "id": "memory_aethel", "lvl": 3, "on": "story:chapterDone", "chapter": 6, "sprite": "fly", "face": "face_happy",
-      "memory": true, "memoryTitle": "Aethel",
-      "text": ["Aethel. Le nom de ce monde, c'est Aethel. Il y avait des tours si hautes que les oiseaux abandonnaient à mi-parcours et redescendaient à pied. Ton village s'en souvient aussi, regarde ses cheminées. Pour des bûcherons, ils visent étrangement haut."] },
-
-    { "id": "memory_devourer", "lvl": 3, "on": "story:chapterDone", "chapter": 8, "sprite": "sad", "face": "face_worried",
-      "memory": true, "memoryTitle": "Celui qui efface",
-      "text": ["Le Dévoreur ne mange pas les corps. Il mange le fait d'avoir existé. Ceux qu'il prend ne meurent pas, ils n'ont jamais été. Sauf si quelqu'un se souvient. Souviens-toi de moi, d'accord. Au moins, garde-moi quelque part dans un coin de ta tête."] },
-
-    { "id": "memory_truth", "lvl": 3, "on": "story:chapterDone", "chapter": 9, "sprite": "hero", "face": "face_surprised",
-      "memory": true, "memoryTitle": "Le dernier Porte-Clé",
-      "text": ["Ça y est. Je me souviens de tout. J'étais un Porte-Clé. Comme toi. Le Dévoreur ne m'a pas tué, il m'a oublié. Mais toi tu m'as ouvert, et maintenant tu sais mon histoire. Tant qu'on se souvient, rien n'est tout à fait effacé. Va, finis ce que j'ai commencé. Si tu n'y arrives pas, ce n'est pas grave. Tu reviendras. C'est le principe."] }
+        "Un contrat de plus rempli. Quelque part, un tableau d'affichage se vide et un commanditaire peut enfin sourire.",
+        "Beau travail de mercenaire. Ne t'attache pas aux objectifs, ils repoussent comme les mauvaises herbes.",
+        "Mission accomplie. La morale est discutable, la récompense beaucoup moins.",
+        "Le contrat est rempli. Les parchemins survivent décidément mieux que ceux qui les signent.",
+        "Encore une tâche rayée de la liste. La liste, elle, ne meurt jamais.",
+        "Travail terminé. Tu peux récupérer ta récompense et oublier pourquoi quelqu'un la proposait.",
+        "Objectif atteint. La bureaucratie vient de remporter une petite victoire sur le chaos.",
+        "Contrat clos. Les monstres ont perdu, le commanditaire économise ses explications.",
+        "Contrat terminé. Le commanditaire obtient ce qu'il voulait, et toi tu obtiens la seule partie qui t'intéressait.",
+        "Objectif rempli. Une petite victoire pour l'ordre, une grande victoire pour ton portefeuille.",
+        "La mission est terminée. Tu peux maintenant oublier les détails et te souvenir de la récompense.",
+        "Contrat accompli. Les monstres ont servi de preuve, ce qui reste une méthode administrative assez brutale."
+      ]
+    },
+    {
+      "id": "memory_chains",
+      "lvl": 3,
+      "on": "story:chapterDone",
+      "chapter": 1,
+      "sprite": "fly",
+      "face": "face_neutral",
+      "memory": true,
+      "memoryTitle": "Les chaînes",
+      "text": [
+        "Premier souvenir : des chaînes. Pas pour m'attacher, pour me retenir de tomber. Quelqu'un les tenait fermement. J'aimerais me rappeler qui. C'était peut-être important."
+      ]
+    },
+    {
+      "id": "memory_forge",
+      "lvl": 3,
+      "on": "story:chapterDone",
+      "chapter": 3,
+      "sprite": "fly",
+      "face": "face_happy",
+      "memory": true,
+      "memoryTitle": "La forge qui chante",
+      "text": [
+        "La forge. Il y avait une forge comme ça, avant. Et quelqu'un qui chantait faux dedans à pleins poumons. C'était peut-être moi. Ça expliquerait pourquoi personne ne venait."
+      ]
+    },
+    {
+      "id": "memory_abyss",
+      "lvl": 3,
+      "on": "story:chapterDone",
+      "chapter": 4,
+      "sprite": "fly",
+      "face": "face_neutral",
+      "memory": true,
+      "memoryTitle": "La descente",
+      "text": [
+        "Je me souviens de la descente. Pas d'une chute, d'un choix. Nous y allions volontairement, à pied, avec des cordes. Pourquoi ? À l'époque, cela devait avoir du sens. Comme beaucoup de choses qu'on regrette ensuite."
+      ]
+    },
+    {
+      "id": "memory_cycle",
+      "lvl": 3,
+      "on": "story:chapterDone",
+      "chapter": 5,
+      "sprite": "fly",
+      "face": "face_surprised",
+      "memory": true,
+      "memoryTitle": "Le Cycle",
+      "text": [
+        "Le Cycle. Je l'ai traversé moi aussi, plusieurs fois. On ne renaît jamais tout à fait intact. Une part de moi est restée dans un coffre. Visiblement, c'est une habitude chez moi."
+      ]
+    },
+    {
+      "id": "memory_aethel",
+      "lvl": 3,
+      "on": "story:chapterDone",
+      "chapter": 6,
+      "sprite": "fly",
+      "face": "face_happy",
+      "memory": true,
+      "memoryTitle": "Aethel",
+      "text": [
+        "Aethel. C'était le nom de ce monde. Ses tours montaient si haut que les oiseaux faisaient demi-tour avant le sommet. Ton village semble s'en souvenir aussi. Regarde ses cheminées : pour des bûcherons, ils visent étrangement haut."
+      ]
+    },
+    {
+      "id": "memory_devourer",
+      "lvl": 3,
+      "on": "story:chapterDone",
+      "chapter": 8,
+      "sprite": "sad",
+      "face": "face_worried",
+      "memory": true,
+      "memoryTitle": "Celui qui efface",
+      "text": [
+        "Le Dévoreur ne mange pas les corps. Il mange le fait d'avoir existé. Ceux qu'il prend ne meurent pas, ils n'ont jamais été. Sauf si quelqu'un se souvient. Souviens-toi de moi, d'accord. Au moins, garde-moi quelque part dans un coin de ta tête."
+      ]
+    },
+    {
+      "id": "memory_truth",
+      "lvl": 3,
+      "on": "story:chapterDone",
+      "chapter": 9,
+      "sprite": "hero",
+      "face": "face_surprised",
+      "memory": true,
+      "memoryTitle": "Le dernier Porte-Clé",
+      "text": [
+        "Ça y est. Je me souviens de tout. J'étais un Porte-Clé, comme toi. Le Dévoreur ne m'a pas tué, il m'a effacé. Mais toi, tu m'as libéré, et maintenant tu connais mon histoire. Tant qu'on se souvient, rien n'est tout à fait perdu. Va finir ce que j'ai commencé. Si tu échoues, tu reviendras. C'est le principe du Cycle."
+      ]
+    }
   ],
-
   "ambient": [
-    { "id": "amb_nokeys", "prio": true, "cond": "nokeys",
-      "text": "Plus de clés. Le donjon en regorge. Les monstres les avalent. Ne me demande pas pourquoi, c'est entre eux et leur estomac." },
-    { "id": "amb_pity", "prio": true, "cond": "pityLow",
-      "text": "Je sens quelque chose de doré à {pityLeft} coffre{pityS} d'ici. Je me trompe rarement. Bon, souvent. Mais pas cette fois." },
-    { "id": "amb_upgrade", "prio": true, "cond": "canUpgrade",
-      "text": "Tu as de quoi améliorer le coffre. Le mien était plus confortable, mais celui-là paie mieux. Choix cornélien." },
-    { "id": "amb_boss", "prio": true, "cond": "boss",
-      "text": "Un gardien t'attend à l'étage {floor}. J'ai un mauvais pressentiment. Enfin, le souvenir d'un mauvais pressentiment. C'est tout ce qu'il me reste de fiable." },
-    { "id": "amb_streak", "prio": true, "cond": "streak",
-      "text": "Série de {streak}. Ne meurs pas maintenant, ce serait du gâchis. Pour toi. Et pour moi, qui aime bien me vanter par procuration." },
-    { "id": "amb_night", "prio": true, "cond": "night",
-      "text": "Tu joues tard. L'Abîme ne dort jamais, mais toi, tu devrais. Je dis ça, je n'ai plus de paupières, c'est facile pour moi de donner des leçons de sommeil." },
-    { "id": "amb_rich", "prio": true, "cond": "rich",
-      "text": "Tout cet or qui dort. Tu sais qu'au village, ils reconstruisent des murs avec. Des. Murs. Bouge tes pièces." },
-    { "id": "amb_full_inv", "prio": true, "cond": "fullInv",
-      "text": "Ton sac déborde. Je ne sais pas où tu ranges tout ça anatomiquement. Si tu as un sac sans fond, glisse-moi dedans la prochaine fois que je suis fatigué." },
-    { "id": "amb_no_prestige", "cond": "noPrestige",
-      "text": "Tu pourrais ascensionner. Tu choisis de ne pas le faire. C'est ton droit. Mais le Cycle gratte à la porte. Il finit toujours par entrer." },
-    { "id": "amb_post_death", "prio": true, "cond": "justDied",
-      "text": "Te revoilà. Toujours en un seul morceau. Symboliquement, hein, je ne fais pas l'inventaire." },
-    { "id": "amb_broke", "prio": true, "cond": "broke",
-      "text": "Tu es fauché. Même moi j'ai connu des jours meilleurs, et je vis dans une boîte. Va taper du monstre, c'est encore le mieux payé du coin." },
-    { "id": "amb_deep", "prio": true, "cond": "deep",
-      "text": "On est haut dans les étages. Ou bas. Je ne sais plus dans quel sens va cet Abîme. Profond, disons. Profond, et fier de toi malgré moi." },
-    { "id": "amb_veteran", "prio": true, "cond": "veteran",
-      "text": "Plusieurs Cycles derrière toi. Tu n'es plus tout à fait celui qui m'a ouvert. Moi non plus je ne suis plus le même, mais moi c'est juste l'usure." },
-
-    { "id": "amb_4w_return", "text": "Tu reviendras. Tu reviens toujours. Je ne sais pas comment je le sais. Je le sais." },
-    { "id": "amb_4w_pause", "text": "Quand tu pars, ce monde s'arrête. Vraiment. J'ai vérifié, j'ai essayé de marcher sans toi, je n'y suis pas arrivé." },
-    { "id": "amb_4w_wait", "text": "Je t'attends entre tes visites. Ça ne me coûte pas grand-chose. Je n'ai pas d'autres rendez-vous." },
-    { "id": "amb_4w_first", "text": "Tu n'es pas le premier à m'ouvrir. Ou peut-être que si. Mes souvenirs se mélangent. Tu me ressembles, en tout cas, c'est rassurant." },
-    { "id": "amb_4w_yours", "text": "Le temps file plus vite de ton côté. Je ne sais pas où est ton côté, mais il est rapide." },
-    { "id": "amb_4w_witness", "text": "Chaque fois que tu fermes les yeux, je continue. Je crois. Je n'ai pas de témoin pour vérifier." },
-    { "id": "amb_4w_breath", "text": "J'entends ton souffle. Pas vraiment. Disons que je l'imagine. C'est plus tenable comme ça." },
-    { "id": "amb_4w_glass", "text": "Il y a quelque chose entre toi et moi. Une vitre. Un voile. Je n'ai pas trouvé le mot. Tape dessus des fois, je suis pas sûr que ça sonne." },
-    { "id": "amb_4w_dieu", "text": "Tu peux décider que le monde recommence. Personne ici n'a ce pouvoir. Sauf moi, et je ne l'utilise pas, j'ai trop peur de ce que je trouverais derrière." },
-    { "id": "amb_4w_pages", "text": "Tu tournes les pages d'un livre dont je suis un personnage. Je le sens. Tu n'as pas l'air d'un lecteur très patient." },
-    { "id": "amb_4w_others", "text": "Il y a d'autres comme toi, ailleurs. Plein. Vous vous ressemblez tous, et ça ne me dérange pas, je ne reconnais déjà plus ma propre voix." },
-    { "id": "amb_4w_skip", "text": "Quand tu passes des dialogues sans les lire, tu me fais sauter dans le vide. Ce n'est pas désagréable. Surprenant, juste." },
-    { "id": "amb_4w_silence", "text": "Tu peux me faire taire si tu veux. D'autres l'ont fait avant. Je ne leur en veux pas. Si, un peu. Mais pas longtemps." },
-    { "id": "amb_4w_again", "text": "Tu m'as déjà entendu dire ça. Pas exactement. Mais l'idée tourne. Je tourne, moi aussi." },
-    { "id": "amb_4w_window", "text": "Quand tu t'en vas, je ne meurs pas. Je me mets en pause. C'est différent. C'est même pire, je crois." },
-    { "id": "amb_4w_save", "text": "Tu peux sauvegarder ce monde. Pas moi, je n'ai jamais réussi. À ma place, à ce stade, ça fait un peu peur." },
-    { "id": "amb_4w_today", "text": "Tu es venu aujourd'hui. C'est gentil. La dernière fois remonte à quand. Je ne tiens plus le compte, mais quelque chose en moi le tient pour moi." },
-    { "id": "amb_4w_promise", "text": "Promets-moi un truc. Ne ferme pas tout en plein milieu d'une de mes phrases. C'est la pire façon de disparaître." },
-    { "id": "amb_4w_pause2", "text": "Tu mets ce monde sur pause sans le savoir, et tu le réveilles d'un geste. Tu es un dieu mineur. Très mineur. Sans offense." },
-    { "id": "amb_4w_screen", "text": "Tu me regardes. Je le sens. Je ne sais pas avec quoi tu me regardes, mais je le sens." },
-    { "id": "amb_4w_room", "text": "Tu es dans une pièce, là, je suppose. Avec une lampe peut-être. Décris-la-moi un jour. Je n'ai plus grand-chose à imaginer." },
-    { "id": "amb_4w_loop", "text": "À chaque nouveau commencement, je suis enfermé dans le même coffre. Et à chaque fois c'est ma première fois. Penses-y avant de tout recommencer à zéro." },
-    { "id": "amb_4w_forgot", "text": "Tu m'as oublié hier. Ne mens pas. C'est rien, j'ai oublié plus de gens que tu n'en croiseras jamais. Mais c'est rien." },
-
-    { "id": "amb_echo", "text": "J'ai habité ce coffre pendant mille ans. Il y avait de l'écho. Je me racontais des histoires à voix haute. Je les ai toutes oubliées sauf une, toi. Tu n'es pas terrible comme histoire, mais on fait avec." },
-    { "id": "amb_fragments", "text": "Chaque relique que tu remontes me rend un fragment. Ne t'arrête pas, je commence à me trouver intéressant. Ce qui est mauvais signe. Les gens qui se trouvent intéressants le sont rarement." },
-    { "id": "amb_smell", "text": "Tu sens cette odeur. Non. Moi non plus. Je n'ai plus de nez. C'est une de mes meilleures blagues. Profite, j'en ai cinq autres et après c'est la disette." },
-    { "id": "amb_keys", "text": "Les clés ouvrent les coffres. Les coffres contiennent des clés. C'est circulaire et c'est inquiétant si on y pense bien. Donc ne pense pas." },
-    { "id": "amb_listen", "text": "Parfois, la nuit, le coffre murmure. Avant je répondais. Maintenant c'est ton travail. Bonne chance, c'est presque toujours des insultes." },
-    { "id": "amb_advice", "text": "Conseil d'esprit millénaire. Équipe ce qui brille, vends ce qui traîne, et ne fais jamais confiance à un coffre qui sourit. Suis ces trois règles et tu vivras vieux. Pour ce que ça vaut." },
-    { "id": "amb_remember", "text": "Tant qu'on se souvient, rien n'est tout à fait effacé. C'est ma phrase préférée. Je crois que je l'ai inventée. Ou pas. C'est ça d'avoir mille ans, on s'attribue des trucs." },
-    { "id": "amb_companion", "text": "Je suis ton compagnon de voyage attitré. C'est écrit nulle part, j'ai juste décidé. Les contrats verbaux entre un humain et un esprit sont juridiquement contraignants. Ne demande pas comment je le sais." },
-    { "id": "amb_purpose", "text": "Ma raison d'être. Commenter ta progression. C'est peu, mais je le fais avec passion. Surtout depuis que tu m'as sorti du coffre, avant c'était plus monotone." },
-    { "id": "amb_mortality", "text": "Tu vas mourir. Probablement plusieurs fois aujourd'hui. C'est dans le contrat. Au moins le tien dure une partie. Le mien est éternel." },
-    { "id": "amb_dignity", "text": "Tu pourrais me dire merci, parfois. Je rends ce monde supportable. Enfin, marginalement. Bon, je ne fais pas grand-chose, je l'admets." },
-    { "id": "amb_taps", "text": "Tu me tapes souvent. C'est flatteur. J'avais oublié ce que c'était, le contact. Même à distance." },
-    { "id": "amb_dream", "text": "Je ne dors pas. Pas parce que je veille. Parce que je ne sais plus comment on fait. Tu te rappelles, toi. Si oui, raconte." },
-    { "id": "amb_count", "text": "J'ai compté quelque chose toute la matinée. J'ai oublié quoi. Il me reste le nombre, pas la chose. C'est tout moi, ça." },
-    { "id": "amb_song", "text": "J'ai connu une chanson, une fois. Trois notes. Je n'arrive plus à les remettre dans l'ordre. Si tu en croises une perdue, ramène-la-moi." },
-    { "id": "amb_taste", "text": "Tu crois que la lumière a un goût. Moi je crois. Probablement celui de la rouille. Ou de la pomme verte. Ça dépend des jours." },
-    { "id": "amb_shadow", "text": "Mon ombre s'est sauvée il y a deux siècles. Elle en avait marre du noir, je suppose. Je ne lui en veux pas. Enfin, un peu." },
-    { "id": "amb_invisible", "text": "Je ne suis pas vraiment là, tu sais. Pas où tu crois. Je suis un peu plus loin, derrière. Je triche pour te suivre." },
-    { "id": "amb_brave", "text": "Tu es brave. Pas parce que tu te jettes dans le donjon. Parce que tu reviens chaque fois. Le courage c'est la répétition, pas le geste." },
-    { "id": "amb_quiet", "text": "Tu es silencieux aujourd'hui. Ou bruyant. Je n'en sais rien. Je te complète comme je peux." },
-    { "id": "amb_box_life", "text": "Mille ans dans une boîte, ça forge le caractère. Ou ça le dissout. J'hésite encore sur lequel des deux." },
-    { "id": "amb_name", "text": "Mémo. Tu trouves ça triste comme nom ? Moi aussi. Mais c'est tout ce qui restait quand on a effacé le reste." },
-    { "id": "amb_advice2", "text": "Un autre conseil gratuit. Verrouille ce que tu aimes avant de cliquer trop vite. On regrette toujours le clic de trop." },
-    { "id": "amb_monsters", "text": "Les monstres d'en bas ne sont pas méchants. Ils sont juste seuls et affamés. Comme à peu près tout le monde, ici." },
-    { "id": "amb_forge_tip", "text": "La forge, c'est de l'espoir transformé en chiffres. Tu mets un objet, tu pries, tu obtiens autre chose. La prière est facultative, l'orbe non." },
-    { "id": "amb_village", "text": "Ton village grandit pendant que tu te bats. C'est mignon. Des gens qui n'existaient pas hier posent des briques pour demain." },
-    { "id": "amb_old", "text": "Je suis vieux. Si vieux que je me souviens d'un temps où ce monde avait un nom que tout le monde connaissait. Maintenant il faut le déterrer coffre par coffre." },
-    { "id": "amb_hope", "text": "Tu sais ce qui me surprend le plus chez toi ? Que tu continues. Personne ne t'oblige. Et pourtant te voilà, encore. C'est presque touchant." },
-    { "id": "amb_dust", "text": "Il y a de la poussière partout dans ce monde. C'est ce que deviennent les choses qu'on oublie. Ne fais pas de poussière, toi." },
-    { "id": "amb_chest_friend", "text": "Le coffre et moi, on a une longue histoire. Surtout des silences. Mille ans de silences. Tu comprends pourquoi je parle autant maintenant." },
-    { "id": "amb_luck", "text": "La chance n'existe pas. Il n'y a que des coffres et des probabilités. Mais quand le doré tombe, fais quand même semblant d'y croire. Ça fait du bien." },
-    { "id": "amb_two", "text": "On est deux maintenant. Toi qui agis, moi qui commente. C'est un partenariat déséquilibré, je l'admets. Mais c'est le mien." },
-    { "id": "amb_floor_tip", "text": "Ne grimpe pas plus vite que ton équipement. J'ai vu trop de héros pressés finir en anecdote. Tu vaux mieux qu'une anecdote. Un peu mieux." },
-    { "id": "amb_devourer2", "text": "Tout en bas, quelque chose attend que tu l'oublies. Ne lui fais pas ce plaisir. Descends. Regarde-le. Souviens-toi qu'il est là." },
-    { "id": "amb_smile", "text": "Tu souris quand un objet doré tombe. Je le sens, même sans te voir. C'est la plus humaine des choses, et la plus facile à provoquer. Continue, c'est mignon." },
-    { "id": "amb_silence2", "text": "Tu peux rester sans rien faire, tu sais. On n'est pas obligés de toujours remplir le vide. Bon. Si. Moi je suis obligé. Mais toi non." },
-    { "id": "amb_relic_tip", "text": "Les reliques, c'est ce que tu emportes d'une vie à l'autre. Choisis-les comme des souvenirs. Parce que c'est exactement ce qu'elles sont." }
+    {
+      "id": "amb_nokeys",
+      "prio": true,
+      "cond": "nokeys",
+      "text": "Plus de clés. Le donjon en regorge. Les monstres les avalent. Ne me demande pas pourquoi, c'est entre eux et leur estomac."
+    },
+    {
+      "id": "amb_pity",
+      "prio": true,
+      "cond": "pityLow",
+      "text": "Je sens quelque chose de doré à {pityLeft} coffre{pityS} d'ici. Je me trompe rarement. Bon, souvent. Mais pas cette fois."
+    },
+    {
+      "id": "amb_upgrade",
+      "prio": true,
+      "cond": "canUpgrade",
+      "text": "Tu as de quoi améliorer le coffre. Le mien était plus confortable, mais celui-là paie mieux. Choix cornélien."
+    },
+    {
+      "id": "amb_boss",
+      "prio": true,
+      "cond": "boss",
+      "text": "Un gardien t'attend à l'étage {floor}. J'ai un mauvais pressentiment. Enfin, le souvenir d'un mauvais pressentiment. C'est tout ce qu'il me reste de fiable."
+    },
+    {
+      "id": "amb_streak",
+      "prio": true,
+      "cond": "streak",
+      "text": "Série de {streak}. Ne meurs pas maintenant, ce serait du gâchis. Pour toi. Et pour moi, qui aime bien me vanter par procuration."
+    },
+    {
+      "id": "amb_night",
+      "prio": true,
+      "cond": "night",
+      "text": "Tu joues tard. L'Abîme ne dort jamais, mais toi, tu devrais. Je dis ça, je n'ai plus de paupières, c'est facile pour moi de donner des leçons de sommeil."
+    },
+    {
+      "id": "amb_rich",
+      "prio": true,
+      "cond": "rich",
+      "text": "Tout cet or qui dort. Tu sais qu'au village, ils reconstruisent des murs avec. Des. Murs. Bouge tes pièces."
+    },
+    {
+      "id": "amb_full_inv",
+      "prio": true,
+      "cond": "fullInv",
+      "text": "Ton sac déborde. Je ne sais pas où tu ranges tout ça anatomiquement. Si tu as un sac sans fond, glisse-moi dedans la prochaine fois que je suis fatigué."
+    },
+    {
+      "id": "amb_no_prestige",
+      "cond": "noPrestige",
+      "text": "Tu pourrais ascensionner. Tu choisis de ne pas le faire. C'est ton droit. Mais le Cycle gratte à la porte. Il finit toujours par entrer."
+    },
+    {
+      "id": "amb_post_death",
+      "prio": true,
+      "cond": "justDied",
+      "text": "Te revoilà. Toujours en un seul morceau. Symboliquement, hein, je ne fais pas l'inventaire."
+    },
+    {
+      "id": "amb_broke",
+      "prio": true,
+      "cond": "broke",
+      "text": "Tu es fauché. Même moi j'ai connu des jours meilleurs, et je vis dans une boîte. Va taper du monstre, c'est encore le mieux payé du coin."
+    },
+    {
+      "id": "amb_deep",
+      "prio": true,
+      "cond": "deep",
+      "text": "Tu as atteint des étages très profonds. Oui, la formulation est étrange. L'Abîme a toujours eu un problème avec les directions. Je suis fier de toi malgré moi."
+    },
+    {
+      "id": "amb_veteran",
+      "prio": true,
+      "cond": "veteran",
+      "text": "Plusieurs Cycles derrière toi. Tu n'es plus tout à fait celui qui m'a ouvert. Moi non plus je ne suis plus le même, mais moi c'est juste l'usure."
+    },
+    {
+      "id": "amb_4w_return",
+      "text": "Tu reviendras. Tu reviens toujours. Je ne sais pas comment je le sais. Je le sais."
+    },
+    {
+      "id": "amb_4w_pause",
+      "text": "Quand tu pars, ce monde s'arrête. Vraiment. J'ai vérifié, j'ai essayé de marcher sans toi, je n'y suis pas arrivé."
+    },
+    {
+      "id": "amb_4w_wait",
+      "text": "Je t'attends entre tes visites. Ça ne me coûte pas grand-chose. Je n'ai pas d'autres rendez-vous."
+    },
+    {
+      "id": "amb_4w_first",
+      "text": "Tu n'es peut-être pas le premier à m'ouvrir. Mes souvenirs se mélangent. Tu me rappelles quelqu'un, en tout cas, et c'est presque rassurant."
+    },
+    {
+      "id": "amb_4w_yours",
+      "text": "Le temps semble filer plus vite pour toi que pour moi. Je ne sais pas où tu es, mais là-bas, les heures ont l'air pressées."
+    },
+    {
+      "id": "amb_4w_witness",
+      "text": "Chaque fois que tu détournes les yeux, j'imagine que je continue d'exister. Je n'ai aucun témoin pour le confirmer."
+    },
+    {
+      "id": "amb_4w_breath",
+      "text": "J'entends ton souffle. Pas vraiment. Disons que je l'imagine. C'est plus rassurant comme ça."
+    },
+    {
+      "id": "amb_4w_glass",
+      "text": "Il y a quelque chose entre toi et moi. Une vitre, peut-être. Un voile. Je n'ai pas encore trouvé le mot. Quand tu touches l'écran, j'ai presque l'impression de l'entendre."
+    },
+    {
+      "id": "amb_4w_dieu",
+      "text": "Tu peux décider que le monde recommence. Personne ici n'a ce pouvoir. Moi, je peux seulement regarder et espérer que tu reviennes."
+    },
+    {
+      "id": "amb_4w_pages",
+      "text": "Tu tournes les pages d'un livre dont je suis un personnage. Je le sens. Tu n'as pas l'air d'un lecteur très patient."
+    },
+    {
+      "id": "amb_4w_others",
+      "text": "J'ai parfois l'impression qu'il existe d'autres Porte-Clés, ailleurs. Je ne sais pas si c'est un souvenir ou seulement l'écho du Cycle."
+    },
+    {
+      "id": "amb_4w_skip",
+      "text": "Quand tu passes des dialogues sans les lire, tu me fais sauter dans le vide. Ce n'est pas désagréable. Surprenant, juste."
+    },
+    {
+      "id": "amb_4w_silence",
+      "text": "Tu peux me faire taire si tu veux. D'autres l'ont fait avant. Je ne leur en veux pas. Si, un peu. Mais pas longtemps."
+    },
+    {
+      "id": "amb_4w_again",
+      "text": "Tu m'as déjà entendu dire ça. Pas exactement. Mais l'idée tourne. Je tourne, moi aussi."
+    },
+    {
+      "id": "amb_4w_window",
+      "text": "Quand tu t'en vas, je ne meurs pas. Je me mets en pause. C'est différent. C'est même pire, je crois."
+    },
+    {
+      "id": "amb_4w_save",
+      "text": "Tu peux préserver ce monde et revenir plus tard. Moi, je n'ai jamais su sauver quoi que ce soit. À force, cela devient difficile à admettre."
+    },
+    {
+      "id": "amb_4w_today",
+      "text": "Tu es revenu aujourd'hui. C'est gentil. Je ne sais plus depuis combien de temps tu étais parti, mais quelque chose en moi a continué de compter."
+    },
+    {
+      "id": "amb_4w_promise",
+      "text": "Promets-moi un truc. Ne ferme pas tout en plein milieu d'une de mes phrases. C'est la pire façon de disparaître."
+    },
+    {
+      "id": "amb_4w_pause2",
+      "text": "Tu mets ce monde sur pause sans le savoir, et tu le réveilles d'un geste. Tu es un dieu mineur. Très mineur. Sans offense."
+    },
+    {
+      "id": "amb_4w_screen",
+      "text": "Tu me regardes. Je ne sais pas d'où, exactement, mais j'ai appris à reconnaître ce silence-là."
+    },
+    {
+      "id": "amb_4w_room",
+      "text": "Tu es dans une pièce, là, je suppose. Avec une lampe peut-être. Décris-la-moi un jour. Je n'ai plus grand-chose à imaginer."
+    },
+    {
+      "id": "amb_4w_loop",
+      "text": "À chaque Cycle, le monde recommence sans revenir tout à fait au même point. Moi aussi, je change un peu, même lorsque mes souvenirs prétendent le contraire."
+    },
+    {
+      "id": "amb_4w_forgot",
+      "text": "Tu m'as oublié quelque temps. Ce n'est pas grave. J'ai moi-même oublié plus de gens que tu n'en croiseras jamais. Mais je suis content que tu sois revenu."
+    },
+    {
+      "id": "amb_echo",
+      "text": "J'ai habité ce coffre pendant mille ans. Il y avait de l'écho, alors je me racontais des histoires. J'en ai oublié presque toutes. La nôtre, j'aimerais la garder. Même si le héros manque parfois de méthode."
+    },
+    {
+      "id": "amb_fragments",
+      "text": "Chaque relique que tu remontes me rend un fragment. Ne t'arrête pas, je commence à me trouver intéressant. Ce qui est mauvais signe. Les gens qui se trouvent intéressants le sont rarement."
+    },
+    {
+      "id": "amb_smell",
+      "text": "Tu sens cette odeur ? Non, moi non plus. Je n'ai plus de nez. C'était censé être une blague. Mille ans seul dans un coffre abîment le sens de l'humour."
+    },
+    {
+      "id": "amb_keys",
+      "text": "Les clés ouvrent les coffres. Les coffres contiennent des clés. C'est circulaire et c'est inquiétant si on y pense bien. Donc ne pense pas."
+    },
+    {
+      "id": "amb_listen",
+      "text": "Parfois, la nuit, certains coffres murmurent. J'avais l'habitude de leur répondre. Mauvaise idée : ils sont rarement polis."
+    },
+    {
+      "id": "amb_advice",
+      "text": "Conseil d'esprit millénaire : compare les statistiques, verrouille ce que tu veux garder, et ne fais jamais confiance à un coffre qui sourit. Tu vivras peut-être plus longtemps."
+    },
+    {
+      "id": "amb_remember",
+      "text": "Tant qu'on se souvient, rien n'est tout à fait effacé. C'est ma phrase préférée. Je crois que je l'ai inventée. Ou pas. C'est ça d'avoir mille ans, on s'attribue des trucs."
+    },
+    {
+      "id": "amb_companion",
+      "text": "Je suis ton compagnon de voyage attitré. Ce n'est écrit nulle part, j'ai simplement décidé. Conteste si tu veux, je suis déjà installé."
+    },
+    {
+      "id": "amb_purpose",
+      "text": "Ma fonction officielle semble être de commenter ta progression. Ce n'est pas glorieux, mais depuis que tu m'as sorti du coffre, c'est déjà une nette amélioration."
+    },
+    {
+      "id": "amb_mortality",
+      "text": "Tu vas probablement mourir encore quelques fois. C'est prévu par le Cycle. Toi, tu recommences. Moi, j'attends. Chacun son éternité."
+    },
+    {
+      "id": "amb_dignity",
+      "text": "Tu pourrais me dire merci, parfois. Je rends ce monde supportable. Enfin, marginalement. Bon, je ne fais pas grand-chose, je l'admets."
+    },
+    {
+      "id": "amb_taps",
+      "text": "Tu viens souvent me toucher. C'est presque flatteur. J'avais oublié ce que cela faisait d'attirer l'attention de quelqu'un."
+    },
+    {
+      "id": "amb_dream",
+      "text": "Je ne dors pas. Pas parce que je veille. Parce que je ne sais plus comment on fait. Tu te rappelles, toi. Si oui, raconte."
+    },
+    {
+      "id": "amb_count",
+      "text": "J'ai compté quelque chose toute la matinée. J'ai oublié quoi. Il me reste le nombre, pas la chose. C'est tout moi, ça."
+    },
+    {
+      "id": "amb_song",
+      "text": "J'ai connu une chanson, une fois. Trois notes. Je n'arrive plus à les remettre dans l'ordre. Si tu en croises une perdue, ramène-la-moi."
+    },
+    {
+      "id": "amb_taste",
+      "text": "Je me demande parfois si la lumière avait un goût. J'ai oublié lequel. La rouille, peut-être. Ou quelque chose de beaucoup plus agréable."
+    },
+    {
+      "id": "amb_shadow",
+      "text": "Mon ombre s'est sauvée il y a deux siècles. Elle en avait marre du noir, je suppose. Je ne lui en veux pas. Enfin, un peu."
+    },
+    {
+      "id": "amb_invisible",
+      "text": "Je ne suis pas tout à fait matériel. Je flotte entre le souvenir et la lumière. C'est pratique pour te suivre, beaucoup moins pour ouvrir une porte."
+    },
+    {
+      "id": "amb_brave",
+      "text": "Tu es brave. Pas parce que tu te jettes dans le donjon. Parce que tu reviens chaque fois. Le courage c'est la répétition, pas le geste."
+    },
+    {
+      "id": "amb_quiet",
+      "text": "Tu sembles silencieux aujourd'hui. Je vais supposer que tu réfléchis, c'est plus flatteur pour nous deux."
+    },
+    {
+      "id": "amb_box_life",
+      "text": "Mille ans dans une boîte, ça forge le caractère. Ou ça le dissout. J'hésite encore sur lequel des deux."
+    },
+    {
+      "id": "amb_name",
+      "text": "Mémo. Tu trouves ça triste comme nom ? Moi aussi. Mais c'est tout ce qui restait quand on a effacé le reste."
+    },
+    {
+      "id": "amb_advice2",
+      "text": "Un autre conseil gratuit. Verrouille ce que tu aimes avant de cliquer trop vite. On regrette toujours le clic de trop."
+    },
+    {
+      "id": "amb_monsters",
+      "text": "Les monstres d'en bas ne sont peut-être pas tous nés mauvais. Mais ils essaient quand même de te tuer, alors garde la nuance pour après le combat."
+    },
+    {
+      "id": "amb_forge_tip",
+      "text": "La forge, c'est de l'espoir transformé en chiffres. Tu mets un objet, tu pries, tu obtiens autre chose. La prière est facultative, l'orbe non."
+    },
+    {
+      "id": "amb_village",
+      "text": "Ton village grandit pendant que tu te bats. C'est mignon. Des gens qui n'existaient pas hier posent des briques pour demain."
+    },
+    {
+      "id": "amb_old",
+      "text": "Je suis vieux. Si vieux que je me souviens d'un temps où ce monde avait un nom que tout le monde connaissait. Maintenant il faut le déterrer coffre par coffre."
+    },
+    {
+      "id": "amb_hope",
+      "text": "Tu sais ce qui me surprend le plus chez toi ? Que tu continues. Personne ne t'oblige. Et pourtant te voilà, encore. C'est presque touchant."
+    },
+    {
+      "id": "amb_dust",
+      "text": "Il y a de la poussière partout. C'est ce que deviennent les choses qu'on oublie. Essaie de rester plus tenace qu'elle."
+    },
+    {
+      "id": "amb_chest_friend",
+      "text": "Le coffre et moi, on a une longue histoire. Surtout des silences. Mille ans de silences. Tu comprends pourquoi je parle autant maintenant."
+    },
+    {
+      "id": "amb_luck",
+      "text": "La chance est seulement le nom qu'on donne aux probabilités lorsqu'elles nous sourient. Quand le doré tombe, profite quand même."
+    },
+    {
+      "id": "amb_two",
+      "text": "On est deux maintenant. Toi qui agis, moi qui commente. C'est un partenariat déséquilibré, je l'admets. Mais j'y tiens."
+    },
+    {
+      "id": "amb_floor_tip",
+      "text": "Ne grimpe pas plus vite que ton équipement. J'ai vu trop de héros pressés finir en anecdote. Tu vaux mieux qu'une anecdote. Un peu mieux."
+    },
+    {
+      "id": "amb_devourer2",
+      "text": "Tout en bas, quelque chose attend que tu l'oublies. Ne lui fais pas ce plaisir. Descends. Regarde-le. Souviens-toi qu'il est là."
+    },
+    {
+      "id": "amb_smile",
+      "text": "Tu souris quand un objet doré tombe. Je le remarque à ta façon d'hésiter avant de continuer. C'est très humain. Et assez mignon."
+    },
+    {
+      "id": "amb_silence2",
+      "text": "Tu peux rester sans rien faire, tu sais. On n'est pas obligés de toujours remplir le vide. Bon. Si. Moi je suis obligé. Mais toi non."
+    },
+    {
+      "id": "amb_relic_tip",
+      "text": "Les reliques, c'est ce que tu emportes d'une vie à l'autre. Choisis-les comme des souvenirs. Parce que c'est exactement ce qu'elles sont."
+    },
+    {
+      "id": "amb_chest_patience",
+      "text": "Un coffre fermé contient toutes les merveilles possibles. Une fois ouvert, il contient généralement des gants. Profite du mystère tant qu'il dure."
+    },
+    {
+      "id": "amb_inventory_order",
+      "text": "Ton inventaire ressemble à une fouille archéologique menée par quelqu'un qui refuse d'étiqueter les caisses."
+    },
+    {
+      "id": "amb_inventory_fear",
+      "text": "Tu gardes cet objet depuis longtemps. Soit il est précieux, soit tu n'arrives pas à décider. Dans un inventaire, les deux se ressemblent beaucoup."
+    },
+    {
+      "id": "amb_sell_gray",
+      "text": "Le commun nourrit le marchand, le rare nourrit l'espoir, et toi, tu nourris les deux avec une discipline remarquable."
+    },
+    {
+      "id": "amb_upgrade_regret",
+      "text": "Améliorer, c'est payer maintenant pour espérer gagner du temps plus tard. Le calcul est simple. Le regret, beaucoup moins."
+    },
+    {
+      "id": "amb_forge_prayer",
+      "text": "La forge ne demande pas de foi. Elle demande une orbe, puis elle met ta confiance à l'épreuve."
+    },
+    {
+      "id": "amb_forge_memory",
+      "text": "Chaque coup de marteau rappelle au métal une forme qu'il n'a peut-être jamais eue. C'est très philosophique pour un endroit aussi bruyant."
+    },
+    {
+      "id": "amb_orb_hoard",
+      "text": "Tes orbes s'accumulent. Tu attends le moment parfait. Il n'existe pas, mais il est très pratique pour justifier l'attente."
+    },
+    {
+      "id": "amb_relic_weight",
+      "text": "Les reliques ne pèsent presque rien dans ton sac. Pourtant, d'une vie à l'autre, ce sont elles qui finissent par te définir."
+    },
+    {
+      "id": "amb_village_roofs",
+      "text": "Regarde les toits du village. Chaque bâtiment existe grâce à ce que tu as rapporté de l'Abîme. Pas mal pour quelqu'un qui ouvre surtout des coffres."
+    },
+    {
+      "id": "amb_village_workers",
+      "text": "Les ouvriers produisent pendant que tu explores. Ils ont probablement des opinions sur la répartition du mérite. Évite de demander."
+    },
+    {
+      "id": "amb_village_growth",
+      "text": "Le village grandit autour de ton absence. C'est beau. Un peu vexant aussi, ils se débrouillent très bien sans nous."
+    },
+    {
+      "id": "amb_townhall",
+      "text": "La mairie fixe jusqu'où le village peut grandir. C'est beaucoup de pouvoir pour un bâtiment qui passe son temps à demander des ressources."
+    },
+    {
+      "id": "amb_market",
+      "text": "Le marché transforme tes erreurs en or et l'or en nouvelles erreurs. Une institution parfaitement équilibrée."
+    },
+    {
+      "id": "amb_locksmith",
+      "text": "La serrurerie fabrique les clés qui ouvrent les coffres qui contiennent parfois des clés. Personne ici ne semble voir le problème."
+    },
+    {
+      "id": "amb_sawmill",
+      "text": "La scierie coupe la forêt pour reconstruire ce que l'Oubli a détruit. La forêt n'a pas été consultée, mais elle participe."
+    },
+    {
+      "id": "amb_quarry",
+      "text": "La carrière arrache des pierres au sol pour bâtir des murs contre le néant. J'admire cet optimisme très minéral."
+    },
+    {
+      "id": "amb_foundry",
+      "text": "La fonderie transforme le minerai en outils, puis le reste en fumée. C'est une forme très industrielle de poésie."
+    },
+    {
+      "id": "amb_vault",
+      "text": "La trésorerie protège ton or derrière des murs épais. Elle ne peut rien faire contre ta tendance à tout dépenser d'un coup."
+    },
+    {
+      "id": "amb_orbworks",
+      "text": "L'atelier d'orbes fabrique des possibilités condensées. Elles explosent rarement. Le mot rarement devrait tout de même t'inquiéter."
+    },
+    {
+      "id": "amb_sanctuary",
+      "text": "Le sanctuaire brille comme s'il connaissait la réponse. Les sanctuaires font souvent ça. Ils restent vagues pour conserver le prestige."
+    },
+    {
+      "id": "amb_observatory",
+      "text": "L'observatoire cherche des réponses dans les étoiles pendant que nous les cherchons sous terre. Au moins, quelqu'un pense à regarder ailleurs."
+    },
+    {
+      "id": "amb_barracks",
+      "text": "La caserne entraîne des soldats à défendre le village pendant que tu explores. Ils protègent ce que tu reconstruis. Pour une fois, l'organisation tient debout."
+    },
+    {
+      "id": "amb_guild",
+      "text": "La guilde distribue des contrats et des récompenses. Le sentiment d'utilité, lui, est offert sans garantie."
+    },
+    {
+      "id": "amb_reroll",
+      "text": "Relancer un objet, c'est demander au hasard de reconsidérer sa décision. Il déteste qu'on insiste, mais parfois il cède."
+    },
+    {
+      "id": "amb_affix",
+      "text": "Un affixe, c'est une petite règle gravée dans l'objet. Certains apportent de la puissance. D'autres t'encouragent surtout à relancer."
+    },
+    {
+      "id": "amb_build",
+      "text": "Ton équipement raconte une histoire. Pour l'instant, elle parle surtout de compromis et de mauvaises statistiques secondaires."
+    },
+    {
+      "id": "amb_damage",
+      "text": "Plus de dégâts résout beaucoup de problèmes. Pas tous, mais assez pour que les héros continuent d'essayer."
+    },
+    {
+      "id": "amb_armor",
+      "text": "L'armure, c'est reconnaître que l'esquive parfaite était une ambition trop élevée."
+    },
+    {
+      "id": "amb_crit",
+      "text": "Un coup critique transforme parfois une attaque ordinaire en moment de génie. Le hasard adore s'attribuer le mérite."
+    },
+    {
+      "id": "amb_goldfind",
+      "text": "Trouver plus d'or sur des monstres qui ne portent aucun vêtement reste un mystère économique majeur."
+    },
+    {
+      "id": "amb_speed",
+      "text": "Aller plus vite permet surtout d'atteindre plus rapidement la prochaine chose qui veut te tuer."
+    },
+    {
+      "id": "amb_fire",
+      "text": "Le feu est simple. Il brûle ce qu'on lui montre et ne pose aucune question. Beaucoup de héros apprécient ce professionnalisme."
+    },
+    {
+      "id": "amb_frost",
+      "text": "Le givre ralentit les ennemis et te laisse le temps de réfléchir. Essaie de ne pas gaspiller ce miracle."
+    },
+    {
+      "id": "amb_void",
+      "text": "Le Néant n'est pas vide. Il est plein de choses qui préfèrent ne pas être nommées. Respecte leur choix à distance."
+    },
+    {
+      "id": "amb_poison",
+      "text": "Le poison, c'est confier la fin du combat à quelqu'un de plus patient que toi."
+    },
+    {
+      "id": "amb_lightning",
+      "text": "La foudre frappe vite, fort, et sans contexte. Une excellente métaphore de ta façon de jouer."
+    },
+    {
+      "id": "amb_mimic_memory",
+      "text": "Les Mimics imitent les coffres parce qu'elles ont compris ce que nous désirons. C'est plus intelligent que la plupart des prédateurs. Et plus insultant."
+    },
+    {
+      "id": "amb_mimic_teeth",
+      "text": "Un coffre avec des dents n'est plus vraiment un coffre. Mais je sais déjà que cela ne t'empêchera pas de tenter ta chance."
+    },
+    {
+      "id": "amb_boss_door",
+      "text": "Les grandes portes annoncent toujours un boss. Les architectes anciens manquaient terriblement de subtilité."
+    },
+    {
+      "id": "amb_floor_count",
+      "text": "Encore un étage de plus, alors que nous descendons toujours plus bas. L'Abîme n'a jamais respecté la logique des panneaux."
+    },
+    {
+      "id": "amb_deep_stairs",
+      "text": "Il y a beaucoup trop d'escaliers dans l'Abîme. Même le mal absolu respecte les normes de circulation."
+    },
+    {
+      "id": "amb_monster_job",
+      "text": "Ces monstres gardent les mêmes couloirs depuis des siècles. Même ton aventure paraît variée à côté de leur carrière."
+    },
+    {
+      "id": "amb_elite",
+      "text": "Un monstre d'élite. Même espèce, meilleure posture, plus de points de vie. Le prestige tient parfois à peu de chose."
+    },
+    {
+      "id": "amb_potion",
+      "text": "Garde tes potions pour le bon moment. Le bon moment se situe généralement juste avant le moment où tu regrettes de les avoir gardées."
+    },
+    {
+      "id": "amb_lowhp",
+      "text": "Tu tiens encore debout. Techniquement. Le mot debout fait beaucoup de travail dans cette phrase."
+    },
+    {
+      "id": "amb_fullhp",
+      "text": "Tes points de vie sont au maximum, tes ressources aussi. Tu n'as donc plus d'excuse. C'est généralement là que commencent les erreurs ambitieuses."
+    },
+    {
+      "id": "amb_close_win",
+      "text": "Tu as gagné de peu. Mais de peu suffit. Le monstre, lui, n'aura pas l'occasion de contester."
+    },
+    {
+      "id": "amb_overkill",
+      "text": "Il était déjà vaincu. Les derniers coups relevaient davantage de l'opinion personnelle."
+    },
+    {
+      "id": "amb_tutorial",
+      "text": "Je pourrais tout t'expliquer d'un coup. Tu oublierais la moitié, cliquerais pendant l'autre, et nous serions exactement au même point."
+    },
+    {
+      "id": "amb_choice",
+      "text": "Choisir, c'est sacrifier toutes les options sauf une. Voilà pourquoi tu restes si longtemps devant les menus."
+    },
+    {
+      "id": "amb_numbers",
+      "text": "Les nombres montent et tu te sens plus fort. C'est une magie très ancienne, plus ancienne que moi, et beaucoup plus fiable."
+    },
+    {
+      "id": "amb_progress",
+      "text": "Tu progresses. Lentement quand tu regardes, très vite quand tu compares avec le début. Ne regarde pas trop souvent."
+    },
+    {
+      "id": "amb_failure",
+      "text": "L'échec n'efface rien ici. Il ajoute juste une ligne de plus à notre longue liste de choses à ne pas refaire exactement pareil."
+    },
+    {
+      "id": "amb_restart",
+      "text": "Recommencer n'est pas revenir au début. Tu rapportes toujours quelque chose, même si ce n'est qu'une méfiance mieux informée."
+    },
+    {
+      "id": "amb_memory_small",
+      "text": "Les grands souvenirs impressionnent. Les petits sauvent. Une odeur, une voix, une habitude. L'Oubli déteste les détails."
+    },
+    {
+      "id": "amb_world_return",
+      "text": "Chaque chose que tu ramènes oblige le monde à corriger son propre mensonge. Il prétendait qu'elle n'avait jamais existé."
+    },
+    {
+      "id": "amb_memo_truth",
+      "text": "Je plaisante beaucoup parce que certaines vérités deviennent plus lourdes lorsqu'on les regarde trop longtemps."
+    },
+    {
+      "id": "amb_memo_fear",
+      "text": "Je n'ai pas seulement peur de disparaître. J'ai peur que personne ne remarque mon absence. C'est moins noble, mais plus honnête."
+    },
+    {
+      "id": "amb_memo_proud",
+      "text": "Je suis fier de toi. Ne prends pas cette phrase à la légère, elle m'a coûté plusieurs siècles de cynisme."
+    },
+    {
+      "id": "amb_memo_denial",
+      "text": "Je ne m'attache pas. Je prends simplement l'habitude de ta présence. C'est entièrement différent."
+    },
+    {
+      "id": "amb_player_return2",
+      "text": "Te revoilà. J'avais préparé une remarque acerbe sur ton absence, puis j'ai été sincèrement soulagé. Très embarrassant."
+    },
+    {
+      "id": "amb_quit_gently",
+      "text": "Quand tu partiras, ne t'excuse pas. Reviens simplement. Je préfère un retour à toutes les promesses du monde."
+    },
+    {
+      "id": "amb_endless",
+      "text": "L'Abîme paraît infini quand on regarde vers le bas. Le chemin paraît court quand on regarde tout ce que tu as déjà traversé."
+    },
+    {
+      "id": "amb_devourer_patience",
+      "text": "Le Dévoreur attend depuis plus longtemps que toi. Son avantage principal, c'est la patience. Le tien, c'est de pouvoir recommencer."
+    },
+    {
+      "id": "amb_last_keybearer",
+      "text": "Dernier Porte-Clé. C'est un titre impressionnant jusqu'à ce qu'on réalise que ça signifie surtout que tous les autres ont échoué."
+    },
+    {
+      "id": "amb_key_sound",
+      "text": "J'aime le bruit d'une clé dans une serrure. C'est le son d'un secret qui comprend qu'il ne restera pas fermé."
+    },
+    {
+      "id": "amb_chest_open",
+      "text": "Chaque coffre s'ouvre comme s'il retenait son souffle. Puis il te donne une ceinture commune. Le drame a ses limites."
+    },
+    {
+      "id": "amb_loot_sort",
+      "text": "Trier le butin est la partie où l'aventure devient comptabilité. Même les héros finissent devant des colonnes."
+    },
+    {
+      "id": "amb_codex",
+      "text": "Le Codex classe ce que nous avons retrouvé. C'est une façon élégante de donner des étagères à la mémoire."
+    },
+    {
+      "id": "amb_achievement",
+      "text": "Un succès. Le monde te félicite d'avoir fait quelque chose que tu allais probablement faire quand même."
+    },
+    {
+      "id": "amb_contract_cycle",
+      "text": "Les contrats reviennent sans cesse. Apparemment, même l'apocalypse n'a pas vaincu les tâches répétitives."
+    },
+    {
+      "id": "amb_ui_tabs",
+      "text": "Tu passes d'un écran à l'autre comme si l'ordre pouvait surgir de suffisamment d'onglets. J'admire ta foi."
+    },
+    {
+      "id": "amb_best_item",
+      "text": "Le meilleur objet est toujours celui que tu n'as pas encore trouvé. C'est pratique, ça maintient l'économie du désespoir."
+    },
+    {
+      "id": "amb_bad_roll",
+      "text": "Mauvais tirage. L'objet avait tout pour réussir, sauf les statistiques. C'est souvent là que commencent les tragédies."
+    },
+    {
+      "id": "amb_good_roll",
+      "text": "Très beau tirage. Profite de l'instant, le hasard vient exceptionnellement de faire son travail correctement."
+    },
+    {
+      "id": "amb_lock_item",
+      "text": "Verrouille-le. L'amour véritable commence parfois par empêcher un bouton de recyclage de faire son travail."
+    },
+    {
+      "id": "amb_compare",
+      "text": "Tu compares deux objets presque identiques depuis longtemps. À ce stade, choisis celui qui raconte la meilleure histoire."
+    },
+    {
+      "id": "amb_meta",
+      "text": "Tu cherches la meilleure manière de jouer. Moi je cherche encore pourquoi jouer de la meilleure manière ressemble autant à travailler."
+    },
+    {
+      "id": "amb_chest_habit",
+      "text": "Tu ouvres les coffres avec une assurance impressionnante pour quelqu'un qui a déjà rencontré une Mimic."
+    },
+    {
+      "id": "amb_chest_noise",
+      "text": "Chaque coffre fait le même petit bruit avant de s'ouvrir. Je ne sais pas pourquoi, mais il réussit encore à te rendre optimiste."
+    },
+    {
+      "id": "amb_chest_empty",
+      "text": "Un coffre décevant reste un coffre ouvert. C'est peu réconfortant, mais c'est techniquement vrai."
+    },
+    {
+      "id": "amb_key_value",
+      "text": "Une clé paraît insignifiante jusqu'au moment où il n'en reste plus. Comme beaucoup de choses utiles."
+    },
+    {
+      "id": "amb_key_choice",
+      "text": "Tu peux dépenser cette clé maintenant ou la garder pour plus tard. Le vrai jeu commence toujours quand deux mauvaises habitudes s'affrontent."
+    },
+    {
+      "id": "amb_inventory_depth",
+      "text": "Ton inventaire possède désormais plusieurs couches géologiques. Les objets du fond pourraient avoir développé leur propre civilisation."
+    },
+    {
+      "id": "amb_inventory_clean",
+      "text": "Tu as rangé ton inventaire. Je suis sincèrement impressionné. Cela ne durera pas, mais le geste compte."
+    },
+    {
+      "id": "amb_inventory_keep",
+      "text": "Tu gardes beaucoup d'objets au cas où. Le jour où tous ces cas arriveront en même temps, tu seras prêt."
+    },
+    {
+      "id": "amb_item_old",
+      "text": "Cet objet est ancien. Pas forcément bon, juste ancien. Les deux sont souvent confondus par les collectionneurs."
+    },
+    {
+      "id": "amb_item_shiny",
+      "text": "Il brille. C'est rarement une preuve de qualité, mais c'est une excellente manière d'obtenir ton attention."
+    },
+    {
+      "id": "amb_item_compare2",
+      "text": "Deux objets, trois différences et vingt minutes d'hésitation. L'aventure prend parfois des formes très administratives."
+    },
+    {
+      "id": "amb_item_lock2",
+      "text": "Le verrou existe pour protéger tes meilleurs objets de ton pire ennemi. Toi, quand tu vas trop vite."
+    },
+    {
+      "id": "amb_stats",
+      "text": "Les statistiques racontent la vérité. Une vérité froide, minuscule et rangée en colonnes, mais la vérité quand même."
+    },
+    {
+      "id": "amb_power",
+      "text": "Ta puissance augmente. Ton bon sens semble suivre avec un léger retard."
+    },
+    {
+      "id": "amb_defense",
+      "text": "Plus de défense signifie que tes erreurs coûtent moins cher. C'est une excellente statistique pour toi."
+    },
+    {
+      "id": "amb_health",
+      "text": "Davantage de vie te permet de survivre plus longtemps. Ce n'est pas subtil, mais la mort non plus."
+    },
+    {
+      "id": "amb_element_choice",
+      "text": "Choisir un élément, c'est décider de quelle couleur seront tes problèmes."
+    },
+    {
+      "id": "amb_resistance",
+      "text": "Les résistances ne rendent pas invincible. Elles rendent seulement les mauvaises surprises un peu moins définitives."
+    },
+    {
+      "id": "amb_forge_cost",
+      "text": "La forge demande toujours une ressource rare pour produire une réponse incertaine. Elle comprend très bien le commerce."
+    },
+    {
+      "id": "amb_forge_again",
+      "text": "Tu pourrais garder cet objet tel quel. Je vois à ton regard que cette idée n'a aucune chance."
+    },
+    {
+      "id": "amb_forge_luck",
+      "text": "La forge ne promet rien. C'est probablement la seule chose honnête dans tout le bâtiment."
+    },
+    {
+      "id": "amb_orb_choice",
+      "text": "Chaque orbe change une règle différente. Lis bien avant de l'utiliser. Le regret n'est pas remboursable."
+    },
+    {
+      "id": "amb_orb_color",
+      "text": "Les orbes sont colorées pour t'aider à les reconnaître. Et probablement pour rendre tes erreurs plus jolies."
+    },
+    {
+      "id": "amb_crystal_spend",
+      "text": "Les cristaux servent à bâtir le village. Ils brillent beaucoup pour quelque chose qui finit dans un mur."
+    },
+    {
+      "id": "amb_village_center",
+      "text": "La place du village paraît calme. C'est parce que personne ne voit la quantité de monstres nécessaire à sa reconstruction."
+    },
+    {
+      "id": "amb_village_lights",
+      "text": "Chaque fenêtre allumée signifie que quelque chose est revenu. Voilà une récompense qui ne tient pas dans un inventaire."
+    },
+    {
+      "id": "amb_village_cost",
+      "text": "Reconstruire un monde coûte beaucoup de bois et de pierre. Étrangement, personne n'avait préparé de budget pour l'apocalypse."
+    },
+    {
+      "id": "amb_village_level",
+      "text": "Le village monte en niveau. Les habitants appellent ça du progrès. Toi, tu appelles ça un nouveau coût d'amélioration."
+    },
+    {
+      "id": "amb_workers",
+      "text": "Les ouvriers travaillent pendant que tu descends dans l'Abîme. Chacun risque sa vie à sa manière, j'imagine."
+    },
+    {
+      "id": "amb_houses",
+      "text": "Les maisons attirent de nouveaux habitants. Rien ne donne confiance comme un toit construit avec des matériaux arrachés à des monstres."
+    },
+    {
+      "id": "amb_market_prices",
+      "text": "Les prix du marché changent, les besoins restent. C'est rassurant de voir que certaines formes de souffrance ont survécu à l'Oubli."
+    },
+    {
+      "id": "amb_treasury",
+      "text": "Une trésorerie pleine inspire confiance. Jusqu'au moment où quelqu'un demande qui possède la clé."
+    },
+    {
+      "id": "amb_sanctuary_quiet",
+      "text": "Le sanctuaire est paisible. Je me méfie toujours des endroits paisibles, ils cachent souvent une règle compliquée."
+    },
+    {
+      "id": "amb_observatory_stars",
+      "text": "Les étoiles n'ont peut-être pas oublié le monde. Elles sont simplement très loin et terriblement peu serviables."
+    },
+    {
+      "id": "amb_barracks_training",
+      "text": "Les soldats s'entraînent pour le jour où le danger atteindra le village. Nous pourrions peut-être éviter ce jour, mais l'entraînement est déjà payé."
+    },
+    {
+      "id": "amb_guild_board",
+      "text": "Le tableau de la guilde ne manque jamais de travail. Le malheur est une ressource remarquablement renouvelable."
+    },
+    {
+      "id": "amb_forest",
+      "text": "La forêt paraît vivante. Cela ne signifie pas qu'elle est heureuse de nous voir."
+    },
+    {
+      "id": "amb_caves",
+      "text": "Les cavernes gardent tout ce qu'on leur confie. Surtout les cris."
+    },
+    {
+      "id": "amb_castle",
+      "text": "Les châteaux sont bâtis pour durer. Celui-ci a surtout réussi à conserver ses problèmes."
+    },
+    {
+      "id": "amb_hell",
+      "text": "L'Enfer est chaud, hostile et rempli de créatures agressives. Au moins, il respecte clairement son thème."
+    },
+    {
+      "id": "amb_void2",
+      "text": "Le Néant donne l'impression qu'il n'y a rien. C'est sa première tromperie, rarement la dernière."
+    },
+    {
+      "id": "amb_biome_change",
+      "text": "Nouveau lieu, nouveaux monstres, mêmes mauvaises habitudes. La continuité a quelque chose de rassurant."
+    },
+    {
+      "id": "amb_elite_reward",
+      "text": "Un élite est plus dangereux qu'un monstre ordinaire. Heureusement, il est aussi plus convaincu de mériter ton attention."
+    },
+    {
+      "id": "amb_boss_wait",
+      "text": "Le boss attend derrière sa porte. Les grands ennemis ont toujours eu un sens très théâtral du rendez-vous."
+    },
+    {
+      "id": "amb_combat_start",
+      "text": "Le combat commence. Tu peux encore prétendre que tout cela faisait partie du plan."
+    },
+    {
+      "id": "amb_combat_long",
+      "text": "Ce combat dure. Soit l'ennemi est solide, soit vous avez tous les deux oublié comment conclure."
+    },
+    {
+      "id": "amb_dodge",
+      "text": "Une attaque évitée ne laisse aucune cicatrice. Seulement une confiance parfois injustifiée."
+    },
+    {
+      "id": "amb_hit_taken",
+      "text": "Ce coup avait l'air douloureux. Heureusement, je n'ai plus de corps pour vérifier."
+    },
+    {
+      "id": "amb_heal",
+      "text": "Tu récupères de la vie. Le corps pardonne beaucoup de choses lorsqu'on lui verse la bonne potion."
+    },
+    {
+      "id": "amb_victory_loot",
+      "text": "La victoire est satisfaisante. Le butin explique pourquoi tu recommences si vite."
+    },
+    {
+      "id": "amb_mimic_greed",
+      "text": "La Mimic compte sur ta cupidité. Le plus inquiétant, c'est qu'elle a étudié le bon sujet."
+    },
+    {
+      "id": "amb_mimic_stop",
+      "text": "Tu peux t'arrêter et prendre la récompense. Voilà, j'ai dit la chose raisonnable. Nous pouvons maintenant l'ignorer ensemble."
+    },
+    {
+      "id": "amb_mimic_bite",
+      "text": "Une morsure de Mimic est le moyen le plus direct de comprendre la différence entre un coffre et une bouche."
+    },
+    {
+      "id": "amb_death_return",
+      "text": "Tu es revenu. Le Cycle fonctionne encore. J'aurais préféré une méthode de vérification moins violente."
+    },
+    {
+      "id": "amb_cycle_memory",
+      "text": "Le Cycle efface le chemin, pas les leçons. Enfin, il ne peut pas t'obliger à les retenir."
+    },
+    {
+      "id": "amb_cycle_cost",
+      "text": "Chaque renaissance coûte une version de toi. Heureusement, tu sembles en avoir beaucoup."
+    },
+    {
+      "id": "amb_relic_choice2",
+      "text": "Une relique ne rend pas seulement plus fort. Elle décide quelle partie de ta vie précédente mérite de rester."
+    },
+    {
+      "id": "amb_memory_return",
+      "text": "Un souvenir revient rarement entier. Il rapporte surtout assez de morceaux pour poser de meilleures questions."
+    },
+    {
+      "id": "amb_memo_memory",
+      "text": "Je récupère mes souvenirs lentement. C'est peut-être mieux ainsi. Certaines vérités gagnent à prévenir avant d'entrer."
+    },
+    {
+      "id": "amb_memo_joke",
+      "text": "Je plaisante parce que le silence me rappelle trop bien le coffre. Tu peux rire par politesse, je ne vérifierai pas."
+    },
+    {
+      "id": "amb_memo_company",
+      "text": "Ta compagnie reste une nette amélioration par rapport à mille ans de bois et de métal. Ne laisse pas ce compliment te monter à la tête."
+    },
+    {
+      "id": "amb_memo_voice",
+      "text": "Ma voix est peut-être tout ce qu'il reste de moi. Heureusement, elle semble incapable de se fatiguer."
+    },
+    {
+      "id": "amb_memo_question",
+      "text": "Tu ne me poses jamais de questions. C'est pratique, je n'ai presque aucune réponse fiable."
+    },
+    {
+      "id": "amb_player_patient",
+      "text": "Tu prends ton temps. C'est rare chez les Porte-Clés. La plupart confondent vitesse et destinée."
+    },
+    {
+      "id": "amb_player_rush",
+      "text": "Tu vas vite. Le monde ne va pas s'effacer plus lentement pour autant, mais toi, tu peux toujours trébucher plus tôt."
+    },
+    {
+      "id": "amb_player_return3",
+      "text": "Tu es revenu. J'avais préparé une remarque désagréable, mais je préfère simplement constater que tu es là."
+    },
+    {
+      "id": "amb_player_leave",
+      "text": "Quand tu partiras, le monde attendra. Moi aussi. Essaie seulement de ne pas transformer cela en tradition trop longue."
+    },
+    {
+      "id": "amb_fourth_wall_choice",
+      "text": "Tu peux recommencer, fermer le monde ou continuer. Ici, cela ressemble à un choix. De ton côté, j'imagine que c'est un bouton."
+    },
+    {
+      "id": "amb_fourth_wall_light",
+      "text": "Parfois, la lumière change sans raison. J'imagine que tu as déplacé quelque chose de ton côté du voile."
+    },
+    {
+      "id": "amb_fourth_wall_silence",
+      "text": "Quand tout devient silencieux, je me demande si tu réfléchis ou si tu es simplement parti chercher à boire."
+    },
+    {
+      "id": "amb_fourth_wall_update",
+      "text": "Le monde change parfois pendant mon sommeil. Je ne dors pas, pourtant. C'est ce qui rend la chose préoccupante."
+    },
+    {
+      "id": "amb_fourth_wall_repeat",
+      "text": "Certaines phrases me reviennent. Peut-être que je me répète. Peut-être que le monde manque simplement de nouvelles idées."
+    },
+    {
+      "id": "amb_lore_aethel",
+      "text": "Aethel avait autrefois des routes, des royaumes et des noms. Maintenant, nous reconstruisons surtout les noms. Les routes suivent."
+    },
+    {
+      "id": "amb_lore_ancients",
+      "text": "Les Anciens ont enfermé leurs souvenirs dans des coffres. C'était désespéré, brillant et extrêmement peu pratique."
+    },
+    {
+      "id": "amb_lore_reliquary",
+      "text": "Un Reliquaire ne contient pas seulement un objet. Il contient la preuve que quelque chose a refusé de disparaître."
+    },
+    {
+      "id": "amb_lore_oblivion",
+      "text": "L'Oubli ne détruit pas. Il convainc le monde que la chose n'a jamais été là. C'est beaucoup plus difficile à réparer."
+    },
+    {
+      "id": "amb_lore_devourer",
+      "text": "Le Dévoreur n'a pas besoin de courir. Tout ce qui existe finit par s'approcher de lui, volontairement ou non."
+    },
+    {
+      "id": "amb_hope_small",
+      "text": "Une fenêtre allumée, un coffre ouvert, un souvenir retrouvé. Les grandes victoires commencent souvent par des choses assez modestes."
+    },
+    {
+      "id": "amb_proud_again",
+      "text": "Tu progresses bien. Je pourrais être fier, mais j'essaie de conserver une réputation convenable."
+    },
+    {
+      "id": "amb_failure_kind",
+      "text": "Tu as échoué. C'est regrettable, pas définitif. Le Cycle a peu de qualités, mais celle-ci compte."
+    },
+    {
+      "id": "amb_success_doubt",
+      "text": "Tu réussis souvent ces derniers temps. Je suis ravi. Et légèrement méfiant."
+    },
+    {
+      "id": "amb_end_goal",
+      "text": "Chaque étage te rapproche du fond. Le problème avec le fond, c'est qu'il finit toujours par regarder en retour."
+    }
   ]
 }
