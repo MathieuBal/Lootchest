@@ -104,6 +104,9 @@ setInterval(() => {
     soundUpgrade();
     UI.showToast(b ? b.emoji : '🏛️', 'Chantier terminé', b ? b.name : 'Mairie');
     spawnParticles('#f0c463', innerWidth / 2, innerHeight / 3, 24);
+    // Fiche d'un bâtiment ouverte (overlay statique) : la rafraîchir pour
+    // refléter le nouveau niveau / la fin du chantier.
+    if (UI.getOpenOverlay() === 'villageBuilding') UI.refreshOverlay();
     return;
   }
   // Surface a story beat the moment its objective is met.
@@ -386,10 +389,10 @@ document.body.addEventListener('click', async (e) => {
   const vopen = t.closest('[data-village-open]');
   if (vopen) { UI.navOverlay('villageBuilding', { id: vopen.dataset.villageOpen }); soundClick(); return; }
   const vbuild = t.closest('[data-village-build]');
-  if (vbuild && !vbuild.disabled) { if (buildOrUpgrade(vbuild.dataset.villageBuild)) { soundUpgrade(); } return; }
-  if (t.closest('[data-village-townhall]')) { if (upgradeTownhall()) { soundUpgrade(); } return; }
+  if (vbuild && !vbuild.disabled) { if (buildOrUpgrade(vbuild.dataset.villageBuild)) { soundUpgrade(); UI.refreshOverlay(); } return; }
+  if (t.closest('[data-village-townhall]')) { if (upgradeTownhall()) { soundUpgrade(); UI.refreshOverlay(); } return; }
   const vasg = t.closest('[data-village-assign]');
-  if (vasg && !vasg.disabled) { if (assignWorker(vasg.dataset.villageAssign, parseInt(vasg.dataset.delta, 10))) soundClick(); return; }
+  if (vasg && !vasg.disabled) { if (assignWorker(vasg.dataset.villageAssign, parseInt(vasg.dataset.delta, 10))) { soundClick(); UI.refreshOverlay(); } return; }
   if (t.closest('[data-village-craft-rarity]')) { UI.setForgeCraftRarity(t.closest('[data-village-craft-rarity]').dataset.villageCraftRarity); soundClick(); return; }
   const vcraft = t.closest('[data-village-craft]');
   if (vcraft && !vcraft.disabled) {
