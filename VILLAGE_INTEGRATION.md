@@ -84,6 +84,34 @@ pastille sur fond dégradé pour la lisibilité au-dessus de l'illustration.
 * Les anneaux de hotspot font au minimum 34px (cible tactile suffisante avec le
   padding du spot).
 
+## Village vivant : les effets d'ambiance
+
+> Doc complète et à jour : **`VILLAGE_AMBIENT.md`** (inclut le cycle jour/nuit et la
+> liste complète des effets). Référence jouable : `village-fx-demo.html`.
+
+Deux étages d'effets par-dessus l'illustration, sous les hotspots :
+
+**1. Halos CSS** (calque `#ambient`) : 4 fenêtres qui pulsent (mairie, marché, guilde,
+maisons), l'orbe violet de l'atelier, la lueur bleutée du sanctuaire, le feu de forge.
+Positions en pourcentage dans le tableau `AMBIENT`.
+
+**2. Particules canvas** (`#fxcanvas` + moteur dans le script) :
+* fumées de cheminée multi bouffées avec vent variable (maisons, fonderie, forge, scierie)
+* braises qui s'échappent de la forge et de la fonderie (blending additif)
+* 14 lucioles qui clignotent près des lisières et de l'étang
+* scintillement de l'eau sur l'étang en bas à gauche
+* un vol d'oiseaux qui traverse le ciel toutes les 20 à 45 secondes
+
+Le moteur est autonome (~110 lignes), plafonne ses particules, pré-rend ses sprites
+(aucune image à charger) et utilise un seul requestAnimationFrame. Les émetteurs sont
+en pourcentage de l'illustration (tableaux `SMOKE`, `EMBERS`, `POND`), même convention
+que les hotspots.
+
+Coupes-circuit :
+* `prefers-reduced-motion` : rien ne démarre (et le CSS masque les calques)
+* classe `no-ambient` sur `body` : à brancher sur l'option « Particules réduites » du jeu
+* `window.__forceFx()` : porte de test pour forcer l'ambiance malgré reduced-motion
+
 ## Ce qui ne change pas
 
 Toute la logique de `village.js` (coûts, gates par mairie, ouvriers, production,

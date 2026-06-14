@@ -926,6 +926,11 @@ const STATIC_OVERLAYS = new Set([
   'ascension', 'relicChoice', 'diveBoon', 'diveSummary', 'story',
   'mimic',  // mimic is driven explicitly by refreshMimic()
   'bulkResult',
+  // La fiche d'un bâtiment ne doit pas se reconstruire à chaque tick du
+  // village (notify chaque seconde pendant une construction) : sinon le
+  // portrait <img> se recrée et clignote. On la rafraîchit explicitement
+  // après une action joueur via refreshOverlay() depuis main.js.
+  'villageBuilding',
 ]);
 
 export function refreshOverlay() {
@@ -1477,8 +1482,10 @@ function ovDiveSummary(params) {
 
 // ── Village (management / idle layer) ────────────────────────
 let forgeCraftRarity = 'magic';
-export function setForgeCraftRarity(r) { forgeCraftRarity = r; renderOverlay(); }
+export function setForgeCraftRarity(r) { forgeCraftRarity = r; refreshOverlay(); }
 export function getForgeCraftRarity() { return forgeCraftRarity; }
+// Nom de l'overlay actuellement ouvert (pour les rafraîchissements ciblés).
+export function getOpenOverlay() { return nav.overlay; }
 function costStr(c) {
   const bits = [];
   if (c.wood) bits.push(`🪵 ${fmt(c.wood)}`);
