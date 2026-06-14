@@ -790,6 +790,29 @@ input, select { font-family: inherit; }
 .vmap-bg { position: absolute; inset: 0; width: 100%; height: 100%; display: block;
   user-select: none; -webkit-user-drag: none; }
 
+/* Village vivant — calques d'ambiance (sous les hotspots) */
+.vmap-tint { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply;
+  background: #0a0e2a; opacity: 0; transition: opacity 2s linear; }
+.vmap-vig { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 2s linear;
+  background: radial-gradient(132% 130% at 50% 42%, transparent 50%, rgba(4,3,16,.92) 100%); }
+.vmap-ambient { position: absolute; inset: 0; pointer-events: none; }
+.vmap-fxcanvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.vmap-glow { position: absolute; width: 1.6%; aspect-ratio: 4 / 3; border-radius: 50%;
+  background: rgba(255,170,60,.30); box-shadow: 0 0 14px 6px rgba(255,140,40,.45);
+  animation: vmapGlowPulse 2.6s infinite ease-in-out; animation-delay: var(--d, 0s); }
+.vmap-glow.magic { background: rgba(170,80,255,.32); box-shadow: 0 0 16px 7px rgba(170,80,255,.55);
+  animation: vmapMagicPulse 1.9s infinite ease-in-out; }
+.vmap-glow.holy { background: rgba(190,225,255,.30); box-shadow: 0 0 18px 8px rgba(160,210,255,.5);
+  animation: vmapGlowPulse 3.4s infinite ease-in-out; }
+.vmap-glow.fire { background: rgba(255,120,40,.38); box-shadow: 0 0 18px 8px rgba(255,90,20,.6);
+  animation: vmapFirePulse 1.1s infinite ease-in-out; }
+@keyframes vmapGlowPulse { 0%,100% { opacity: .4; transform: scale(.95); } 50% { opacity: .85; transform: scale(1.08); } }
+@keyframes vmapMagicPulse { 0%,100% { opacity: .4; transform: scale(.9) rotate(0deg); } 50% { opacity: .95; transform: scale(1.12) rotate(3deg); } }
+@keyframes vmapFirePulse { 0%,100% { opacity: .5; transform: scale(.92); } 35% { opacity: .95; transform: scale(1.1); } 60% { opacity: .7; transform: scale(1.0); } }
+@media (prefers-reduced-motion: reduce) {
+  .vmap-tint, .vmap-vig, .vmap-ambient, .vmap-fxcanvas { display: none !important; }
+}
+
 .vmap-spots { position: absolute; inset: 0; }
 .vmap-spot { position: absolute; transform: translate(-50%, -50%); padding: 8px;
   background: none; border: none; cursor: pointer; display: flex; flex-direction: column;

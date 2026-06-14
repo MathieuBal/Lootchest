@@ -11,6 +11,7 @@
 
 import { state } from './state.js';
 import * as Village from './village.js';
+import { ensureVillageAmbient } from './villageAmbient.js';
 
 // Positions des hotspots en pourcentage de l'illustration 1672×941.
 const SPOTS = [
@@ -179,6 +180,7 @@ if (typeof window !== 'undefined') {
       applyDims(screen);
       const scene = screen.querySelector('.vmap-scene');
       if (scene) attachScrollSaver(scene);
+      ensureVillageAmbient(); // halos + particules + cycle jour/nuit
     }
   };
   // Délai après chaque render pour laisser le layout se stabiliser.
