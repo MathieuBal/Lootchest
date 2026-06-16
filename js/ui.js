@@ -546,7 +546,21 @@ let invSort = 'rarity', invSearch = '', invFilter = 'all';
 const INV_PAGE = 120;
 let invLimit = INV_PAGE;
 function resetInvLimit() { invLimit = INV_PAGE; }
-export function growInvLimit() { invLimit += INV_PAGE; renderAll(); }
+export function growInvLimit() {
+  // Préserver la position de défilement : renderAll() reconstruit tout le DOM
+  // via innerHTML, sinon la grille (.inv-grid, son propre conteneur scrollable)
+  // resauterait en haut à chaque « Afficher plus », rendant le pagineur pénible.
+  const grid = document.querySelector('.inv-grid');
+  const screen = document.querySelector('main.screen');
+  const gTop = grid ? grid.scrollTop : 0;
+  const sTop = screen ? screen.scrollTop : 0;
+  invLimit += INV_PAGE;
+  renderAll();
+  const grid2 = document.querySelector('.inv-grid');
+  const screen2 = document.querySelector('main.screen');
+  if (grid2) grid2.scrollTop = gTop;
+  if (screen2) screen2.scrollTop = sTop;
+}
 
 // Construit la grille bornée + le bouton « Afficher plus » éventuel.
 // Retourne { grid, more } pour que chaque écran place le bouton dans son layout.

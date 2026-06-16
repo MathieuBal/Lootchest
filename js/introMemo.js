@@ -397,19 +397,21 @@ export function startMemoIntro({ onDone, replay = false } = {}) {
   // ghost-click tactile qui double le tap, clic qui bulle sur deux zones) ne
   // doit jamais avancer de deux lignes. On impose un délai minimal entre deux
   // changements de ligne. Court (≈ ¼ s) : un joueur qui lit vite enchaîne sans
-  // gêne, mais les déclenchements parasites < 250 ms sont absorbés.
+  // gêne, mais les déclenchements parasites < 250 ms sont absorbés. Avancer et
+  // reculer ont des compteurs séparés : reculer juste après avancer reste permis.
   const STEP_COOLDOWN = 250;
-  let lastStep = 0;
-  function stepReady() {
+  let lastFwd = 0, lastBack = 0;
+  function stepReady(kind) {
     const now = performance.now();
-    if (now - lastStep < STEP_COOLDOWN) return false;
-    lastStep = now;
+    const last = kind === 'back' ? lastBack : lastFwd;
+    if (now - last < STEP_COOLDOWN) return false;
+    if (kind === 'back') lastBack = now; else lastFwd = now;
     return true;
   }
 
   function advance() {
     if (busy || phase !== 'dialogue') return;
-    if (!stepReady()) return;
+    if (!stepReady('fwd')) return;
     const c = SCRIPT[chap];
     if (li < c.lines.length - 1) { li++; showLine(); }
     else if (chap < SCRIPT.length - 1) goChapter(chap + 1);
@@ -417,7 +419,7 @@ export function startMemoIntro({ onDone, replay = false } = {}) {
   }
   function goBack() {
     if (busy || phase !== 'dialogue') return;
-    if (!stepReady()) return;
+    if (!stepReady('back')) return;
     if (li > 0) { li--; showLine(); }
     else if (chap > (replay ? 1 : 0)) goChapter(chap - 1, 'back');
   }
@@ -462,9 +464,11 @@ export function startMemoIntro({ onDone, replay = false } = {}) {
 
   function onKey(e) {
     // Ignore l'auto-répétition d'une touche maintenue : sinon garder la barre
-    // d'espace enfoncée fait défiler plusieurs phrases (BUG-002).
+    // d'espace enfoncée fait défiler plusieurs phrases (BUG-002). Pas de
+    // preventDefault : l'overlay est plein écran et il faut laisser Entrée/Espace
+    // activer le bouton "Entrer dans l'Abîme" quand il a le focus clavier.
     if (e.repeat) return;
-    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); advance(); }
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') advance();
     else if (e.key === 'ArrowLeft') goBack();
     else if (e.key === 'Escape') finish(false);
   }
