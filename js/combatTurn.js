@@ -13,7 +13,7 @@
 
 import { state } from './state.js';
 import { computeStats, activeSetEffects } from './character.js';
-import { PLAYER_BASE, prestigeDamageMult, prestigeHpMult, biomeForFloor } from './data.js';
+import { PLAYER_BASE, prestigeDamageMult, prestigeHpMult, biomeForFloor, depthPowerMult } from './data.js';
 import { armorMitigation, ELEM_DMG_CAP } from './combat.js';
 import { damageMultiplier, hpMultiplier } from './talents.js';
 import { relicDamageMult, relicHpMult, relicDmgTakenMult, relicElemMult, relicLifesteal, relicEffects } from './relics.js';
@@ -121,9 +121,10 @@ export function createBattle(monster, opts = {}) {
   const stats = computeStats();
   const vlg = villageCombatBonus();
   const pLvl = state.prestige?.level || 0;
+  const depthMult = depthPowerMult(monster.floor); // BAL-012 (levier C) — cohérent avec resolveFight
 
-  const pMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * prestigeHpMult(pLvl) * affinityHpMult() * vlg.hpMult * maxHpMod);
-  const pBaseDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * prestigeDamageMult(pLvl) * affinityDamageMult() * vlg.dmgMult * dmgMod * (1 - armorMitigation(monster.armor))));
+  const pMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * prestigeHpMult(pLvl) * affinityHpMult() * vlg.hpMult * maxHpMod * depthMult);
+  const pBaseDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * prestigeDamageMult(pLvl) * affinityDamageMult() * vlg.dmgMult * dmgMod * depthMult * (1 - armorMitigation(monster.armor))));
   const monsterDmg = Math.max(1, Math.round(monster.damage * relicDmgTakenMult() * takenMod * (1 - armorMitigation(stats.armor || 0))));
 
   // Elemental pool : additive % bonus rolled 0..max per swing, capped.

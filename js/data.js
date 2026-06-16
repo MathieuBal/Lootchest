@@ -249,6 +249,34 @@ export function echoLevelForFloor(floor) {
   return Math.floor((floor - FIXED_MAX_FLOOR - 1) / (ECHO_SPAN * BIOMES.length)) + 1;
 }
 
+// === Endgame difficulty curve (BAL-012) ===
+// Le scaling monstre de base est linéaire en étage : son saut RELATIF par
+// étage s'effondre en profondeur (+55% PV au floor 2→3, mais +1% au floor
+// 100→101), d'où un endgame plat. Au-delà de DEEP_FLOOR_START on ajoute une
+// montée géométrique douce qui restaure un gradient perceptible. Les PV
+// montent plus vite que les dégâts (attrition plutôt que one-shot, cf. l'esprit
+// de TIER_SCALE_K). Cela REMPLACE l'ancienne marche d'écho ±15% sur les stats —
+// l'écho ne pilote plus que la variété d'affixes/mécaniques.
+export const DEEP_FLOOR_START = 50;
+export const DEEP_HP_GROWTH = 1.012;   // +1,2 %/étage composé (PV)
+export const DEEP_DMG_GROWTH = 1.006;  // +0,6 %/étage composé (dégâts)
+export function deepHpMult(floor) {
+  return floor > DEEP_FLOOR_START ? Math.pow(DEEP_HP_GROWTH, floor - DEEP_FLOOR_START) : 1;
+}
+export function deepDmgMult(floor) {
+  return floor > DEEP_FLOOR_START ? Math.pow(DEEP_DMG_GROWTH, floor - DEEP_FLOOR_START) : 1;
+}
+
+// Levier C : « plonger plus profond » rend le joueur durablement plus fort, ce
+// qui transforme le mur géométrique en pente asymptotique (on grignote run
+// après run). +2 % dégâts & PV par tranche de 10 étages au-delà de
+// DEEP_FLOOR_START, plafonné à +60 %. Volontairement plus lent que la montée
+// monstre : ça adoucit le mur sans l'effacer.
+export function depthPowerMult(floor) {
+  const steps = Math.max(0, Math.floor(((floor || 1) - DEEP_FLOOR_START) / 10));
+  return 1 + Math.min(0.60, steps * 0.02);
+}
+
 export function biomeForFloor(floor) {
   if (floor <= FIXED_MAX_FLOOR) {
     for (const b of BIOMES) {

@@ -1,7 +1,7 @@
 // Combat / dungeon logic. Resolution is instant (no per-turn animation in V1).
 import { state, notify } from './state.js';
 import { computeStats, activeSetEffects } from './character.js';
-import { PLAYER_BASE, biomeForFloor, MONSTER_AFFIXES, ELITE_VARIANTS, echoLevelForFloor, maxAllowedChestTier, prestigeDamageMult, prestigeHpMult } from './data.js';
+import { PLAYER_BASE, biomeForFloor, MONSTER_AFFIXES, ELITE_VARIANTS, echoLevelForFloor, maxAllowedChestTier, prestigeDamageMult, prestigeHpMult, deepHpMult, deepDmgMult, depthPowerMult } from './data.js';
 import { generateItem } from './loot.js';
 import { damageMultiplier, hpMultiplier, monsterGoldMultiplier } from './talents.js';
 import { relicDamageMult, relicHpMult, relicDmgTakenMult, relicElemMult, relicGoldMult, relicLifesteal, relicEffects } from './relics.js';
@@ -62,11 +62,14 @@ export function generateMonster(floor) {
   const boss = isBossFloor(floor);
   const base = pickStableMonster(floor);
   const echo = echoLevelForFloor(floor);
-  const echoMult = 1 + echo * 0.15; // deep "echo" floors scale up further
-  const scale = (1 + (floor - 1) * 0.28) * echoMult;
+  // BAL-012 : au-delà du floor 50, la difficulté composait jadis par marches
+  // d'écho (+15% tous les 50 étages), laissant de longs plateaux plats puis un
+  // mur. On remplace ça par une montée géométrique douce et continue
+  // (deepHpMult/deepDmgMult) ; l'écho ne sert plus qu'à la variété d'affixes.
+  const scale = (1 + (floor - 1) * 0.28) * deepDmgMult(floor);
   // HP scales faster than damage so geared fights last several turns instead of
   // being one-shot, without making monster damage spike into one-shotting the player.
-  const hpScale = (1 + (floor - 1) * 0.55) * echoMult;
+  const hpScale = (1 + (floor - 1) * 0.55) * deepHpMult(floor);
   const bossMult = boss ? 2.6 : 1;
   const hard = !!state.settings?.hardMode;
   const hardCombat = hard ? 1.5 : 1;
@@ -154,8 +157,11 @@ export function resolveFight(monster, opts = {}) {
   const stats = computeStats();
   const vlg = villageCombatBonus();
   const pLvl = state.prestige?.level || 0;
-  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * prestigeHpMult(pLvl) * affinityHpMult() * vlg.hpMult * maxHpMod);
-  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * prestigeDamageMult(pLvl) * affinityDamageMult() * vlg.dmgMult * dmgMod * (1 - armorMitigation(monster.armor))));
+  // BAL-012 (levier C) : plonger plus profond rend durablement plus fort, ce qui
+  // adoucit la montée géométrique des monstres en pente plutôt qu'en mur.
+  const depthMult = depthPowerMult(monster.floor);
+  const playerMaxHp = Math.round((PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * prestigeHpMult(pLvl) * affinityHpMult() * vlg.hpMult * maxHpMod * depthMult);
+  const playerDmg = Math.max(1, Math.round((PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * prestigeDamageMult(pLvl) * affinityDamageMult() * vlg.dmgMult * dmgMod * depthMult * (1 - armorMitigation(monster.armor))));
   const playerArmor = (stats.armor || 0);
   const monsterDmg = Math.max(1, Math.round(monster.damage * relicDmgTakenMult() * takenMod * (1 - armorMitigation(playerArmor))));
   const lifestealPct = relicLifesteal();
@@ -658,8 +664,9 @@ export function predictDifficulty(monster) {
   const stats = computeStats();
   const vlg = villageCombatBonus();
   const pLvl = state.prestige?.level || 0;
-  const playerMaxHp = (PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * prestigeHpMult(pLvl) * affinityHpMult() * vlg.hpMult;
-  const playerDmg = Math.max(1, (PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * prestigeDamageMult(pLvl) * affinityDamageMult() * vlg.dmgMult * (1 - armorMitigation(monster.armor)));
+  const depthMult = depthPowerMult(monster.floor); // BAL-012 (levier C) — cohérent avec resolveFight
+  const playerMaxHp = (PLAYER_BASE.hp + (stats.vitality || 0) * 5) * hpMultiplier() * relicHpMult() * prestigeHpMult(pLvl) * affinityHpMult() * vlg.hpMult * depthMult;
+  const playerDmg = Math.max(1, (PLAYER_BASE.damage + (stats.damage || 0)) * damageMultiplier() * relicDamageMult() * prestigeDamageMult(pLvl) * affinityDamageMult() * vlg.dmgMult * depthMult * (1 - armorMitigation(monster.armor)));
   const monsterDmg = Math.max(1, monster.damage * relicDmgTakenMult() * (1 - armorMitigation(stats.armor || 0)));
   const critChance = Math.min(0.75, (stats.crit || 0) / 100);
   // Sum all elemental %damages for difficulty preview (same model as resolveFight)
