@@ -2,7 +2,7 @@
 // chapter has a narrative beat, a concrete objective checked against real game
 // state, and a small reward claimed when the objective is met. Linear: chapter
 // `step` is active; claiming it reveals the next.
-import { state, notify } from './state.js';
+import { state, notify, grantKeys } from './state.js';
 import { townhall, prosperity } from './village.js';
 
 export const CHAPTERS = [
@@ -61,7 +61,7 @@ export function claimChapter() {
   const c = activeChapter();
   const r = c.reward || {};
   if (r.gold) state.gold = (state.gold || 0) + r.gold;
-  if (r.keys) state.keys = (state.keys || 0) + r.keys;
+  if (r.keys) grantKeys(r.keys); // BAL-011 : passe par le soft cap
   if (r.orbs) { for (let i = 0; i < r.orbs; i++) grantBasicOrb(); }
   st().claimed[c.id] = true;
   st().step = storyStep() + 1;

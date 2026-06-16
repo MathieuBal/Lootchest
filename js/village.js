@@ -7,7 +7,7 @@
 // Mutual gating: the Town Hall (mairie) level caps building levels + slots and
 // is itself gated by dungeon depth — so the character and the village level up
 // together instead of the player rushing the dungeon in 10 minutes.
-import { state, notify } from './state.js';
+import { state, notify, grantKeys } from './state.js';
 import { RARITIES, RARITY_BY_ID, SLOT_BY_ID, CURRENCY_TYPES } from './data.js';
 
 export const OFFLINE_CAP_MIN = 480; // passive production accrues at most 8h offline
@@ -232,7 +232,7 @@ function grantRandomOrb() {
 
 function addResource(key, amount) {
   if (amount <= 0) return;
-  if (key === 'keys') state.keys = (state.keys || 0) + amount;
+  if (key === 'keys') grantKeys(amount); // BAL-011 : passe par le soft cap
   else v().resources[key] = (v().resources[key] || 0) + amount;
 }
 
@@ -253,7 +253,7 @@ export function accruePassive() {
   // Keys & orbs: accumulate fractional buffers, pay out whole units.
   v()._keyBuf = (v()._keyBuf || 0) + gained.keys;
   const wholeKeys = Math.floor(v()._keyBuf);
-  if (wholeKeys > 0) { state.keys = (state.keys || 0) + wholeKeys; v()._keyBuf -= wholeKeys; }
+  if (wholeKeys > 0) { grantKeys(wholeKeys); v()._keyBuf -= wholeKeys; } // BAL-011 : soft cap sur la prod idle
   v()._orbBuf = (v()._orbBuf || 0) + gained.orbs;
   let wholeOrbs = Math.floor(v()._orbBuf);
   v()._orbBuf -= wholeOrbs;
