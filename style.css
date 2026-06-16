@@ -22,6 +22,22 @@ body { overflow: hidden; }
 button { font-family: inherit; color: inherit; cursor: pointer; }
 input, select { font-family: inherit; }
 
+/* BUG-001 — Filet anti-chevauchement (composant texte partagé).
+   Tout texte revient automatiquement à la ligne et les blocs s'adaptent au
+   contenu, quelle que soit la longueur (noms d'objets générés, accents) ou la
+   résolution. Les éléments en white-space:nowrap (chips, badges) ne sont pas
+   affectés et restent sur une ligne comme prévu. */
+html, body { overflow-wrap: break-word; }
+/* Un enfant flex/grid porteur de texte ne rétrécit pas sous sa taille de
+   contenu par défaut : il déborde alors sur l'élément voisin (typiquement le
+   nom d'un affixe/objet qui recouvre sa valeur). min-width:0 rétablit le retour
+   à la ligne normal ; break-word casse en dernier recours un mot trop long. */
+.aff-name, .fa-name, .comp-name, .ft-name, .cf-name, .mc-name, .talent-name,
+.skill-name, .detail-name, .loot-name, .tt-name, .forge-item-name,
+.dt-statline > span:first-child, .selbar-info {
+  min-width: 0; overflow-wrap: break-word;
+}
+
 /* Pixel-art crispness (sprites) */
 .pixel, .pixel svg, .pixel img { image-rendering: pixelated; image-rendering: crisp-edges; shape-rendering: crispEdges; }
 .pixel svg { display: block; }
