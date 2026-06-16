@@ -11,7 +11,6 @@
 
 import { CINEMATIC_SCENES } from './cinematicScenes.js';
 import { MASCOT_SPRITES, MASCOT_EMOJI } from './mascot.js';
-import { characterSpriteSVG } from './sprites.js';
 
 const CSS = `
 .intro-memo-overlay { position:fixed; inset:0; z-index:2000; background:#05030a;
@@ -23,19 +22,6 @@ const CSS = `
   transform-origin:center center; will-change:transform; }
 .im-layer img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .im-layer svg { position:absolute; inset:0; width:100%; height:100%; display:block; }
-/* UX-007 — avatar du joueur incrusté dans le tableau du « dernier Porte-Clé ».
-   Élément hors .im-layer pour garder son propre transform (entrée + bob). */
-.im-hero-avatar { position:absolute; left:50%; bottom:11%; z-index:4;
-  width:21%; max-width:170px; image-rendering:pixelated;
-  filter:drop-shadow(0 0 14px rgba(255,224,120,.55)) drop-shadow(0 7px 11px rgba(0,0,0,.6));
-  animation:imHeroRise 1.1s ease-out both; }
-.im-hero-avatar svg { width:100%; height:auto; display:block; }
-.im-hero-avatar::after { content:''; position:absolute; left:50%; bottom:-7%;
-  width:62%; height:9%; transform:translateX(-50%);
-  background:radial-gradient(ellipse,rgba(0,0,0,.5),transparent 70%); }
-@keyframes imHeroRise {
-  from{ opacity:0; transform:translate(-50%,14%) scale(.9); }
-  to  { opacity:1; transform:translate(-50%,0) scale(1); } }
 .im-camera.zoom { animation:imCamZoom 26s ease-in-out infinite alternate; }
 @keyframes imCamZoom { from{transform:scale(1)} to{transform:scale(1.07)} }
 
@@ -363,13 +349,8 @@ export function startMemoIntro({ onDone, replay = false } = {}) {
   function renderScene(idx) {
     const s = CINEMATIC_SCENES[idx];
     camera.className = 'im-camera';
-    let html = s.layers.map(l =>
+    camera.innerHTML = s.layers.map(l =>
       `<div class="im-layer" data-depth="${l.depth || 0}" style="z-index:${l.z || 0}">${l.svg}</div>`).join('');
-    // UX-007 : sur le tableau du « dernier Porte-Clé », on incarne le récit avec
-    // l'avatar réel du joueur en surimpression, plutôt qu'un héros anonyme peint
-    // dans le décor. Élément à part (pas .im-layer, qui force inset:0/scale).
-    if (s.hero) html += `<div class="im-hero-avatar">${characterSpriteSVG(120)}</div>`;
-    camera.innerHTML = html;
     void camera.offsetWidth;
     camera.classList.add('zoom');
   }

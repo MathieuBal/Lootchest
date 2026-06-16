@@ -53,9 +53,7 @@ export const CINEMATIC_SCENES = [
   },
   // 4. Le dernier Porte-Clé
   {
-    // hero: true → introMemo.js incarne ce tableau avec l'avatar réel du joueur
-    // (characterSpriteSVG) en surimpression, plutôt qu'un héros anonyme (UX-007).
-    title: 'Le dernier Porte-Clé', cam: 'cam-inHero', hero: true,
+    title: 'Le dernier Porte-Clé', cam: 'cam-inHero',
     text: "Tu es le dernier à porter les clés. Chaque coffre que tu ouvres rend au jour un fragment du monde perdu.",
     layers: [
       L(`<div style="position:absolute;inset:0;filter:brightness(1.28) contrast(1.05) saturate(1.08)">${IMG('assets/cinematic/scene4_bg.png')}</div>`, 3, 0),
