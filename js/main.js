@@ -581,7 +581,7 @@ function openBulkFlow(n) {
   n = Math.min(n | 0, state.keys || 0);
   if (n < 1) { UI.showToast('🗝', 'Pas de clé', 'Farme des clés au donjon'); return; }
   soundChestOpen();
-  const { items, orbs, opened } = openChests(n);
+  const { items, orbs, opened, mimic } = openChests(n);
   const summary = { opened, total: items.length, byRarity: {}, gold: 0, shards: 0, kept: 0, notable: [], orbs: {} };
   for (const it of items) {
     summary.byRarity[it.rarity] = (summary.byRarity[it.rarity] || 0) + 1;
@@ -594,6 +594,22 @@ function openBulkFlow(n) {
   for (const oid of orbs) summary.orbs[oid] = (summary.orbs[oid] || 0) + 1;
   soundCoin();
   if (summary.notable.length) fireMascotDrop(summary.notable[summary.notable.length - 1]);
+  // Un coffre du lot s'est révélé être un Mimic (BUG-010). Le butin des coffres
+  // ouverts avant lui est déjà appliqué ci-dessus ; les clés restantes ne sont
+  // pas consommées. On bascule sur la rencontre interactive (prioritaire).
+  if (mimic) {
+    if (summary.total > 0 || summary.gold > 0 || summary.shards > 0) {
+      const bits = [];
+      if (summary.kept) bits.push(`🎒 ${summary.kept}`);
+      if (summary.gold) bits.push(`💰 ${summary.gold}`);
+      if (summary.shards) bits.push(`💎 ${summary.shards}`);
+      UI.showToast('🎁', `${opened - 1} coffre${opened - 1 > 1 ? 's' : ''} avant le Mimic`, bits.join(' · ') || '—');
+    }
+    UI.playChestOpen();
+    UI.showMimicEncounter(mimic);
+    Mascot.fire('mimic:reveal');
+    return;
+  }
   UI.showBulkResult(summary);
 }
 
