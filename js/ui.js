@@ -17,7 +17,7 @@ import { computeStats, computePower, computeSetSummary, itemPowerContribution, c
 import { getCurrentTier, getNextTier, canUpgrade, canOpen, hasKey, cooldownRemaining, nextTierLockedBy } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
 import { FORGE_ACTIONS, availableMasterCraftAffixes, canToggleAffixLock, exchangeNext, exchangeCost, canExchange, REROLL_PLUS_SHARD_COST } from './forge.js';
-import { shardYield, autoActionFor } from './inventory.js';
+import { shardYield, autoActionFor, previewSell, sellItemsByIds } from './inventory.js';
 import { getAchievementProgress } from './achievements.js';
 import { canAscend, ascensionRequirements } from './prestige.js';
 import { rankOf, canUpgradeTalent, pityReduction, categoryPoints, abilitySlots, totalPointsSpent, respecCost, canRespecTalents } from './talents.js';
@@ -74,7 +74,7 @@ function itemVisualHTML(item, px = 40) {
 }
 
 // Square rarity tile with glow + corner badges (lock / set / unique / element / material).
-export function itemTileHTML(item, { px = 56, big = false } = {}) {
+export function itemTileHTML(item, { px = 56, big = false, selected = false } = {}) {
   const r = RARITY_BY_ID[item.rarity];
   const badges = [];
   if (item.locked) badges.push('<span class="tile-badge bl">🔒</span>');
@@ -93,7 +93,8 @@ export function itemTileHTML(item, { px = 56, big = false } = {}) {
     const m = MATERIALS[item.material.id];
     if (m && m.icon) badges.push(`<span class="tile-badge bl2" style="color:${m.tintColor}">${m.icon}</span>`);
   }
-  return `<div class="item-tile rar-glow-${r.cssClass}${big ? ' big' : ''}" data-item-id="${item.id}" data-rarity="${item.rarity}">
+  if (selected) badges.push('<span class="tile-badge sel">✓</span>');
+  return `<div class="item-tile rar-glow-${r.cssClass}${big ? ' big' : ''}${selected ? ' selected' : ''}" data-item-id="${item.id}" data-rarity="${item.rarity}">
     <div class="item-tile-art pixel">${itemVisualHTML(item, px)}</div>${badges.join('')}
   </div>`;
 }
@@ -569,7 +570,7 @@ function invGridParts(list, px) {
     return { grid: '<div class="empty-state"><div class="empty-icon">🎒</div><div>Inventaire vide</div></div>', more: '' };
   }
   const shown = Math.min(invLimit, list.length);
-  const grid = list.slice(0, shown).map(i => itemTileHTML(i, { px })).join('');
+  const grid = list.slice(0, shown).map(i => itemTileHTML(i, { px, selected: invSelectMode && invSelected.has(i.id) })).join('');
   const more = list.length > shown
     ? `<div class="inv-more-wrap"><button class="btn-ghost inv-more" data-inv-more="1">▼ Afficher plus · ${shown} / ${list.length}</button></div>`
     : '';
@@ -578,6 +579,44 @@ function invGridParts(list, px) {
 
 export function setInvSortMode(m) { invSort = m; resetInvLimit(); renderAll(); }
 export function setInvSearchText(t) { invSearch = (t || '').toLowerCase(); resetInvLimit(); renderAll(); }
+
+// ── Vente multiple / sélection (UX-006) ──────────────────────
+// Mode sélection : taper une tuile (l)ajoute/(l)enlève de la sélection au lieu
+// d'ouvrir le détail. Les objets verrouillés ne sont jamais sélectionnables.
+let invSelectMode = false;
+const invSelected = new Set();
+let invRarityFilter = 'all';
+export function isSelectMode() { return invSelectMode; }
+export function setInvRarityFilter(r) { invRarityFilter = r; resetInvLimit(); renderAll(); }
+export function toggleSelectMode() {
+  invSelectMode = !invSelectMode;
+  if (!invSelectMode) invSelected.clear();
+  renderAll();
+}
+export function toggleItemSelect(id) {
+  const it = state.inventory.find(i => i.id === id);
+  if (!it || it.locked) return;          // verrouillé = jamais sélectionnable
+  if (invSelected.has(id)) invSelected.delete(id); else invSelected.add(id);
+  renderAll();
+}
+export function selectAllFiltered() {
+  for (const i of filteredInventory()) if (!i.locked) invSelected.add(i.id);
+  renderAll();
+}
+export function clearSelection() { invSelected.clear(); renderAll(); }
+export function openSellConfirm() {
+  if (!previewSell(invSelected).count) return;
+  navOverlay('confirmSell');
+}
+// Vente effective : une transaction unique, puis on nettoie la sélection et on
+// referme. Renvoie le résultat pour le retour sonore/visuel côté main.js.
+export function confirmSellSelected() {
+  const res = sellItemsByIds(invSelected);
+  invSelected.clear();
+  invSelectMode = false;
+  closeOverlay();
+  return res;
+}
 
 function filteredInventory() {
   let list = state.inventory.slice();
@@ -588,6 +627,7 @@ function filteredInventory() {
   else if (invFilter === 'shield') list = list.filter(i => i.slot === 'shield');
   else if (invFilter === 'unequipped') list = list; // all inventory is unequipped by definition
   else if (invFilter === 'locked') list = list.filter(i => i.locked);
+  if (invRarityFilter !== 'all') list = list.filter(i => i.rarity === invRarityFilter);
   const rIdx = (i) => RARITIES.findIndex(r => r.id === i.rarity);
   list.sort((a, b) => {
     if (invSort === 'rarity') return rIdx(b) - rIdx(a) || itemPowerContribution(b) - itemPowerContribution(a);
@@ -597,6 +637,31 @@ function filteredInventory() {
     return 0;
   });
   return list;
+}
+
+// Chips de filtre par rareté (inclut l'Ancestral, cf. UX-006).
+function invRarityChips() {
+  const chips = [['all', 'Toutes']].concat(RARITIES.map(r => [r.id, r.name]));
+  return `<div class="filter-chips rarity-chips">${chips.map(([id, lbl]) =>
+    `<button class="fchip rchip-${id}${invRarityFilter === id ? ' active' : ''}" data-rarity-filter="${id}">${lbl}</button>`).join('')}</div>`;
+}
+
+// Barre d'actions de vente multiple, affichée seulement en mode sélection.
+function invSelectionBar(list) {
+  if (!invSelectMode) return '';
+  const { count, total } = previewSell(invSelected);
+  const selectable = list.filter(i => !i.locked).length;
+  return `<div class="inv-selbar">
+    <span class="selbar-info mono">${count} sél. · 💰 ${fmt(total)}</span>
+    <button class="btn-ghost" data-inv-selectall="1">Tout (${selectable})</button>
+    <button class="btn-ghost" data-inv-clearsel="1">Aucun</button>
+    <button class="btn-gold" data-inv-sellsel="1"${count ? '' : ' disabled'}>Vendre</button>
+  </div>`;
+}
+
+// Bouton bascule du mode sélection, partagé mobile/desktop.
+function selectToggleBtn() {
+  return `<button class="btn-ghost${invSelectMode ? ' active' : ''}" data-inv-selecttoggle="1">${invSelectMode ? '✕ Quitter' : '☑ Sélection'}</button>`;
 }
 
 function screenInventory() {
@@ -637,9 +702,12 @@ function screenInventory() {
     <div class="filter-chips">
       ${filters.map(([id, lbl]) => `<button class="fchip${invFilter === id ? ' active' : ''}" data-filter="${id}">${lbl}</button>`).join('')}
     </div>
+    ${invRarityChips()}
+    ${invSelectionBar(list)}
     <div class="inv-grid">${grid}</div>
     ${more}
     <div class="inv-bulk">
+      ${selectToggleBtn()}
       <button class="btn-ghost" data-overlay="autosell">⚙ Auto-vente & gestion</button>
     </div>
   </div>`;
@@ -932,9 +1000,11 @@ function dtInventory() {
         <button class="btn-ghost" id="btn-auto-equip">⚡ Auto</button>
       </div>
       <div class="filter-chips">${filters.map(([id, lbl]) => `<button class="fchip${invFilter === id ? ' active' : ''}" data-filter="${id}">${lbl}</button>`).join('')}</div>
+      ${invRarityChips()}
+      ${invSelectionBar(list)}
       <div class="inv-grid dt-grid">${grid}</div>
       ${more}
-      <div class="inv-bulk"><button class="btn-ghost" data-overlay="autosell">⚙ Auto-vente & gestion</button></div>
+      <div class="inv-bulk">${selectToggleBtn()}<button class="btn-ghost" data-overlay="autosell">⚙ Auto-vente & gestion</button></div>
     </div>
     <aside class="dt-panel dt-detail">
       ${selected ? detailBody(selected) : '<div class="empty-state"><div class="empty-icon">🗡</div><div>Sélectionne un objet</div></div>'}
@@ -971,6 +1041,7 @@ const STATIC_OVERLAYS = new Set([
   // sensible dedans donc la reconstruction du DOM n'est pas gênante.
   'mimic',  // mimic is driven explicitly by refreshMimic()
   'bulkResult',
+  'confirmSell',  // contenu figé tant qu'ouvert ; boutons tappables
   // La fiche d'un bâtiment ne doit pas se reconstruire à chaque tick du
   // village (notify chaque seconde pendant une construction) : sinon le
   // portrait <img> se recrée et clignote. On la rafraîchit explicitement
@@ -1045,6 +1116,7 @@ const OVERLAYS = {
   menu: ovMenu,
   autosell: ovAutosell,
   bulkResult: ovBulkResult,
+  confirmSell: ovConfirmSell,
 };
 
 function overlayShell(title, inner, { wide = false, dark = false } = {}) {
@@ -1269,6 +1341,20 @@ function ovBulkResult() {
     ${notable ? `<div class="bulk-notables"><div class="smallcap">Trouvailles notables</div>${notable}</div>` : ''}
     <button class="btn-gold" data-close-overlay="1" style="margin-top:12px;width:100%">Continuer</button>`;
   return overlayShell('📦 Butin en masse', inner);
+}
+
+function ovConfirmSell() {
+  const { count, total } = previewSell(invSelected);
+  const inner = `
+    <div class="confirm-sell">
+      <div class="cs-line">Vendre <b>${count}</b> objet${count > 1 ? 's' : ''} pour <span class="gold-text mono">💰 ${fmt(total)}</span> ?</div>
+      <div class="cs-note smallcap">Les objets verrouillés 🔒 sont exclus. Action définitive.</div>
+      <div class="cs-actions">
+        <button class="btn-ghost" data-close-overlay="1">Annuler</button>
+        <button class="btn-gold" data-inv-confirmsell="1">Confirmer la vente</button>
+      </div>
+    </div>`;
+  return overlayShell('Vente groupée', inner);
 }
 
 function ovLoot() {

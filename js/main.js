@@ -292,6 +292,14 @@ document.body.addEventListener('click', async (e) => {
   const fchip = t.closest('[data-filter]');
   if (fchip) { UI.setInvFilter(fchip.dataset.filter); soundClick(); return; }
   if (t.closest('[data-inv-more]')) { UI.growInvLimit(); soundClick(); return; }
+  // ── Vente multiple (UX-006) ──
+  if (t.closest('[data-inv-selecttoggle]')) { UI.toggleSelectMode(); soundClick(); return; }
+  if (t.closest('[data-inv-selectall]')) { UI.selectAllFiltered(); soundClick(); return; }
+  if (t.closest('[data-inv-clearsel]')) { UI.clearSelection(); soundClick(); return; }
+  if (t.closest('[data-inv-sellsel]')) { UI.openSellConfirm(); soundClick(); return; }
+  if (t.closest('[data-inv-confirmsell]')) { const r = UI.confirmSellSelected(); if (r.earned > 0) soundCoin(); return; }
+  const rChip = t.closest('[data-rarity-filter]');
+  if (rChip) { UI.setInvRarityFilter(rChip.dataset.rarityFilter); soundClick(); return; }
   if (t.closest('#btn-auto-equip')) {
     const n = autoEquipBest();
     if (n > 0) { soundClick(); floatingText(`Équipé ×${n}`, innerWidth / 2, innerHeight / 2, '#f5c842'); }
@@ -319,6 +327,10 @@ document.body.addEventListener('click', async (e) => {
   if (tile && t.closest('.forge-pick')) { UI.setForgeSelected(tile.dataset.itemId); soundClick(); return; }
   if (t.closest('#forge-deselect')) { UI.setForgeSelected(null); return; }
 
+  // En mode sélection, taper une tuile l'ajoute/retire de la sélection (UX-006).
+  if (tile && t.closest('.inv-grid') && UI.isSelectMode()) {
+    UI.toggleItemSelect(tile.dataset.itemId); soundClick(); return;
+  }
   // Item tile → desktop selects the inline detail panel; mobile opens the sheet.
   if (tile && t.closest('.inv-grid, .doll-slot')) {
     if (UI.getMode() === 'desktop') UI.selectInvItem(tile.dataset.itemId);
