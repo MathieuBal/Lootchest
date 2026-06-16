@@ -1,8 +1,9 @@
 // Persistence: localStorage auto-save (debounced) + export/import JSON.
 import { state, replaceState, subscribe } from './state.js';
+import { regenerateItemName } from './loot.js';
 
 const KEY = 'lootchest.save.v1';
-export const CURRENT_SAVE_VERSION = 4;
+export const CURRENT_SAVE_VERSION = 5;
 
 // Migrations are run sequentially: from version N → N+1.
 // Each function receives `data` and mutates it in place (or returns a new object).
@@ -42,6 +43,16 @@ const MIGRATIONS = {
     if (data.orbs.focus === undefined) data.orbs.focus = 0;
     if (data.focusSlot === undefined) data.focusSlot = null;
     data.version = 4;
+    return data;
+  },
+  // 4 → 5 : corrige les accords masculin/féminin des noms générés (BUG-009).
+  //         Régénère le nom des objets ordinaires depuis leurs composants ;
+  //         sets/uniques gardent leur nom canonique. Stats, raretés, affixes,
+  //         matériau/élément/faction sont préservés (le nom est cosmétique).
+  4: (data) => {
+    if (Array.isArray(data.inventory)) data.inventory.forEach(regenerateItemName);
+    if (data.equipment) for (const slot of Object.keys(data.equipment)) regenerateItemName(data.equipment[slot]);
+    data.version = 5;
     return data;
   },
 };

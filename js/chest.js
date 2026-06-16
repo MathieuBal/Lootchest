@@ -88,23 +88,35 @@ export function openChests(n) {
   const items = [];
   const orbs = [];
   let opened = 0;
+  let mimic = null;
   while (opened < n && (state.keys || 0) >= 1) {
     state.keys -= 1;
     state.opened += 1;
+    opened += 1;
+    // Chaque coffre fait son PROPRE jet de Mimic, exactement comme autant
+    // d'ouvertures unitaires (BUG-010). Le Mimic est une rencontre interactive
+    // qui ne peut pas se résoudre en lot : dès qu'un coffre le déclenche, on
+    // s'arrête. Le coffre déclencheur est consommé (comme en ouverture simple,
+    // il ne donne pas de butin normal) mais les clés restantes ne le sont PAS,
+    // donc la probabilité cumulée n'est jamais réduite — le joueur rouvrira le
+    // reste après avoir résolu le Mimic.
+    if (shouldTriggerMimic()) {
+      mimic = startMimicEncounter({ chestTier: state.chestTier });
+      break;
+    }
     const forceSlot = consumeFocusSlot();
     const qty = rollItemQuantity(state.chestTier);
     for (let i = 0; i < qty; i++) {
       items.push(generateItemFromChest(state.chestTier, { forceSlot: i === 0 ? forceSlot : null }));
     }
     orbs.push(...rollOrbDrops(state.chestTier));
-    opened += 1;
   }
   if (opened > 0) {
     lastOpenAt = Date.now();
     bountyTrack('open_chests', opened);
     notify();
   }
-  return { items, orbs, opened };
+  return { items, orbs, opened, mimic };
 }
 
 export function getCurrentTier() {

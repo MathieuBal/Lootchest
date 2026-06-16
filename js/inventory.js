@@ -205,3 +205,43 @@ export function sellDrop(item) {
   notify();
   return earned;
 }
+
+// === Vente groupée par sélection (UX-006) ===
+// Prévisualise le total d'une sélection — n'inclut QUE les objets non
+// verrouillés, comme la vente réelle, pour que le total affiché soit exact.
+export function previewSell(idSet) {
+  if (!idSet || !idSet.size) return { count: 0, total: 0 };
+  const goldFindBonus = computeGoldFindBonus();
+  let count = 0, total = 0;
+  for (const item of state.inventory) {
+    if (idSet.has(item.id) && !item.locked) { total += sellPrice(item, goldFindBonus); count++; }
+  }
+  return { count, total };
+}
+
+// Vend en UNE seule transaction (un seul notify, une seule sauvegarde) tous les
+// objets sélectionnés non verrouillés. Les objets équipés ne sont pas dans
+// state.inventory, donc ils ne peuvent pas être vendus accidentellement.
+export function sellItemsByIds(idSet) {
+  if (!idSet || !idSet.size) return { sold: 0, earned: 0 };
+  const goldFindBonus = computeGoldFindBonus();
+  let earned = 0, sold = 0;
+  const remaining = [];
+  for (const item of state.inventory) {
+    if (idSet.has(item.id) && !item.locked) {
+      earned += sellPrice(item, goldFindBonus);
+      sold++;
+    } else {
+      remaining.push(item);
+    }
+  }
+  state.inventory = remaining;
+  state.gold += earned;
+  if (state.stats) {
+    state.stats.itemsSold += sold;
+    state.stats.totalGoldEarned += earned;
+  }
+  if (sold > 0) bountyTrack('sell_items', sold);
+  notify();
+  return { sold, earned };
+}

@@ -25,35 +25,38 @@ export const SLOT_BY_ID = Object.fromEntries(SLOTS.map(s => [s.id, s]));
 
 // Base item types per slot. Each one has an emoji + base stats template (per tier).
 // baseStats values are PER TIER 1 and scale up.
+// `gender` ('m'|'f') : genre grammatical du nom de base, renseigné explicitement
+// (jamais déduit du texte). Le générateur de noms l'utilise pour accorder les
+// adjectifs (préfixe aléatoire, élément, faction). Voir makeName / BUG-009.
 export const BASE_TYPES = {
   helmet: [
-    { id: 'cap',     name: 'Casquette',     emoji: '🧢', baseStats: { armor: 4,  vitality: 2 } },
-    { id: 'helm',    name: 'Heaume',        emoji: '🪖', baseStats: { armor: 6,  vitality: 1 } },
-    { id: 'crown',   name: 'Couronne',      emoji: '👑', baseStats: { armor: 3,  vitality: 5 } },
+    { id: 'cap',     name: 'Casquette',     gender: 'f', emoji: '🧢', baseStats: { armor: 4,  vitality: 2 } },
+    { id: 'helm',    name: 'Heaume',        gender: 'm', emoji: '🪖', baseStats: { armor: 6,  vitality: 1 } },
+    { id: 'crown',   name: 'Couronne',      gender: 'f', emoji: '👑', baseStats: { armor: 3,  vitality: 5 } },
   ],
   armor: [
-    { id: 'tunic',   name: 'Tunique',       emoji: '👕', baseStats: { armor: 7,  vitality: 4 } },
-    { id: 'plate',   name: 'Plastron',      emoji: '🦺', baseStats: { armor: 11, vitality: 2 } },
-    { id: 'robe',    name: 'Robe',          emoji: '🥋', baseStats: { armor: 5,  vitality: 8 } },
+    { id: 'tunic',   name: 'Tunique',       gender: 'f', emoji: '👕', baseStats: { armor: 7,  vitality: 4 } },
+    { id: 'plate',   name: 'Plastron',      gender: 'm', emoji: '🦺', baseStats: { armor: 11, vitality: 2 } },
+    { id: 'robe',    name: 'Robe',          gender: 'f', emoji: '🥋', baseStats: { armor: 5,  vitality: 8 } },
   ],
   weapon: [
-    { id: 'sword',   name: 'Épée',          emoji: '⚔️', baseStats: { damage: 8 } },
-    { id: 'axe',     name: 'Hache',         emoji: '🪓', baseStats: { damage: 11 } },
-    { id: 'bow',     name: 'Arc',           emoji: '🏹', baseStats: { damage: 7 } },
-    { id: 'wand',    name: 'Baguette',      emoji: '🪄', baseStats: { damage: 9 } },
-    { id: 'dagger',  name: 'Dague',         emoji: '🗡️', baseStats: { damage: 6 } },
+    { id: 'sword',   name: 'Épée',          gender: 'f', emoji: '⚔️', baseStats: { damage: 8 } },
+    { id: 'axe',     name: 'Hache',         gender: 'f', emoji: '🪓', baseStats: { damage: 11 } },
+    { id: 'bow',     name: 'Arc',           gender: 'm', emoji: '🏹', baseStats: { damage: 7 } },
+    { id: 'wand',    name: 'Baguette',      gender: 'f', emoji: '🪄', baseStats: { damage: 9 } },
+    { id: 'dagger',  name: 'Dague',         gender: 'f', emoji: '🗡️', baseStats: { damage: 6 } },
   ],
   shield: [
-    { id: 'buckler', name: 'Targe',         emoji: '🛡️', baseStats: { armor: 9 } },
-    { id: 'tower',   name: 'Pavois',        emoji: '🛡', baseStats: { armor: 14, vitality: 1 } },
+    { id: 'buckler', name: 'Targe',         gender: 'f', emoji: '🛡️', baseStats: { armor: 9 } },
+    { id: 'tower',   name: 'Pavois',        gender: 'm', emoji: '🛡', baseStats: { armor: 14, vitality: 1 } },
   ],
   ring: [
-    { id: 'band',    name: 'Anneau',        emoji: '💍', baseStats: {} },
-    { id: 'signet',  name: 'Chevalière',    emoji: '💎', baseStats: {} },
+    { id: 'band',    name: 'Anneau',        gender: 'm', emoji: '💍', baseStats: {} },
+    { id: 'signet',  name: 'Chevalière',    gender: 'f', emoji: '💎', baseStats: {} },
   ],
   amulet: [
-    { id: 'pendant', name: 'Pendentif',     emoji: '📿', baseStats: {} },
-    { id: 'talisman',name: 'Talisman',      emoji: '🧿', baseStats: {} },
+    { id: 'pendant', name: 'Pendentif',     gender: 'm', emoji: '📿', baseStats: {} },
+    { id: 'talisman',name: 'Talisman',      gender: 'm', emoji: '🧿', baseStats: {} },
   ],
 };
 
@@ -82,10 +85,24 @@ export const AFFIX_LIMITS = {
   ancestral: { prefix: 3, suffix: 3 },
 };
 
-// Random adjectives for procedural item names
+// Adjectifs aléatoires (placés avant le nom). Chaque entrée porte ses formes
+// masculine/féminine ; le générateur choisit selon le genre du nom (BUG-009).
+// Formes identiques aux deux genres (Vorace, Sauvage) : m === f.
 export const NAME_PREFIXES = [
-  'Brûlant', 'Maudit', 'Vorace', 'Sanglant', 'Givré', 'Sacré', 'Ancien',
-  'Spectral', 'Foudroyant', 'Brillant', 'Cruel', 'Royal', 'Sauvage', 'Astral',
+  { m: 'Brûlant',     f: 'Brûlante' },
+  { m: 'Maudit',      f: 'Maudite' },
+  { m: 'Vorace',      f: 'Vorace' },
+  { m: 'Sanglant',    f: 'Sanglante' },
+  { m: 'Givré',       f: 'Givrée' },
+  { m: 'Sacré',       f: 'Sacrée' },
+  { m: 'Ancien',      f: 'Ancienne' },
+  { m: 'Spectral',    f: 'Spectrale' },
+  { m: 'Foudroyant',  f: 'Foudroyante' },
+  { m: 'Brillant',    f: 'Brillante' },
+  { m: 'Cruel',       f: 'Cruelle' },
+  { m: 'Royal',       f: 'Royale' },
+  { m: 'Sauvage',     f: 'Sauvage' },
+  { m: 'Astral',      f: 'Astrale' },
 ];
 export const NAME_SUFFIXES = [
   'du Dragon', 'de l\'Ombre', 'des Ténèbres', 'du Roi', 'du Titan', 'des Cieux',
