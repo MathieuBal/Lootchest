@@ -240,18 +240,45 @@ function applyIdentityLayers(item) {
   applyFactionContribution(item, item.baseStats, item.statSources);
 }
 
+// Accorde un adjectif au genre du nom (BUG-009). Un adjectif peut être :
+//  - une chaîne invariante ("en Fer", "du Néant", "du Dragon") → renvoyée telle quelle ;
+//  - un objet { m, f } → on choisit la forme selon le genre ('m' par défaut).
+function adjForm(adj, gender) {
+  if (!adj) return '';
+  if (typeof adj === 'string') return adj;
+  return adj[gender] || adj.m || '';
+}
+
 function makeName(baseType, rarity, material, element, faction) {
-  const matSuffix = material ? ` ${material.adjective}` : '';
+  const g = baseType.gender || 'm';
+  const matSuffix = material ? ` ${material.adjective}` : '';      // invariant ("en Fer")
   // Element adjective comes RIGHT AFTER the base name (before the material):
   // "Lame Givrée en Acier" reads better than "Lame en Acier Givrée".
-  const elemAdj = (element && element.adjective) ? ` ${element.adjective}` : '';
+  const elemAdj = (element && element.adjective) ? ` ${adjForm(element.adjective, g)}` : '';
   // Faction adjective REPLACES the random NAME_SUFFIX on rare+ items so the
   // total name doesn't explode. Falls back to a random suffix if no faction.
-  const factionAdj = (faction && faction.adjective) ? faction.adjective : null;
+  const factionAdj = (faction && faction.adjective) ? adjForm(faction.adjective, g) : null;
+  const prefix = () => adjForm(pickRandom(NAME_PREFIXES), g);
   if (rarity === 'common') return `${baseType.name}${elemAdj}${matSuffix}`;
-  if (rarity === 'magic')  return `${pickRandom(NAME_PREFIXES)} ${baseType.name}${elemAdj}${matSuffix}`;
-  const suffix = factionAdj || pickRandom(NAME_SUFFIXES);
-  return `${pickRandom(NAME_PREFIXES)} ${baseType.name}${elemAdj}${matSuffix} ${suffix}`;
+  if (rarity === 'magic')  return `${prefix()} ${baseType.name}${elemAdj}${matSuffix}`;
+  const suffix = factionAdj || pickRandom(NAME_SUFFIXES);          // invariant ("du Dragon")
+  return `${prefix()} ${baseType.name}${elemAdj}${matSuffix} ${suffix}`;
+}
+
+// Régénère UNIQUEMENT le nom d'un objet ordinaire à partir de ses composants
+// stockés (type, rareté, matériau, élément, faction) — sans toucher stats,
+// rareté ni propriétés. Les noms de sets/uniques (canoniques) sont préservés.
+// Utilisé par la migration de sauvegarde pour corriger les accords (BUG-009).
+export function regenerateItemName(item) {
+  if (!item || item.setId || item.uniqueId) return;
+  const list = BASE_TYPES[item.slot];
+  if (!list) return;
+  const baseType = list.find(b => b.id === item.baseTypeId);
+  if (!baseType) return;
+  const mat  = item.material ? MATERIALS[item.material.id] : null;
+  const elem = item.element  ? ELEMENTS[item.element.id]   : null;
+  const fac  = item.faction  ? FACTIONS[item.faction.id]   : null;
+  item.name = makeName(baseType, item.rarity, mat, elem, fac);
 }
 
 function computeGoldValue(rarity, chestTier) {
