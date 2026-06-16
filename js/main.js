@@ -291,6 +291,7 @@ document.body.addEventListener('click', async (e) => {
   // ── Inventory ──
   const fchip = t.closest('[data-filter]');
   if (fchip) { UI.setInvFilter(fchip.dataset.filter); soundClick(); return; }
+  if (t.closest('[data-inv-more]')) { UI.growInvLimit(); soundClick(); return; }
   if (t.closest('#btn-auto-equip')) {
     const n = autoEquipBest();
     if (n > 0) { soundClick(); floatingText(`Équipé ×${n}`, innerWidth / 2, innerHeight / 2, '#f5c842'); }

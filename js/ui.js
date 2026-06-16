@@ -222,6 +222,9 @@ export function mountApp() {
 }
 
 export function navTab(tab) {
+  // Le sac s'ouvre toujours en fenêtre réduite (peinture légère, BUG-004) ;
+  // « Afficher plus » l'agrandit ensuite à la demande.
+  if (tab === 'inventory' && nav.tab !== 'inventory') resetInvLimit();
   nav.tab = tab;
   state.ui.leftTab = (tab === 'dungeon') ? 'dungeon' : 'chest'; // keep loop-mode logic compatible
   renderAll();
@@ -535,8 +538,32 @@ function screenDungeon() {
 
 // ── ② Inventory (interim functional — full redesign next) ────
 let invSort = 'rarity', invSearch = '', invFilter = 'all';
-export function setInvSortMode(m) { invSort = m; renderAll(); }
-export function setInvSearchText(t) { invSearch = (t || '').toLowerCase(); renderAll(); }
+// Windowing : on ne peint qu'une fenêtre bornée de tuiles par rendu. Sans ça,
+// renderAll() reconstruit un sprite SVG par objet à CHAQUE notify() (vente,
+// drop, tick…), ce qui fige le sac dès quelques centaines d'objets (BUG-004)
+// et rend la vente atroce avec 2300+ objets (BUG-005). On borne le coût DOM ;
+// un bouton « Afficher plus » agrandit la fenêtre à la demande.
+const INV_PAGE = 120;
+let invLimit = INV_PAGE;
+function resetInvLimit() { invLimit = INV_PAGE; }
+export function growInvLimit() { invLimit += INV_PAGE; renderAll(); }
+
+// Construit la grille bornée + le bouton « Afficher plus » éventuel.
+// Retourne { grid, more } pour que chaque écran place le bouton dans son layout.
+function invGridParts(list, px) {
+  if (!list.length) {
+    return { grid: '<div class="empty-state"><div class="empty-icon">🎒</div><div>Inventaire vide</div></div>', more: '' };
+  }
+  const shown = Math.min(invLimit, list.length);
+  const grid = list.slice(0, shown).map(i => itemTileHTML(i, { px })).join('');
+  const more = list.length > shown
+    ? `<div class="inv-more-wrap"><button class="btn-ghost inv-more" data-inv-more="1">▼ Afficher plus · ${shown} / ${list.length}</button></div>`
+    : '';
+  return { grid, more };
+}
+
+export function setInvSortMode(m) { invSort = m; resetInvLimit(); renderAll(); }
+export function setInvSearchText(t) { invSearch = (t || '').toLowerCase(); resetInvLimit(); renderAll(); }
 
 function filteredInventory() {
   let list = state.inventory.slice();
@@ -575,9 +602,7 @@ function screenInventory() {
     ['access', 'Access.'], ['shield', 'Boucliers'], ['locked', '🔒'],
   ];
   const list = filteredInventory();
-  const grid = list.length
-    ? list.map(i => itemTileHTML(i, { px: 48 })).join('')
-    : '<div class="empty-state"><div class="empty-icon">🎒</div><div>Inventaire vide</div></div>';
+  const { grid, more } = invGridParts(list, 48);
 
   return `<div class="inv">
     <div class="paper-doll panel">
@@ -599,12 +624,13 @@ function screenInventory() {
       ${filters.map(([id, lbl]) => `<button class="fchip${invFilter === id ? ' active' : ''}" data-filter="${id}">${lbl}</button>`).join('')}
     </div>
     <div class="inv-grid">${grid}</div>
+    ${more}
     <div class="inv-bulk">
       <button class="btn-ghost" data-overlay="autosell">⚙ Auto-vente & gestion</button>
     </div>
   </div>`;
 }
-export function setInvFilter(f) { invFilter = f; renderAll(); }
+export function setInvFilter(f) { invFilter = f; resetInvLimit(); renderAll(); }
 
 // ── ② Forge (interim functional) ─────────────────────────────
 let forgeSelectedId = null, forgeMode = 'actions';
@@ -873,7 +899,7 @@ function dtInventory() {
   if (invSelectedId && !list.some(i => i.id === invSelectedId) && !state.equipment[SLOT_BY_ID[invSelectedId] ? '' : '']) { /* keep selection if equipped */ }
   const selected = findAnyItem(invSelectedId) || list[0];
   const filters = [['all', `Tout ${state.inventory.length}`], ['weapon', 'Armes'], ['armor', 'Armure'], ['access', 'Access.'], ['shield', 'Boucliers'], ['locked', '🔒']];
-  const grid = list.length ? list.map(i => itemTileHTML(i, { px: 52 })).join('') : '<div class="empty-state"><div class="empty-icon">🎒</div><div>Inventaire vide</div></div>';
+  const { grid, more } = invGridParts(list, 52);
   return `<div class="dt-cols inv-dt">
     <aside class="dt-panel">
       <div class="dt-card panel"><div class="pd-head"><span class="display">Équipement</span><span class="mono gold-text">⚡ ${fmt(power)}</span></div>
@@ -893,6 +919,7 @@ function dtInventory() {
       </div>
       <div class="filter-chips">${filters.map(([id, lbl]) => `<button class="fchip${invFilter === id ? ' active' : ''}" data-filter="${id}">${lbl}</button>`).join('')}</div>
       <div class="inv-grid dt-grid">${grid}</div>
+      ${more}
       <div class="inv-bulk"><button class="btn-ghost" data-overlay="autosell">⚙ Auto-vente & gestion</button></div>
     </div>
     <aside class="dt-panel dt-detail">

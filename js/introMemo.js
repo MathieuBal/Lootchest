@@ -393,8 +393,23 @@ export function startMemoIntro({ onDone, replay = false } = {}) {
     }, 700);
   }
 
+  // Anti-saut de phrases (BUG-002) : une même intention joueur (double-clic,
+  // ghost-click tactile qui double le tap, clic qui bulle sur deux zones) ne
+  // doit jamais avancer de deux lignes. On impose un délai minimal entre deux
+  // changements de ligne. Court (≈ ¼ s) : un joueur qui lit vite enchaîne sans
+  // gêne, mais les déclenchements parasites < 250 ms sont absorbés.
+  const STEP_COOLDOWN = 250;
+  let lastStep = 0;
+  function stepReady() {
+    const now = performance.now();
+    if (now - lastStep < STEP_COOLDOWN) return false;
+    lastStep = now;
+    return true;
+  }
+
   function advance() {
     if (busy || phase !== 'dialogue') return;
+    if (!stepReady()) return;
     const c = SCRIPT[chap];
     if (li < c.lines.length - 1) { li++; showLine(); }
     else if (chap < SCRIPT.length - 1) goChapter(chap + 1);
@@ -402,6 +417,7 @@ export function startMemoIntro({ onDone, replay = false } = {}) {
   }
   function goBack() {
     if (busy || phase !== 'dialogue') return;
+    if (!stepReady()) return;
     if (li > 0) { li--; showLine(); }
     else if (chap > (replay ? 1 : 0)) goChapter(chap - 1, 'back');
   }
@@ -445,7 +461,10 @@ export function startMemoIntro({ onDone, replay = false } = {}) {
   beginBtn.addEventListener('click', () => finish(true));
 
   function onKey(e) {
-    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') advance();
+    // Ignore l'auto-répétition d'une touche maintenue : sinon garder la barre
+    // d'espace enfoncée fait défiler plusieurs phrases (BUG-002).
+    if (e.repeat) return;
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); advance(); }
     else if (e.key === 'ArrowLeft') goBack();
     else if (e.key === 'Escape') finish(false);
   }

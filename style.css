@@ -346,6 +346,8 @@ input, select { font-family: inherit; }
 .inv-grid::-webkit-scrollbar { display: none; }
 .inv-bulk { display: flex; gap: 8px; }
 .inv-bulk .btn-ghost { flex: 1; }
+.inv-more-wrap { display: flex; justify-content: center; margin: 8px 0 4px; }
+.inv-more { min-width: 200px; }
 
 /* Item tile */
 .item-tile { position: relative; aspect-ratio: 1; border-radius: var(--r-sm); background: var(--surface-sunken);
