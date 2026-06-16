@@ -1,5 +1,5 @@
 // Global game state + simple pub/sub for UI redraws.
-import { SLOTS, AUTOSELL_UNLOCK_COSTS } from './data.js';
+import { SLOTS, AUTOSELL_UNLOCK_COSTS, KEY_SOFT_CAP, KEY_OVERFLOW_GOLD } from './data.js';
 
 const listeners = new Set();
 
@@ -119,6 +119,23 @@ for (const slot of SLOTS) state.equipment[slot.id] = null;
 export function subscribe(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
+}
+
+// Crédite des clés en faisant déborder le surplus au-delà du soft cap vers l'or
+// (BAL-011, option 2). Centralise tous les gains de clés pour que le plafond
+// s'applique partout. Ne convertit QUE les clés nouvellement gagnées au-delà du
+// cap : un stock déjà gonflé (sauvegarde d'avant le correctif) n'est pas dumpé
+// d'un coup en or, il se vide naturellement par l'usage. Retourne l'or produit.
+export function grantKeys(n) {
+  n = Math.max(0, n | 0);
+  if (!n) return 0;
+  const cur = state.keys || 0;
+  const room = Math.max(0, KEY_SOFT_CAP - cur);
+  const toKeys = Math.min(n, room);
+  const toGold = (n - toKeys) * KEY_OVERFLOW_GOLD;
+  state.keys = cur + toKeys;
+  if (toGold) state.gold = (state.gold || 0) + toGold;
+  return toGold;
 }
 
 let pendingNotify = false;

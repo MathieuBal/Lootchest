@@ -1,5 +1,5 @@
 // Combat / dungeon logic. Resolution is instant (no per-turn animation in V1).
-import { state, notify } from './state.js';
+import { state, notify, grantKeys } from './state.js';
 import { computeStats, activeSetEffects } from './character.js';
 import { PLAYER_BASE, biomeForFloor, MONSTER_AFFIXES, ELITE_VARIANTS, echoLevelForFloor, maxAllowedChestTier, prestigeDamageMult, prestigeHpMult, deepHpMult, deepDmgMult, depthPowerMult } from './data.js';
 import { generateItem } from './loot.js';
@@ -588,8 +588,11 @@ export function applyCombatOutcome(floor, monster, won) {
     else if (monster.isElite) keyDrop = 1;
     else if (Math.random() < 0.30 + 0.15 * (monster.affixCount || 0)) keyDrop = 1;
     if (keyDrop > 0) {
-      state.keys = (state.keys || 0) + keyDrop;
+      // BAL-011 : passe par grantKeys pour appliquer le soft cap (le surplus
+      // déborde en or au lieu de gonfler un stock de clés sans valeur).
+      const overflowGold = grantKeys(keyDrop);
       monster.keyDrop = keyDrop;
+      if (overflowGold) monster.keyOverflowGold = overflowGold;
     }
 
     const streakDrop = 1 + Math.min(0.15, streak * 0.005);

@@ -4,7 +4,7 @@
 import { state, subscribe, resetState, notify } from './state.js';
 import { RARITIES, RARITY_BY_ID, CHEST_OPEN_COOLDOWN_MS, CURRENCY_BY_ID, PITY_THRESHOLD } from './data.js';
 import { startAutosave, loadFromLocal, exportSave, importSave, clearLocal } from './save.js';
-import { openChest, openChests, upgradeChest, canOpen, canUpgrade } from './chest.js';
+import { openChest, openChests, upgradeChest, canOpen, canUpgrade, openCost } from './chest.js';
 import { attemptCurrentFloor, prepareCurrentFloor, applyCombatOutcome, setCurrentFloor, attemptDiveFight, generateMonster, generateDiveMonster, predictDifficulty } from './combat.js';
 import { createBattle, executeTurn, canUseAction, autoChoice, ACTIONS as COMBAT_ACTIONS } from './combatTurn.js';
 import {
@@ -524,7 +524,10 @@ function fireTabMascot(tab) {
 }
 
 function openChestFlow() {
-  if (!canOpen()) { if (!state.keys) UI.showToast('🗝', 'Pas de clé', 'Farme des clés au donjon'); return; }
+  if (!canOpen()) {
+    if ((state.keys || 0) < openCost()) UI.showToast('🗝', 'Pas assez de clés', `Ce coffre coûte ${openCost()} clé${openCost() > 1 ? 's' : ''} · farme au donjon`);
+    return;
+  }
   soundChestOpen();
   const result = openChest();
   if (!result) return;
@@ -578,8 +581,11 @@ function openChestFlow() {
 }
 
 function openBulkFlow(n) {
-  n = Math.min(n | 0, state.keys || 0);
-  if (n < 1) { UI.showToast('🗝', 'Pas de clé', 'Farme des clés au donjon'); return; }
+  // BAL-011 : chaque coffre coûte openCost() clés, donc le nombre de coffres
+  // ouvrables est plafonné par les clés DISPONIBLES / coût, pas par les clés.
+  const cost = openCost();
+  n = Math.min(n | 0, Math.floor((state.keys || 0) / cost));
+  if (n < 1) { UI.showToast('🗝', 'Pas assez de clés', `Chaque coffre coûte ${cost} clé${cost > 1 ? 's' : ''} · farme au donjon`); return; }
   soundChestOpen();
   const { items, orbs, opened, mimic } = openChests(n);
   const summary = { opened, total: items.length, byRarity: {}, gold: 0, shards: 0, kept: 0, notable: [], orbs: {} };
@@ -768,6 +774,11 @@ async function fightFlow() {
       if (monster.keyDrop) {
         floatingText(`+${monster.keyDrop} 🗝`, c.x + 40, c.y - 30, '#ffd060'); soundCoin();
         summary.push(`+${monster.keyDrop} 🗝`);
+      }
+      // BAL-011 : clés au-delà du soft cap reversées en or — on le signale.
+      if (monster.keyOverflowGold) {
+        floatingText(`🗝→ +${monster.keyOverflowGold.toLocaleString('fr-FR')} 💰`, c.x + 40, c.y - 52, '#ffd060');
+        summary.push(`🗝 trop-plein → +${monster.keyOverflowGold.toLocaleString('fr-FR')} 💰`);
       }
       const res = grantDungeonResources(monster.floor, monster.isBoss, monster.isElite);
       if (res) summary.push(`+${res.wood} 🪵 · +${res.stone} 🪨`);

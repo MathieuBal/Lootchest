@@ -160,6 +160,19 @@ export const TALENT_BY_ID = Object.fromEntries(TALENTS.map(t => [t.id, t]));
 
 export const CHEST_OPEN_COOLDOWN_MS = 300;
 
+// === Économie des clés (BAL-011) ===
+// Le revenu de clés (combat) scale avec la progression alors que le sink
+// (ouverture) coûtait 1 clé fixe par coffre, quel que soit le tier → inflation :
+// des milliers de clés sans valeur en endgame. On indexe le coût d'ouverture sur
+// le tier (un coffre haut-tier vaut bien plus) pour que le sink suive le revenu,
+// et on convertit le trop-plein au-delà d'un cap en or (les joueurs déjà inondés
+// ne sont pas bloqués, et les clés gardent une valeur marginale).
+export function keyCostForTier(tier) {
+  return Math.max(1, Math.ceil((tier || 1) / 2)); // T1-2:1 · T3-4:2 · T5-6:3 · T7-8:4 · T9-10:5
+}
+export const KEY_SOFT_CAP = 500;        // au-delà, les clés gagnées débordent…
+export const KEY_OVERFLOW_GOLD = 50;    // …converties en or, par clé
+
 // Pity timer: every N non-legendary+ drops, force a legendary on the next chest open.
 export const PITY_THRESHOLD = 50;
 // Extended pity: guarantees rarer outcomes so long droughts can't happen.

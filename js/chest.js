@@ -1,6 +1,6 @@
 // Chest open / upgrade logic.
 import { state, notify } from './state.js';
-import { CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, CURRENCY_TYPES } from './data.js';
+import { CHEST_TIERS, CHEST_OPEN_COOLDOWN_MS, CURRENCY_TYPES, keyCostForTier } from './data.js';
 import { generateItemFromChest } from './loot.js';
 import { orbDropMultiplier } from './talents.js';
 import { trackProgress as bountyTrack } from './bounties.js';
@@ -23,9 +23,15 @@ export function rollOrbDrops(chestTier) {
 
 let lastOpenAt = 0;
 
+// Coût d'ouverture en clés du tier courant (BAL-011). Indexé sur le tier pour
+// que le sink suive le revenu de clés qui scale avec la progression.
+export function openCost() {
+  return keyCostForTier(state.chestTier);
+}
+
 export function canOpen() {
   if (Date.now() - lastOpenAt < CHEST_OPEN_COOLDOWN_MS) return false;
-  if ((state.keys || 0) < 1) return false;
+  if ((state.keys || 0) < openCost()) return false;
   return true;
 }
 
@@ -56,13 +62,13 @@ export function cooldownRemaining() {
 }
 
 export function hasKey() {
-  return (state.keys || 0) >= 1;
+  return (state.keys || 0) >= openCost();
 }
 
 export function openChest() {
   if (!canOpen()) return null;
   lastOpenAt = Date.now();
-  state.keys = (state.keys || 0) - 1;
+  state.keys = (state.keys || 0) - openCost();
   state.opened += 1;
   // Push-your-luck: 0.5% chance the chest is a Mimic. We hand off to the
   // encounter modal; the player's choices decide what they walk away with.
@@ -89,8 +95,9 @@ export function openChests(n) {
   const orbs = [];
   let opened = 0;
   let mimic = null;
-  while (opened < n && (state.keys || 0) >= 1) {
-    state.keys -= 1;
+  const cost = openCost(); // BAL-011 : coût par coffre, constant pour le tier courant
+  while (opened < n && (state.keys || 0) >= cost) {
+    state.keys -= cost;
     state.opened += 1;
     opened += 1;
     // Chaque coffre fait son PROPRE jet de Mimic, exactement comme autant

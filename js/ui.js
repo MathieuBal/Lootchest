@@ -14,7 +14,7 @@ import {
   RELIC_BY_ID, AFFIX_TIP, maxAllowedChestTier, FIXED_MAX_FLOOR, MIMIC,
 } from './data.js';
 import { computeStats, computePower, computeSetSummary, itemPowerContribution, computeStatsBreakdown } from './character.js';
-import { getCurrentTier, getNextTier, canUpgrade, canOpen, hasKey, cooldownRemaining, nextTierLockedBy } from './chest.js';
+import { getCurrentTier, getNextTier, canUpgrade, canOpen, hasKey, cooldownRemaining, nextTierLockedBy, openCost } from './chest.js';
 import { generateMonster, predictDifficulty, isBossFloor } from './combat.js';
 import { FORGE_ACTIONS, availableMasterCraftAffixes, canToggleAffixLock, exchangeNext, exchangeCost, canExchange, REROLL_PLUS_SHARD_COST } from './forge.js';
 import { shardYield, autoActionFor, previewSell, sellItemsByIds } from './inventory.js';
@@ -351,7 +351,8 @@ function screenHub() {
   const next = getNextTier();
   const lockedBy = nextTierLockedBy();
   const canUp = canUpgrade();
-  const enoughKeys = (state.keys || 0) > 0;
+  const oCost = openCost();
+  const enoughKeys = (state.keys || 0) >= oCost;
   const ancPity = Math.min(PITY_ANCESTRAL_THRESHOLD, state.pity?.sinceAncestral || 0);
   const uniPity = Math.min(PITY_UNIQUE_THRESHOLD, state.pity?.sinceUnique || 0);
   const focusOrbs = state.orbs?.focus || 0;
@@ -402,7 +403,7 @@ function screenHub() {
         <span class="cur-glyph">🗝</span><span class="mono">${fmt(state.keys)}</span>
       </button>
       <button class="btn-gold btn-open ${enoughKeys ? '' : 'is-disabled'}" id="btn-open">
-        <span class="open-ico">⬢</span> Ouvrir <span class="open-cost">· 1 clé</span>
+        <span class="open-ico">⬢</span> Ouvrir <span class="open-cost">· ${oCost} clé${oCost > 1 ? 's' : ''}</span>
       </button>
       <button class="btn-ghost btn-upgrade ${canUp ? 'ready' : ''}" id="btn-upgrade" ${(!next || lockedBy) ? 'disabled' : ''}
         title="${next ? (lockedBy ? 'Débloqué via Ascension Niv ' + lockedBy : 'Améliorer → ' + next.name + ' (' + fmt(next.upgradeCost) + ' or)') : 'Tier max'}">
@@ -410,8 +411,8 @@ function screenHub() {
       </button>
     </div>
     <div class="open-bar bulk-bar">
-      <button class="btn-ghost btn-open-bulk" id="btn-open10" ${(state.keys || 0) >= 1 ? '' : 'disabled'} title="Ouvrir jusqu'à 10 coffres">Ouvrir ×10</button>
-      <button class="btn-ghost btn-open-bulk" id="btn-open-max" ${(state.keys || 0) >= 1 ? '' : 'disabled'} title="Ouvrir toutes les clés">Ouvrir Max</button>
+      <button class="btn-ghost btn-open-bulk" id="btn-open10" ${enoughKeys ? '' : 'disabled'} title="Ouvrir jusqu'à 10 coffres (${oCost} clé${oCost > 1 ? 's' : ''} chacun)">Ouvrir ×10</button>
+      <button class="btn-ghost btn-open-bulk" id="btn-open-max" ${enoughKeys ? '' : 'disabled'} title="Ouvrir toutes les clés">Ouvrir Max</button>
     </div>
     ${nextStep ? `<div class="next-step pulse-gold">${nextStep}</div>` : '<div class="next-step-spacer"></div>'}
     <div class="chest-cooldown"><div class="chest-cooldown-fill" id="cooldown-fill"></div></div>
@@ -875,7 +876,8 @@ function dtHub() {
     `<div class="dt-droprow"><span class="rt-${r.cssClass}">${r.name}</span><div class="dt-droptrack"><i style="width:${weights[r.id]}%;background:${r.color}"></i></div><span class="mono">${weights[r.id]}%</span></div>`).join('');
   const next = getNextTier();
   const canUp = canUpgrade();
-  const enoughKeys = (state.keys || 0) > 0;
+  const oCost = openCost();
+  const enoughKeys = (state.keys || 0) >= oCost;
   return `<div class="dt-cols hub-dt">
     <div class="dt-stage">
       <div class="stage-tier smallcap gold-text">Tier ${tier.tier} · ${tier.name}</div>
@@ -886,7 +888,7 @@ function dtHub() {
       </div>
       <div class="open-bar">
         <button class="btn-key" data-nav="dungeon"><span class="cur-glyph">🗝</span><span class="mono">${fmt(state.keys)}</span></button>
-        <button class="btn-gold btn-open ${enoughKeys ? '' : 'is-disabled'}" id="btn-open"><span class="open-ico">⬢</span> Ouvrir <span class="open-cost">· 1 clé</span></button>
+        <button class="btn-gold btn-open ${enoughKeys ? '' : 'is-disabled'}" id="btn-open"><span class="open-ico">⬢</span> Ouvrir <span class="open-cost">· ${oCost} clé${oCost > 1 ? 's' : ''}</span></button>
       </div>
       <div class="open-bar bulk-bar">
         <button class="btn-ghost btn-open-bulk" id="btn-open10" ${enoughKeys ? '' : 'disabled'} title="Ouvrir jusqu'à 10 coffres">Ouvrir ×10</button>
